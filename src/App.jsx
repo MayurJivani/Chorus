@@ -1,7 +1,7 @@
 import { createBrowserRouter,RouterProvider } from 'react-router-dom';
 import './App.css'
 import LandingPage from './LandingPage';
-import { Search, Welcome } from './components';
+import { Play, Search, Welcome } from './components';
 
 function App() {
 
@@ -19,6 +19,10 @@ function App() {
     {
       path:"/welcome/",
       element:<Welcome/>
+    },
+    {
+      path:"/play/",
+      element:<Play/>
     },
     
 

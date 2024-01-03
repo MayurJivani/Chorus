@@ -3,7 +3,6 @@ import querystring from 'querystring';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import session from 'express-session';
 dotenv.config();
 
 import crypto from 'crypto';
@@ -21,13 +20,6 @@ const port = 8888;
 
 const app = express();
 app.use(cors());
-
-// Use sessions
-app.use(session({
-  secret: 'your-secret-key', // Change this to a secure value
-  resave: false,
-  saveUninitialized: true,
-}));
 
 let isAuthenticated = false;
 
@@ -79,7 +71,6 @@ app.get('/callback', async (req, res) => {
     const expireTime = response.data.expires_in;
     console.log(expireTime)
     // Store the access token in the session
-    req.session.access_token = access_token;
     isAuthenticated = true;
 
     // Redirect without exposing the access token in the URL
