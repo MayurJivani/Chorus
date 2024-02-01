@@ -1,29 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import useFetch from '../hooks/useFetch';
 import { Link } from 'react-router-dom';
+import { makeRequest } from '../makeRequest';
 
 function Welcome() {
-  const [playerName, setPlayerName] = useState("");
-  const { data: userData, loading, error } = useFetch(`me`);
+  const storedUserName = localStorage.getItem('username');
+  const [playerName, setPlayerName] = useState(storedUserName || "");
+  const [loading, setLoading] = useState(!storedUserName);
 
   useEffect(() => {
-    // Check if userData is available before updating the playerName
-    if (userData && userData.display_name) {
-      setPlayerName(userData.display_name);
+    const fetchData = async () => {
+      try {
+        const response = await makeRequest.get(`me`);
+        const newPlayerName = response.data.display_name;
+        setPlayerName(newPlayerName);
+        localStorage.setItem('username', newPlayerName);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (!storedUserName || storedUserName === '') {
+      fetchData();
     }
-  }, [userData]);
+  }, [storedUserName]);
 
   return (
-    <>
-      {loading && <p>Loading...</p>}
-      
-    
-        <div className='playerName'>
+    <div className='playerName'>
+      {loading ? (
+        <p>Loading...</p>
+      ) : playerName ? (
+        <>
           <h1>Hey, {playerName}👋</h1>
-          
-        </div>
-    
-    </>
+          <Link to="/search">Start Playin'</Link>
+        </>
+      ) : (
+        <p>Error loading player name.</p>
+      )}
+    </div>
   );
 }
 

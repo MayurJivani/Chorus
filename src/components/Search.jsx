@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 const Search = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [artistData, setArtistData] = useState([]);
-
+  
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery && searchQuery !== '') {

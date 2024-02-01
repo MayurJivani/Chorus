@@ -9,6 +9,7 @@ function Play() {
   const [albumsData, setAlbumsData] = useState([]);
   const [randomTrack, setRandomTrack] = useState(null); // State to store a random track
   const [isPlaying, setIsPlaying] = useState(false); // State to manage the play/pause state
+  const [guess, setGuess] = useState(''); // State to store user's guess
 
   // Fetch albums and tracks data only if not present in local storage
   const storedAlbums = JSON.parse(localStorage.getItem('albums'));
@@ -67,13 +68,22 @@ function Play() {
     if (isPlaying) {
       // Pause and seek to the beginning
       audioElement.pause();
-      audioElement.currentTime = 0;
+      audioElement.currentTime = 25;
     } else {
       // Play
       audioElement.play();
     }
 
     setIsPlaying(!isPlaying);
+  };
+
+  // Function to handle guess check
+  const handleGuessCheck = () => {
+    if (guess.toLowerCase() === randomTrack.name.toLowerCase()) {
+      alert('Correct guess!');
+    } else {
+      alert('Incorrect guess. Try again!');
+    }
   };
 
   return (
@@ -106,7 +116,14 @@ function Play() {
       <h2>Random Track</h2>
       {randomTrack ? (
         <div>
-          <p>{randomTrack.name}</p>
+          {/* <p>{randomTrack.name}</p> */}
+          <input
+            type="text"
+            value={guess}
+            onChange={(e) => setGuess(e.target.value)}
+            placeholder="Enter your guess"
+          />
+          <button onClick={handleGuessCheck}>Check Guess</button>
           {randomTrack.preview_url && (
             <div>
               <audio id="audioElement" controls={false} autoPlay={isPlaying}>
@@ -128,12 +145,6 @@ function Play() {
 const albumImageStyle = {
   width: '100px',
   height: '100px',
-  marginRight: '10px',
-};
-
-const trackImageStyle = {
-  width: '50px',
-  height: '50px',
   marginRight: '10px',
 };
 
