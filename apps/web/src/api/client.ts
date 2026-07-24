@@ -21,9 +21,9 @@ export class ApiError extends Error {
  * set, by construction, matching the double-submit-cookie pattern csrf-csrf implements.
  */
 function readCsrfTokenFromCookie(): string | null {
-  const match = document.cookie.match(/(?:^|;\s*)chorus_csrf=([^;]+)/);
-  if (!match?.[1]) return null;
-  const rawValue = decodeURIComponent(match[1]);
+  const match = document.cookie.match(/(?:^|;\s*)(chorus_csrf|__Host-chorus\.csrf)=([^;]+)/);
+  if (!match?.[2]) return null;
+  const rawValue = decodeURIComponent(match[2]);
   return rawValue.split('|')[0] ?? null;
 }
 
