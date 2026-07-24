@@ -7,18 +7,18 @@ interface SnippetProgressBarProps {
 }
 
 export function SnippetProgressBar({ stageIndex }: SnippetProgressBarProps) {
-  const maxSeconds = SNIPPET_SCHEDULE_SECONDS[SNIPPET_SCHEDULE_SECONDS.length - 1] ?? 1;
-  const currentSeconds =
-    SNIPPET_SCHEDULE_SECONDS[Math.min(stageIndex, SNIPPET_SCHEDULE_SECONDS.length - 1)] ?? 0;
+  const totalStages = SNIPPET_SCHEDULE_SECONDS.length;
+  const clampedIndex = Math.min(stageIndex, totalStages - 1);
+  const widthPercent = totalStages > 1 ? (clampedIndex / (totalStages - 1)) * 100 : 0;
 
   return (
     <div className="w-full max-w-md">
       {/* Track */}
       <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-chorus-surface/80">
         <motion.div
-          className="h-full rounded-full bg-chorus-gradient shadow-[0_0_8px_#7c5cffaa]"
+          className="h-full rounded-full bg-chorus-accent2"
           initial={{ width: 0 }}
-          animate={{ width: `${(currentSeconds / maxSeconds) * 100}%` }}
+          animate={{ width: `${widthPercent}%` }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
         />
       </div>

@@ -87,13 +87,14 @@ export function ArtistPlayPage() {
   }, []);
 
   // Reset localSkipCount when the round changes
-  const prevRound = useRef(challenge.currentRound);
+  const prevRound = useRef(challenge?.currentRound);
   useEffect(() => {
+    if (!challenge) return;
     if (challenge.currentRound !== prevRound.current) {
       setLocalSkipCount(0);
     }
     prevRound.current = challenge.currentRound;
-  }, [challenge.currentRound]);
+  }, [challenge?.currentRound]);
 
   if (status === 'loading') {
     return <Centered>Loading challenge…</Centered>;
