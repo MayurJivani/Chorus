@@ -6,7 +6,10 @@ RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/server/package.json apps/server/package.json
+# Coolify injects NODE_ENV=production at build time, which skips devDependencies and breaks
+# the prepare/husky hook. Force development here; runtime stage sets production below.
 ENV HUSKY=0
+ENV NODE_ENV=development
 RUN npm ci --legacy-peer-deps
 
 COPY tsconfig.base.json eslint.config.js .prettierrc.json ./

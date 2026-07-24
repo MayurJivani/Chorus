@@ -19,7 +19,7 @@
     "test": "npm run test --workspaces --if-present",
     "curate:songs": "npm run curate:songs -w apps/server",
     "reverify:songs": "npm run reverify:songs -w apps/server",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
