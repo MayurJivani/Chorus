@@ -1,0 +1,109 @@
+import { useState, useEffect } from 'react';
+import type { ArtistRoundOption, RevealedSong, SongSearchResult } from '../../types/api';
+
+interface MultipleChoiceGuessProps {
+  options: ArtistRoundOption[];
+  onGuess: (song: SongSearchResult) => void;
+  onSkip: () => void;
+  disabled?: boolean;
+  revealedSong?: RevealedSong | null;
+  roundEnded?: boolean;
+  selectedGuessId?: string | null;
+}
+
+export function MultipleChoiceGuess({
+  options,
+  onGuess,
+  onSkip,
+  disabled,
+  revealedSong,
+  roundEnded,
+  selectedGuessId,
+}: MultipleChoiceGuessProps) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedId(null);
+  }, [options]);
+
+  const handleSelect = (option: ArtistRoundOption) => {
+    if (disabled || roundEnded) return;
+    setSelectedId(option.deezerTrackId);
+    onGuess({
+      id: option.deezerTrackId,
+      title: option.title,
+      artist: option.artist,
+      albumArtUrl: null,
+    });
+  };
+
+  return (
+    <div className="flex w-full max-w-md flex-col gap-2.5">
+      {options.map((option) => {
+        const isSelected = roundEnded
+          ? selectedGuessId === option.deezerTrackId
+          : selectedId === option.deezerTrackId;
+        const isCorrect =
+          roundEnded &&
+          revealedSong &&
+          option.title.toLowerCase() === revealedSong.title.toLowerCase();
+        const isWrong = roundEnded && isSelected && !isCorrect;
+
+        let styleClass =
+          'border-white/10 bg-chorus-surface/80 text-slate-100 hover:border-white/30 hover:bg-white/5';
+        let badge = null;
+
+        if (roundEnded) {
+          if (isCorrect) {
+            styleClass =
+              'border-emerald-500 bg-emerald-950/80 text-emerald-200 ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-950/50';
+            badge = (
+              <span className="text-emerald-400 font-bold text-xs px-2 py-0.5 rounded-md bg-emerald-900/60 border border-emerald-500/30">
+                ✓ Correct
+              </span>
+            );
+          } else if (isWrong) {
+            styleClass =
+              'border-red-500 bg-red-950/80 text-red-200 ring-2 ring-red-500/50 shadow-lg shadow-red-950/50';
+            badge = (
+              <span className="text-red-400 font-bold text-xs px-2 py-0.5 rounded-md bg-red-900/60 border border-red-500/30">
+                ✕ Wrong
+              </span>
+            );
+          } else {
+            styleClass = 'border-white/5 bg-white/5 text-slate-500 opacity-40';
+          }
+        } else if (isSelected) {
+          styleClass = 'border-white/40 bg-white/10 text-white';
+        }
+
+        return (
+          <button
+            key={option.deezerTrackId}
+            type="button"
+            disabled={disabled || roundEnded}
+            onClick={() => handleSelect(option)}
+            className={`flex items-center justify-between rounded-xl border px-4 py-3.5 text-left backdrop-blur-sm transition-all duration-200 ${styleClass} disabled:cursor-not-allowed`}
+          >
+            <div className="flex flex-col">
+              <span className="font-semibold text-base">{option.title}</span>
+              <span className="text-xs opacity-75">{option.artist}</span>
+            </div>
+            {badge}
+          </button>
+        );
+      })}
+
+      {!roundEnded && (
+        <button
+          type="button"
+          onClick={onSkip}
+          disabled={disabled}
+          className="btn-ghost mt-1 w-full !rounded-xl !py-2.5 !text-sm"
+        >
+          Skip
+        </button>
+      )}
+    </div>
+  );
+}

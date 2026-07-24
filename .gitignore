@@ -18,8 +18,23 @@ dist-ssr
 .idea
 .DS_Store
 .env
+.env.*
+!.env.example
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# SQLite data
+*.db
+*.db-shm
+*.db-wal
+apps/server/data/
+
+# Vite build output served by Express
+apps/server/public/
+
+# Coverage
+coverage/
+.tsbuildinfo

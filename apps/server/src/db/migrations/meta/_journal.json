@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1784398239541,
+      "tag": "0000_goofy_talkback",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1784398247948,
+      "tag": "0001_songs_fts",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784415084180,
+      "tag": "0002_furry_morlocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784420136182,
+      "tag": "0003_daily_zodiak",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784868288000,
+      "tag": "0004_time_tracking",
+      "breakpoints": true
+    }
+  ]
+}
