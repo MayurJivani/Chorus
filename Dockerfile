@@ -6,7 +6,7 @@ RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/server/package.json apps/server/package.json
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 COPY tsconfig.base.json eslint.config.js .prettierrc.json ./
 COPY apps/web/ apps/web/
@@ -40,4 +40,4 @@ EXPOSE 8888
 WORKDIR /app/apps/server
 
 ENTRYPOINT ["tini", "--"]
-CMD node dist/db/migrate.js && node dist/index.js
+CMD ["sh", "-c", "node dist/db/migrate.js && node dist/index.js"]
