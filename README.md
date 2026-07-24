@@ -4,7 +4,7 @@
 
 Listen to a growing snippet of a song and guess it in as few listens as possible.
 
-🎮 **Play now:** [chorus.futile.studio](https://chorus.futile.studio?utm_source=chatgpt.com)
+🎮 **Play now:** [chorus.futile.studio](https://chorus.futile.studio)
 
 Guests can play instantly. Create an account to permanently save your streaks and stats.
 
