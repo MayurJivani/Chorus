@@ -46,7 +46,7 @@ authRouter.post('/register', authRateLimiter, validate(registerSchema), async (r
   bindUserToSession(req, res, id);
   // Rotating the session invalidates the CSRF token the client is holding — issue a fresh one
   // bound to the new session so the very next state-changing request doesn't get rejected.
-  const csrfToken = generateCsrfToken(req, res, true);
+  const csrfToken = generateCsrfToken(req, res, { overwrite: true });
 
   res.status(201).json({ user: toPublicUser({ id, email, displayName }), csrfToken });
 });
@@ -75,14 +75,14 @@ authRouter.post('/login', authRateLimiter, validate(loginSchema), async (req, re
     .where(eq(users.id, user.id))
     .run();
   bindUserToSession(req, res, user.id);
-  const csrfToken = generateCsrfToken(req, res, true);
+  const csrfToken = generateCsrfToken(req, res, { overwrite: true });
 
   res.json({ user: toPublicUser(user), csrfToken });
 });
 
 authRouter.post('/logout', (req, res) => {
   destroySession(req, res);
-  const csrfToken = generateCsrfToken(req, res, true);
+  const csrfToken = generateCsrfToken(req, res, { overwrite: true });
   res.json({ ok: true, csrfToken });
 });
 

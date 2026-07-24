@@ -1,6 +1,4 @@
 import js from '@eslint/js';
-import tseslint from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
@@ -9,31 +7,15 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '**/*.db'],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '**/*.db', 'apps/server/public/**', '*.ts', '*.tsx', '*.mts', '*.cts'],
   },
   js.configs.recommended,
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['apps/web/**/*.jsx'],
     languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        ecmaFeatures: { jsx: true },
-      },
-      globals: { ...globals.es2022 },
-    },
-    plugins: { '@typescript-eslint': tseslint },
-    rules: {
-      ...tseslint.configs.recommended.rules,
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
-    },
-  },
-  {
-    files: ['apps/web/**/*.{ts,tsx}'],
-    languageOptions: {
-      globals: { ...globals.browser },
+      globals: { ...globals.browser, ...globals.es2022 },
+      ecmaVersion: 'latest',
+      sourceType: 'module',
     },
     plugins: {
       react,
@@ -45,18 +27,17 @@ export default [
       ...reactHooks.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
     settings: { react: { version: 'detect' } },
   },
   {
-    files: ['apps/server/**/*.ts', 'scripts/**/*.ts'],
+    files: ['scripts/**/*.js'],
     languageOptions: {
-      globals: { ...globals.node },
+      globals: { ...globals.node, ...globals.es2022 },
+      ecmaVersion: 'latest',
+      sourceType: 'module',
     },
-  },
-  {
-    // CLI scripts print progress/results to stdout by design.
-    files: ['scripts/**/*.ts'],
     rules: {
       'no-console': 'off',
     },

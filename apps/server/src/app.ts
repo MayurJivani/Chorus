@@ -48,7 +48,7 @@ export function createApp(): Express {
     app.use(express.static(publicDir));
     // SPA catch-all: serve index.html for any non-/api route so that
     // client-side routes (e.g. /play, /artist) work on hard refresh.
-    app.get('*', (_req, res, next) => {
+    app.get('/{*path}', (_req, res, next) => {
       const indexPath = path.join(publicDir, 'index.html');
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);

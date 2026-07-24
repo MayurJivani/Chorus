@@ -18,7 +18,11 @@ export function validate(schema: ZodSchema, target: ValidationTarget = 'body') {
       return;
     }
 
-    req[target] = result.data;
+    if (target === 'query') {
+      Object.assign(req.query, result.data);
+    } else {
+      req[target] = result.data;
+    }
     next();
   };
 }

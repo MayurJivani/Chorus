@@ -90,7 +90,7 @@ export function sessionMiddleware(req: Request, res: Response, next: NextFunctio
   // cookie the caller sent was valid), so whatever CSRF cookie the browser is holding — if
   // any — is now stale too; regenerate it here rather than leaving the client to discover
   // the mismatch on its next state-changing request.
-  generateCsrfToken(req, res, true);
+  generateCsrfToken(req, res, { overwrite: true });
   next();
 }
 
