@@ -7,6 +7,7 @@
  * call to Deezer's public API.
  */
 import { isUnwantedVersion, mentionsFeature } from '../utils/trackFilters';
+import { logger } from '../logger';
 
 interface FreshPreview {
   previewUrl: string;
@@ -51,9 +52,6 @@ export function clearPreviewCache(): void {
 }
 
 // --- Artist lookups (Artist Mode) -------------------------------------------------------
-// The track *list* for an artist doesn't expire the way preview URLs do, so this cache uses
-// a much longer TTL — it just saves repeat calls to Deezer while a challenge is being built
-// or re-viewed, not a workaround for a short-lived signed URL.
 
 const ARTIST_CACHE_TTL_MS = 60 * 60 * 1000;
 
@@ -85,18 +83,14 @@ export async function searchArtists(query: string): Promise<ArtistSearchResult[]
   if (!res.ok) return [];
 
   const body = (await res.json()) as DeezerArtistSearchResponse;
-  return (
-    (body.data ?? [])
-      .filter(
-        (a): a is Required<Pick<DeezerArtistResponse, 'id' | 'name'>> & DeezerArtistResponse =>
-          typeof a.id === 'number' && typeof a.name === 'string',
-      )
-      // Deezer's default search order doesn't reliably surface the best-known artist first
-      // (duplicate/low-profile entries can outrank the famous one) — sort by fan count instead.
-      .sort((a, b) => (b.nb_fan ?? 0) - (a.nb_fan ?? 0))
-      .slice(0, 5)
-      .map((a) => ({ id: a.id, name: a.name, pictureUrl: a.picture_medium ?? null }))
-  );
+  return (body.data ?? [])
+    .filter(
+      (a): a is Required<Pick<DeezerArtistResponse, 'id' | 'name'>> & DeezerArtistResponse =>
+        typeof a.id === 'number' && typeof a.name === 'string',
+    )
+    .sort((a, b) => (b.nb_fan ?? 0) - (a.nb_fan ?? 0))
+    .slice(0, 5)
+    .map((a) => ({ id: a.id, name: a.name, pictureUrl: a.picture_medium ?? null }));
 }
 
 const artistCache = new Map<
@@ -137,7 +131,19 @@ export interface ArtistTrack {
   durationSeconds: number;
 }
 
-interface DeezerArtistTrack {
+interface DeezerAlbum {
+  id: number;
+  title: string;
+  nb_tracks: number;
+  cover_medium?: string;
+}
+
+interface DeezerAlbumListResponse {
+  data: DeezerAlbum[];
+  next?: string;
+}
+
+interface DeezerAlbumTrack {
   id: number;
   title: string;
   duration: number;
@@ -146,18 +152,50 @@ interface DeezerArtistTrack {
   album?: { cover_medium?: string };
 }
 
-interface DeezerArtistTopTracksResponse {
-  data: DeezerArtistTrack[];
+interface DeezerAlbumTrackResponse {
+  data: DeezerAlbumTrack[];
+  next?: string;
+}
+
+async function fetchAllAlbums(artistId: number): Promise<DeezerAlbum[]> {
+  const albums: DeezerAlbum[] = [];
+  let url: string | null = `https://api.deezer.com/artist/${artistId}/albums?limit=100`;
+
+  while (url) {
+    const res = await fetch(url, { headers: { Referer: 'https://chorus.app/' } });
+    if (!res.ok) break;
+    const body = (await res.json()) as DeezerAlbumListResponse;
+    albums.push(...(body.data ?? []));
+    url = body.next ?? null;
+  }
+
+  return albums;
+}
+
+async function fetchAlbumTracks(albumId: number): Promise<DeezerAlbumTrack[]> {
+  const tracks: DeezerAlbumTrack[] = [];
+  let url: string | null = `https://api.deezer.com/album/${albumId}/tracks?limit=100`;
+
+  while (url) {
+    const res = await fetch(url, { headers: { Referer: 'https://chorus.app/' } });
+    if (!res.ok) break;
+    const body = (await res.json()) as DeezerAlbumTrackResponse;
+    tracks.push(...(body.data ?? []));
+    url = body.next ?? null;
+  }
+
+  return tracks;
 }
 
 const topTracksCache = new Map<string, CacheEntry<ArtistTrack[]>>();
 
 /**
- * Fetches an artist's top tracks, always excluding karaoke/tribute/acoustic/live/remix/etc.
- * versions (never a good pick for a guessing game). `includeFeatures` controls whether tracks
- * whose title credits another artist as a feature (e.g. "... ft. Coldplay") are kept — those
- * often mean the searched artist isn't really the track's primary artist. Defaults to
- * excluding them, which is the more focused/expected experience for "play this artist."
+ * Fetches an artist's full discography (all albums → all tracks), filtering out
+ * karaoke/tribute/acoustic/live/remix/etc. versions. `includeFeatures` controls whether
+ * tracks whose title credits another artist as a feature are kept.
+ *
+ * Results are cached for one hour. For popular artists with many albums this may take a
+ * moment on the first call, but subsequent loads within the hour reuse the cached pool.
  */
 export async function getArtistTopTracks(
   artistId: number,
@@ -169,23 +207,63 @@ export async function getArtistTopTracks(
     return cached.value;
   }
 
-  const res = await fetch(`https://api.deezer.com/artist/${artistId}/top?limit=50`, {
-    headers: { Referer: 'https://chorus.app/' },
-  });
-  if (!res.ok) return [];
+  logger.info(`Fetching full discography for artist ${artistId}...`);
 
-  const body = (await res.json()) as DeezerArtistTopTracksResponse;
-  const tracks: ArtistTrack[] = (body.data ?? [])
-    .filter((t) => Boolean(t.preview))
-    .filter((t) => !isUnwantedVersion(t.title))
-    .filter((t) => includeFeatures || !mentionsFeature(t.title))
-    .map((t) => ({
+  const albums = await fetchAllAlbums(artistId);
+  logger.info(`Found ${albums.length} albums for artist ${artistId}`);
+
+  // Build a lookup from album id → cover art so tracks can inherit their parent album's art.
+  const albumCovers = new Map<number, string | null>();
+  for (const a of albums) {
+    albumCovers.set(a.id, a.cover_medium ?? null);
+  }
+
+  // Fetch tracks from each album concurrently (capped to avoid flooding Deezer).
+  const CONCURRENCY = 5;
+  const allRawTracks: (DeezerAlbumTrack & { albumId?: number })[] = [];
+
+  for (let i = 0; i < albums.length; i += CONCURRENCY) {
+    const batch = albums.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async (a) => {
+        const tracks = await fetchAlbumTracks(a.id);
+        return tracks.map((t) => ({ ...t, albumId: a.id }));
+      }),
+    );
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        allRawTracks.push(...r.value);
+      }
+    }
+  }
+
+  // Filter and deduplicate by normalized title since the same track can appear on
+  // multiple albums (singles, compilations, deluxe editions, etc.).
+  const seen = new Set<string>();
+  const tracks: ArtistTrack[] = [];
+
+  for (const t of allRawTracks) {
+    if (!t.preview) continue;
+    if (isUnwantedVersion(t.title)) continue;
+    if (!includeFeatures && mentionsFeature(t.title)) continue;
+
+    const normalizedTitle = t.title.toLowerCase().trim();
+    if (seen.has(normalizedTitle)) continue;
+    seen.add(normalizedTitle);
+
+    tracks.push({
       deezerTrackId: String(t.id),
       title: t.title,
       artist: t.artist?.name ?? 'Unknown',
-      albumArtUrl: t.album?.cover_medium ?? null,
+      albumArtUrl:
+        t.album?.cover_medium ?? (t.albumId != null ? (albumCovers.get(t.albumId) ?? null) : null),
       durationSeconds: t.duration,
-    }));
+    });
+  }
+
+  logger.info(
+    `Discography for artist ${artistId}: ${allRawTracks.length} raw → ${tracks.length} after filtering`,
+  );
 
   topTracksCache.set(cacheKey, { value: tracks, expiresAt: Date.now() + ARTIST_CACHE_TTL_MS });
   return tracks;

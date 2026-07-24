@@ -6,6 +6,7 @@ import type {
   ChallengeLeaderboardResponse,
   ArtistSearchResult,
   SongSearchResult,
+  GuessDistributionResponse,
 } from '../types/api';
 
 export async function searchArtists(query: string): Promise<ArtistSearchResult[]> {
@@ -73,4 +74,8 @@ export function getChallengeLeaderboard(
   return apiRequest<ChallengeLeaderboardResponse>(
     `/artists/${artistId}/challenge/${challengeId}/leaderboard`,
   );
+}
+
+export function getArtistGuessDistribution(artistId: number): Promise<GuessDistributionResponse> {
+  return apiRequest<GuessDistributionResponse>(`/artists/${artistId}/stats/guess-distribution`);
 }

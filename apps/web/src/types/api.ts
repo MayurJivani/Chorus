@@ -143,3 +143,12 @@ export interface ArtistLeaderboardResponse {
 export interface ChallengeLeaderboardResponse {
   entries: ArtistLeaderboardEntry[];
 }
+
+export interface GuessDistributionBucket {
+  snippetSeconds: number;
+  label: string;
+  allPlayers: number;
+  myGuesses: number;
+}
+
+export type GuessDistributionResponse = GuessDistributionBucket[];

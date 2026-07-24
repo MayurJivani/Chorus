@@ -57,9 +57,13 @@ export function useArtistGameState(
         setRoundHistory([]);
         setRevealedSong(null);
         setStatus(current.completed ? 'completed' : 'playing');
-      } catch {
+      } catch (err) {
         setStatus('error');
-        setErrorMessage("Couldn't load this artist's challenge. Please try again.");
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "Couldn't load this artist's challenge. Please try again.",
+        );
       }
     },
     [artistId, includeFeatures, guessMode, sharedChallengeId],

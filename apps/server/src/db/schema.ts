@@ -76,6 +76,25 @@ export const gameResults = sqliteTable(
   ],
 );
 
+export const artistRoundGuesses = sqliteTable(
+  'artist_round_guesses',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    sessionId: integer('session_id')
+      .notNull()
+      .references(() => artistSessionResults.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    correct: integer('correct', { mode: 'boolean' }).notNull(),
+    snippetStageSeconds: integer('snippet_stage_seconds').notNull(),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [
+    uniqueIndex('artist_round_guesses_session_position_idx').on(table.sessionId, table.position),
+  ],
+);
+
 export const userStats = sqliteTable('user_stats', {
   ownerKey: text('owner_key').primaryKey(), // user_id if present, else guest_id
   currentStreak: integer('current_streak').notNull().default(0),
@@ -180,3 +199,5 @@ export type ArtistChallenge = typeof artistChallenges.$inferSelect;
 export type ArtistChallengeTrack = typeof artistChallengeTracks.$inferSelect;
 export type NewArtistChallengeTrack = typeof artistChallengeTracks.$inferInsert;
 export type ArtistSessionResult = typeof artistSessionResults.$inferSelect;
+export type ArtistRoundGuess = typeof artistRoundGuesses.$inferSelect;
+export type NewArtistRoundGuess = typeof artistRoundGuesses.$inferInsert;

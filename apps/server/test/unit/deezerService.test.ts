@@ -38,12 +38,10 @@ describe('getFreshPreviewUrl', () => {
   it('returns null when Deezer reports an error for the track', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          json: () => Promise.resolve({ error: { message: 'no data' } }),
-        }),
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ error: { message: 'no data' } }),
+      }),
     );
     expect(await getFreshPreviewUrl('bad-id')).toBeNull();
   });
@@ -123,27 +121,60 @@ describe('getArtistById', () => {
 });
 
 describe('getArtistTopTracks', () => {
+  function mockAlbumsAndTracks(
+    albums: { id: number; title: string; cover_medium?: string }[],
+    tracksByAlbum: Record<
+      number,
+      { id: number; title: string; duration: number; preview?: string; artist?: { name: string } }[]
+    >,
+  ) {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/albums?')) {
+        return { ok: true, json: async () => ({ data: albums }) };
+      }
+      const match = url.match(/\/album\/(\d+)\/tracks/);
+      if (match) {
+        const albumId = Number(match[1]);
+        return { ok: true, json: async () => ({ data: tracksByAlbum[albumId] ?? [] }) };
+      }
+      return { ok: false };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('carries album cover_medium into track results', async () => {
+    mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: 'album-a.jpg' }], {
+      1: [
+        { id: 111, title: 'Track One', duration: 200, preview: 'a.mp3', artist: { name: 'Queen' } },
+      ],
+    });
+
+    const tracks = await getArtistTopTracks(412);
+    expect(tracks).toEqual([
+      {
+        deezerTrackId: '111',
+        title: 'Track One',
+        artist: 'Queen',
+        albumArtUrl: 'album-a.jpg',
+        durationSeconds: 200,
+      },
+    ]);
+  });
+
   it('filters out tracks with no preview and maps fields', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: [
-              {
-                id: 111,
-                title: 'Has Preview',
-                duration: 200,
-                preview: 'https://example.test/x.mp3',
-                artist: { name: 'Queen' },
-                album: { cover_medium: 'art.jpg' },
-              },
-              { id: 222, title: 'No Preview', duration: 180, artist: { name: 'Queen' } },
-            ],
-          }),
-      }),
-    );
+    mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: 'art.jpg' }], {
+      1: [
+        {
+          id: 111,
+          title: 'Has Preview',
+          duration: 200,
+          preview: 'https://example.test/x.mp3',
+          artist: { name: 'Queen' },
+        },
+        { id: 222, title: 'No Preview', duration: 180, artist: { name: 'Queen' } },
+      ],
+    });
 
     const tracks = await getArtistTopTracks(412);
     expect(tracks).toEqual([
@@ -158,79 +189,79 @@ describe('getArtistTopTracks', () => {
   });
 
   it('excludes acoustic/live/remix/etc. versions regardless of includeFeatures', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: [
-              {
-                id: 1,
-                title: 'Yellow',
-                duration: 200,
-                preview: 'a.mp3',
-                artist: { name: 'Coldplay' },
-              },
-              {
-                id: 2,
-                title: 'Yellow (Acoustic)',
-                duration: 200,
-                preview: 'b.mp3',
-                artist: { name: 'Coldplay' },
-              },
-              {
-                id: 3,
-                title: 'Yellow - Live at Wembley',
-                duration: 200,
-                preview: 'c.mp3',
-                artist: { name: 'Coldplay' },
-              },
-              {
-                id: 4,
-                title: 'Yellow (Remix)',
-                duration: 200,
-                preview: 'd.mp3',
-                artist: { name: 'Coldplay' },
-              },
-            ],
-          }),
-      }),
-    );
+    mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: undefined }], {
+      1: [
+        { id: 1, title: 'Yellow', duration: 200, preview: 'a.mp3', artist: { name: 'Coldplay' } },
+        {
+          id: 2,
+          title: 'Yellow (Acoustic)',
+          duration: 200,
+          preview: 'b.mp3',
+          artist: { name: 'Coldplay' },
+        },
+        {
+          id: 3,
+          title: 'Yellow - Live at Wembley',
+          duration: 200,
+          preview: 'c.mp3',
+          artist: { name: 'Coldplay' },
+        },
+        {
+          id: 4,
+          title: 'Yellow (Remix)',
+          duration: 200,
+          preview: 'd.mp3',
+          artist: { name: 'Coldplay' },
+        },
+      ],
+    });
 
     const tracks = await getArtistTopTracks(412, true);
     expect(tracks.map((t) => t.title)).toEqual(['Yellow']);
   });
 
   it('excludes tracks whose title credits a feature when includeFeatures is false', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: [
-              {
-                id: 1,
-                title: 'The Scientist',
-                duration: 200,
-                preview: 'a.mp3',
-                artist: { name: 'Coldplay' },
-              },
-              {
-                id: 2,
-                title: 'Ma Meilleure Ennemie ft. Coldplay',
-                duration: 200,
-                preview: 'b.mp3',
-                artist: { name: 'Stromae' },
-              },
-            ],
-          }),
-      }),
-    );
+    mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: undefined }], {
+      1: [
+        {
+          id: 1,
+          title: 'The Scientist',
+          duration: 200,
+          preview: 'a.mp3',
+          artist: { name: 'Coldplay' },
+        },
+        {
+          id: 2,
+          title: 'Ma Meilleure Ennemie ft. Coldplay',
+          duration: 200,
+          preview: 'b.mp3',
+          artist: { name: 'Stromae' },
+        },
+      ],
+    });
 
     const excluded = await getArtistTopTracks(412, false);
     expect(excluded.map((t) => t.title)).toEqual(['The Scientist']);
+
+    clearArtistCaches();
+    mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: undefined }], {
+      1: [
+        {
+          id: 1,
+          title: 'The Scientist',
+          duration: 200,
+          preview: 'a.mp3',
+          artist: { name: 'Coldplay' },
+        },
+        {
+          id: 2,
+          title: 'Ma Meilleure Ennemie ft. Coldplay',
+          duration: 200,
+          preview: 'b.mp3',
+          artist: { name: 'Stromae' },
+        },
+      ],
+    });
 
     const included = await getArtistTopTracks(412, true);
     expect(included.map((t) => t.title)).toEqual([
@@ -240,17 +271,17 @@ describe('getArtistTopTracks', () => {
   });
 
   it('caches separately per includeFeatures setting', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({ data: [{ id: 1, title: 'Song', duration: 200, preview: 'a.mp3' }] }),
+    const fetchMock = mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: undefined }], {
+      1: [{ id: 1, title: 'Song', duration: 200, preview: 'a.mp3' }],
     });
-    vi.stubGlobal('fetch', fetchMock);
 
     await getArtistTopTracks(412, false);
     await getArtistTopTracks(412, false);
     await getArtistTopTracks(412, true);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Albums fetch: 1 for false (cached on second call), 1 for true = 2 album calls
+    // Tracks fetch: 1 for false, 1 for true = 2 track calls
+    // Total: 4 fetch calls
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

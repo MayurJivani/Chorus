@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { ArtistLeaderboard } from './ArtistLeaderboard';
+import { ArtistGuessDistribution } from './ArtistGuessDistribution';
 
 interface ArtistSessionSummaryProps {
   artistId: number;
@@ -73,6 +74,8 @@ export function ArtistSessionSummary({
       </div>
 
       <ArtistLeaderboard artistId={artistId} artistName={artistName} challengeId={challengeId} />
+
+      <ArtistGuessDistribution artistId={artistId} />
 
       <div className="flex w-full flex-col gap-3">
         {challengeId && (

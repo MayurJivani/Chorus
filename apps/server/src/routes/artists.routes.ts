@@ -23,6 +23,7 @@ import { validate } from '../middleware/validate';
 import { searchRateLimiter, guessRateLimiter } from '../middleware/rateLimiters';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { HttpError } from '../middleware/errorHandler';
+import { getArtistGuessDistribution } from '../services/artistChallengeService';
 
 export const artistsRouter = Router();
 
@@ -201,8 +202,11 @@ artistsRouter.post(
       return;
     }
 
+    const snippetStageSeconds =
+      SNIPPET_SCHEDULE_SECONDS[Math.min(guessNumber, SNIPPET_SCHEDULE_SECONDS.length) - 1] ?? 16;
+
     const { sessionComplete, songsCorrect, totalGuessesUsed, timeTakenSeconds } =
-      recordArtistRoundResult(session.id, correct, guessNumber);
+      recordArtistRoundResult(session.id, correct, guessNumber, snippetStageSeconds);
 
     res.json({
       correct,
@@ -250,5 +254,15 @@ artistsRouter.get(
     const { artistId } = req.params as unknown as z.infer<typeof artistIdParamsSchema>;
     const identity = getIdentity(req);
     res.json(getArtistLeaderboard(artistId, identity));
+  },
+);
+
+artistsRouter.get(
+  '/:artistId/stats/guess-distribution',
+  validate(artistIdParamsSchema, 'params'),
+  (req, res) => {
+    const { artistId } = req.params as unknown as z.infer<typeof artistIdParamsSchema>;
+    const identity = getIdentity(req);
+    res.json(getArtistGuessDistribution(artistId, identity));
   },
 );

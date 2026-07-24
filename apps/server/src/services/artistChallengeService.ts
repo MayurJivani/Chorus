@@ -1,7 +1,12 @@
 import crypto from 'crypto';
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { artistChallenges, artistChallengeTracks, artistSessionResults } from '../db/schema';
+import {
+  artistChallenges,
+  artistChallengeTracks,
+  artistSessionResults,
+  artistRoundGuesses,
+} from '../db/schema';
 import type { ArtistChallenge, ArtistChallengeTrack, ArtistSessionResult } from '../db/schema';
 import { getArtistById, getArtistTopTracks, type ArtistTrack } from './deezerService';
 import { seededShuffle } from '../utils/deterministic';
@@ -255,6 +260,7 @@ export function recordArtistRoundResult(
   sessionId: number,
   correct: boolean,
   guessesUsed: number,
+  snippetStageSeconds: number,
 ): RoundResultUpdate {
   const session = db
     .select()
@@ -264,6 +270,17 @@ export function recordArtistRoundResult(
   if (!session) {
     throw new Error('Artist session not found');
   }
+
+  const position = session.currentRound;
+
+  db.insert(artistRoundGuesses)
+    .values({
+      sessionId,
+      position,
+      correct,
+      snippetStageSeconds,
+    })
+    .run();
 
   const isLastRound = session.currentRound >= ARTIST_CHALLENGE_SIZE - 1;
   const songsCorrect = session.songsCorrect + (correct ? 1 : 0);
@@ -482,4 +499,52 @@ export function getChallengeLeaderboard(
 
   const myKey = identity.userId ?? identity.guestId ?? '';
   return { entries: buildLeaderboardEntries(rows, myKey) };
+}
+
+export interface GuessDistributionBucket {
+  snippetSeconds: number;
+  label: string;
+  allPlayers: number;
+  myGuesses: number;
+}
+
+export function getArtistGuessDistribution(
+  artistId: number,
+  identity: Identity,
+): GuessDistributionBucket[] {
+  const deezerArtistId = String(artistId);
+
+  const allRows = db.all<{ snippetStageSeconds: number; count: number }>(sql`
+    SELECT g.snippet_stage_seconds as snippetStageSeconds, COUNT(*) as count
+    FROM artist_round_guesses g
+    JOIN artist_session_results s ON s.id = g.session_id
+    JOIN artist_challenges c ON c.id = s.challenge_id
+    WHERE c.deezer_artist_id = ${deezerArtistId}
+      AND s.completed = 1
+      AND g.correct = 1
+    GROUP BY g.snippet_stage_seconds
+  `);
+
+  const myRows = db.all<{ snippetStageSeconds: number; count: number }>(sql`
+    SELECT g.snippet_stage_seconds as snippetStageSeconds, COUNT(*) as count
+    FROM artist_round_guesses g
+    JOIN artist_session_results s ON s.id = g.session_id
+    JOIN artist_challenges c ON c.id = s.challenge_id
+    WHERE c.deezer_artist_id = ${deezerArtistId}
+      AND s.completed = 1
+      AND g.correct = 1
+      AND COALESCE(s.user_id, s.guest_id) = ${identity.userId ?? identity.guestId ?? ''}
+    GROUP BY g.snippet_stage_seconds
+  `);
+
+  const allMap = new Map(allRows.map((r) => [r.snippetStageSeconds, r.count]));
+  const myMap = new Map(myRows.map((r) => [r.snippetStageSeconds, r.count]));
+
+  const stages = [1, 2, 4, 7, 11, 16];
+  return stages.map((s) => ({
+    snippetSeconds: s,
+    label: `${s}s`,
+    allPlayers: allMap.get(s) ?? 0,
+    myGuesses: myMap.get(s) ?? 0,
+  }));
 }

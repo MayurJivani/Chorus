@@ -4,6 +4,7 @@ import {
   artistChallenges,
   artistChallengeTracks,
   artistSessionResults,
+  artistRoundGuesses,
   users,
 } from '../../src/db/schema';
 import * as deezerService from '../../src/services/deezerService';
@@ -34,6 +35,7 @@ function mockTracks(n: number) {
 }
 
 beforeEach(() => {
+  db.delete(artistRoundGuesses).run();
   db.delete(artistSessionResults).run();
   db.delete(artistChallengeTracks).run();
   db.delete(artistChallenges).run();
@@ -107,7 +109,7 @@ describe('getOrCreateSessionProgress + recordArtistRoundResult', () => {
     const same = getOrCreateSessionProgress(challenge.id, { userId: null, guestId: 'guest-1' });
     expect(same.id).toBe(session.id);
 
-    const result = recordArtistRoundResult(session.id, true, 2);
+    const result = recordArtistRoundResult(session.id, true, 2, 2);
     expect(result.sessionComplete).toBe(false);
     expect(result.songsCorrect).toBe(1);
     expect(result.totalGuessesUsed).toBe(2);
@@ -117,9 +119,9 @@ describe('getOrCreateSessionProgress + recordArtistRoundResult', () => {
     const { challenge } = await getOrCreateArtistChallenge(412, '2026-01-01');
     const session = getOrCreateSessionProgress(challenge.id, { userId: null, guestId: 'guest-2' });
 
-    let lastResult = recordArtistRoundResult(session.id, true, 1);
+    let lastResult = recordArtistRoundResult(session.id, true, 1, 1);
     for (let round = 1; round < ARTIST_CHALLENGE_SIZE; round += 1) {
-      lastResult = recordArtistRoundResult(session.id, round % 2 === 0, 3);
+      lastResult = recordArtistRoundResult(session.id, round % 2 === 0, 3, 4);
     }
 
     expect(lastResult.sessionComplete).toBe(true);
@@ -230,8 +232,10 @@ describe('getArtistLeaderboard', () => {
     const guestA = getOrCreateSessionProgress(challenge.id, { userId: null, guestId: 'guest-a' });
     const guestB = getOrCreateSessionProgress(challenge.id, { userId: null, guestId: 'guest-b' });
 
-    for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1) recordArtistRoundResult(guestA.id, true, 2); // 10/10, 20 guesses
-    for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1) recordArtistRoundResult(guestB.id, true, 1); // 10/10, 10 guesses
+    for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1)
+      recordArtistRoundResult(guestA.id, true, 2, 2); // 10/10, 20 guesses
+    for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1)
+      recordArtistRoundResult(guestB.id, true, 1, 1); // 10/10, 10 guesses
 
     const { entries, myBest } = getArtistLeaderboard(412, { userId: null, guestId: 'guest-b' });
 
@@ -252,7 +256,7 @@ describe('getArtistLeaderboard', () => {
       userId: null,
       guestId: 'guest-incomplete',
     });
-    recordArtistRoundResult(session.id, true, 1); // only 1 of 10 rounds played
+    recordArtistRoundResult(session.id, true, 1, 1); // only 1 of 10 rounds played
 
     const { entries } = getArtistLeaderboard(412, { userId: null, guestId: 'someone-else' });
     expect(entries).toHaveLength(0);

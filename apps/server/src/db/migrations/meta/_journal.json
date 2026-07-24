@@ -36,6 +36,13 @@
       "when": 1784868288000,
       "tag": "0004_time_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784888315105,
+      "tag": "0005_artist_round_guesses",
+      "breakpoints": true
     }
   ]
 }
