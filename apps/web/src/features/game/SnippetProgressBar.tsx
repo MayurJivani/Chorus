@@ -2,13 +2,14 @@ import { motion } from 'framer-motion';
 import { SNIPPET_SCHEDULE_SECONDS } from '../../types/api';
 
 interface SnippetProgressBarProps {
-  attemptNumber: number; // 1-based
+  /** 1-based attempt number (search mode) or 0-based skip count (choice mode). */
+  stageIndex: number;
 }
 
-export function SnippetProgressBar({ attemptNumber }: SnippetProgressBarProps) {
+export function SnippetProgressBar({ stageIndex }: SnippetProgressBarProps) {
   const maxSeconds = SNIPPET_SCHEDULE_SECONDS[SNIPPET_SCHEDULE_SECONDS.length - 1] ?? 1;
   const currentSeconds =
-    SNIPPET_SCHEDULE_SECONDS[Math.min(attemptNumber, SNIPPET_SCHEDULE_SECONDS.length) - 1] ?? 0;
+    SNIPPET_SCHEDULE_SECONDS[Math.min(stageIndex, SNIPPET_SCHEDULE_SECONDS.length - 1)] ?? 0;
 
   return (
     <div className="w-full max-w-md">
@@ -25,7 +26,7 @@ export function SnippetProgressBar({ attemptNumber }: SnippetProgressBarProps) {
       {/* Milestone dots + labels */}
       <div className="mt-2.5 flex justify-between">
         {SNIPPET_SCHEDULE_SECONDS.map((seconds, i) => {
-          const reached = i + 1 <= attemptNumber;
+          const reached = i <= stageIndex;
           return (
             <div key={seconds} className="flex flex-col items-center gap-1">
               <span

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useGameState } from '../features/game/useGameState';
 import { SnippetPlayer } from '../features/game/SnippetPlayer';
 import { SnippetProgressBar } from '../features/game/SnippetProgressBar';
@@ -19,6 +19,30 @@ export function PlayPage() {
     guess,
     skip,
   } = useGameState();
+
+  const [guessFeedback, setGuessFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevHistoryLen = useRef(history.length);
+
+  useEffect(() => {
+    if (history.length > prevHistoryLen.current) {
+      const last = history[history.length - 1];
+      if (last && !last.correct) {
+        setGuessFeedback('wrong');
+      } else if (last && last.correct) {
+        setGuessFeedback('correct');
+      }
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+      feedbackTimerRef.current = setTimeout(() => setGuessFeedback(null), 800);
+    }
+    prevHistoryLen.current = history.length;
+  }, [history]);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    };
+  }, []);
 
   if (status === 'loading') {
     return <Centered>Loading today&apos;s puzzle…</Centered>;
@@ -42,7 +66,7 @@ export function PlayPage() {
           <p className="text-xs text-slate-500 font-mono">{puzzle.puzzleDate}</p>
         </div>
 
-        <SnippetProgressBar attemptNumber={attemptNumber} />
+        <SnippetProgressBar stageIndex={attemptNumber - 1} />
 
         {previewUrl && !isOver && (
           <SnippetPlayer
@@ -54,7 +78,14 @@ export function PlayPage() {
 
         <AttemptPips history={history} />
 
-        {!isOver && <GuessInput onGuess={guess} onSkip={skip} disabled={submitting} />}
+        {!isOver && (
+          <GuessInput
+            onGuess={guess}
+            onSkip={skip}
+            disabled={submitting}
+            guessFeedback={guessFeedback}
+          />
+        )}
 
         {errorMessage && <p className="text-sm text-chorus-danger">{errorMessage}</p>}
       </div>

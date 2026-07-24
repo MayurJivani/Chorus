@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useArtistGameState } from '../features/artist/useArtistGameState';
@@ -41,6 +41,60 @@ export function ArtistPlayPage() {
     [artistId, includeFeatures],
   );
 
+  // Guess feedback flash for search mode
+  const [guessFeedback, setGuessFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevHistoryLen = useRef(roundHistory.length);
+
+  useEffect(() => {
+    if (roundHistory.length > prevHistoryLen.current) {
+      const last = roundHistory[roundHistory.length - 1];
+      if (last && !last.correct) {
+        setGuessFeedback('wrong');
+      } else if (last && last.correct) {
+        setGuessFeedback('correct');
+      }
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+      feedbackTimerRef.current = setTimeout(() => setGuessFeedback(null), 800);
+    }
+    prevHistoryLen.current = roundHistory.length;
+  }, [roundHistory]);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    };
+  }, []);
+
+  // Auto-play snippet after a skip in choice mode
+  const [autoPlaySnippet, setAutoPlaySnippet] = useState(false);
+
+  // Reset autoPlay after the snippet player has had a chance to pick it up
+  useEffect(() => {
+    if (autoPlaySnippet) {
+      const t = setTimeout(() => setAutoPlaySnippet(false), 100);
+      return () => clearTimeout(t);
+    }
+  }, [autoPlaySnippet]);
+
+  // In choice mode, skip just increases playback time locally without spending a guess.
+  // This tracks how many times the user has skipped within the current round.
+  const [localSkipCount, setLocalSkipCount] = useState(0);
+
+  const choiceSkip = useCallback(() => {
+    setLocalSkipCount((n) => n + 1);
+    setAutoPlaySnippet(true);
+  }, []);
+
+  // Reset localSkipCount when the round changes
+  const prevRound = useRef(challenge.currentRound);
+  useEffect(() => {
+    if (challenge.currentRound !== prevRound.current) {
+      setLocalSkipCount(0);
+    }
+    prevRound.current = challenge.currentRound;
+  }, [challenge.currentRound]);
+
   if (status === 'loading') {
     return <Centered>Loading challenge…</Centered>;
   }
@@ -68,8 +122,12 @@ export function ArtistPlayPage() {
   }
 
   const previewUrl = !challenge.completed ? challenge.previewUrl : null;
+
+  // In choice mode, skip locally increases duration via localSkipCount.
+  // In search mode, duration advances via attemptNumber (server tracks guesses).
+  const choiceStageIndex = guessMode === 'choice' ? localSkipCount : attemptNumber - 1;
   const stageSeconds =
-    SNIPPET_SCHEDULE_SECONDS[Math.min(attemptNumber, SNIPPET_SCHEDULE_SECONDS.length) - 1] ?? 1;
+    SNIPPET_SCHEDULE_SECONDS[Math.min(choiceStageIndex, SNIPPET_SCHEDULE_SECONDS.length - 1)] ?? 1;
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-57px)] max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
@@ -132,7 +190,9 @@ export function ArtistPlayPage() {
           </motion.div>
         ) : (
           <>
-            <SnippetProgressBar attemptNumber={attemptNumber} />
+            <SnippetProgressBar
+              stageIndex={guessMode === 'choice' ? localSkipCount : attemptNumber - 1}
+            />
 
             {previewUrl && (
               <SnippetPlayer
@@ -140,26 +200,30 @@ export function ArtistPlayPage() {
                 stageSeconds={stageSeconds}
                 disabled={submitting}
                 artistPictureUrl={challenge.artistPictureUrl}
+                autoPlay={autoPlaySnippet}
               />
             )}
 
             <AttemptPips history={roundHistory} />
 
-            {guessMode === 'choice' && 'options' in challenge ? (
-              <MultipleChoiceGuess
-                options={challenge.options}
-                onGuess={guess}
-                onSkip={skip}
-                disabled={submitting}
-                revealedSong={revealedSong}
-                roundEnded={false}
-              />
+            {guessMode === 'choice' && 'options' in challenge && challenge.options ? (
+              <>
+                <MultipleChoiceGuess
+                  options={challenge.options}
+                  onGuess={guess}
+                  onSkip={choiceSkip}
+                  disabled={submitting}
+                  revealedSong={revealedSong}
+                  roundEnded={false}
+                />
+              </>
             ) : (
               <GuessInput
                 onGuess={guess}
                 onSkip={skip}
                 disabled={submitting}
                 searchFn={searchThisArtist}
+                guessFeedback={guessFeedback}
               />
             )}
 

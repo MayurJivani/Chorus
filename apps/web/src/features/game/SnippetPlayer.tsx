@@ -5,18 +5,25 @@ interface SnippetPlayerProps {
   stageSeconds: number;
   disabled?: boolean;
   artistPictureUrl?: string | null;
+  onSnippetEnd?: () => void;
+  /** When true the snippet auto-plays (e.g. after a skip in choice mode). */
+  autoPlay?: boolean;
 }
 
-/** Plays a snippet of the Deezer preview clip, always from the start, for exactly
- * `stageSeconds`, with a rotating vinyl record visual. */
+/** Plays a snippet of the Deezer preview clip from a random offset (with enough
+ *  headroom for the full 16s snippet), for exactly `stageSeconds`, with a rotating
+ *  vinyl record visual. The offset is picked once per play and stays consistent
+ *  across stages within the same round so the player always hears the same slice. */
 export function SnippetPlayer({
   previewUrl,
   stageSeconds,
   disabled,
   artistPictureUrl,
+  autoPlay,
 }: SnippetPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const stopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seekOffsetRef = useRef<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(() => {
     try {
@@ -47,12 +54,45 @@ export function SnippetPlayer({
     };
   }, []);
 
+  // Pick a random offset once per previewUrl change (i.e. per round).
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const pickOffset = () => {
+      const duration = audio.duration;
+      if (isFinite(duration) && duration > 16) {
+        seekOffsetRef.current = Math.random() * (duration - 16);
+      } else {
+        seekOffsetRef.current = 0;
+      }
+    };
+
+    // If metadata is already loaded, pick now; otherwise wait.
+    if (audio.readyState >= 1) {
+      pickOffset();
+    } else {
+      audio.addEventListener('loadedmetadata', pickOffset, { once: true });
+      return () => audio.removeEventListener('loadedmetadata', pickOffset);
+    }
+  }, [previewUrl]);
+
+  // Auto-play when the autoPlay prop becomes true (e.g. after a skip in choice mode).
+  const prevAutoPlayRef = useRef(autoPlay);
+  useEffect(() => {
+    if (autoPlay && !prevAutoPlayRef.current && !disabled) {
+      handlePlay();
+    }
+    prevAutoPlayRef.current = autoPlay;
+  }, [autoPlay, disabled]);
+
   const handlePlay = () => {
     const audio = audioRef.current;
     if (!audio || disabled) return;
 
     if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
-    audio.currentTime = 0;
+
+    audio.currentTime = seekOffsetRef.current;
     void audio.play();
     setIsPlaying(true);
 

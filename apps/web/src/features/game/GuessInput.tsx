@@ -9,9 +9,17 @@ interface GuessInputProps {
   /** Defaults to searching the global curated song bank (the daily puzzle). Artist Mode
    * passes a search scoped to that artist's challenge tracks instead. */
   searchFn?: (query: string) => Promise<SongSearchResult[]>;
+  /** Brief visual feedback after a guess: 'correct' = green flash, 'wrong' = red flash. */
+  guessFeedback?: 'correct' | 'wrong' | null;
 }
 
-export function GuessInput({ onGuess, onSkip, disabled, searchFn = searchSongs }: GuessInputProps) {
+export function GuessInput({
+  onGuess,
+  onSkip,
+  disabled,
+  searchFn = searchSongs,
+  guessFeedback,
+}: GuessInputProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SongSearchResult[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -70,7 +78,14 @@ export function GuessInput({ onGuess, onSkip, disabled, searchFn = searchSongs }
         onKeyDown={handleKeyDown}
         onFocus={() => setOpen(results.length > 0)}
         placeholder="Guess the song title or artist…"
-        className="input-base"
+        className={
+          'input-base transition-shadow duration-300 ' +
+          (guessFeedback === 'correct'
+            ? 'ring-2 ring-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+            : guessFeedback === 'wrong'
+              ? 'ring-2 ring-red-500 shadow-[0_0_12px_rgba(239,68,68,0.4)]'
+              : '')
+        }
       />
 
       {open && (
