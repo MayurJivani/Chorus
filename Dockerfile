@@ -6,6 +6,7 @@ RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/server/package.json apps/server/package.json
+ENV HUSKY=0
 RUN npm ci --legacy-peer-deps
 
 COPY tsconfig.base.json eslint.config.js .prettierrc.json ./
