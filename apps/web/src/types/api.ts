@@ -112,6 +112,8 @@ export interface ArtistGuessResult {
   correct: boolean;
   isFinal: boolean;
   song?: RevealedSong;
+  songsCorrect?: number;
+  currentRound?: number;
   sessionComplete?: boolean;
   timeTakenSeconds?: number | null;
   finalScore?: {

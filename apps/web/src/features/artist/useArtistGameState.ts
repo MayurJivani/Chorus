@@ -96,6 +96,18 @@ export function useArtistGameState(
 
         if (result.isFinal) {
           setRevealedSong(result.song ?? null);
+          // Patch challenge with the latest server-reported counts so the UI stays in sync.
+          if (result.songsCorrect != null) {
+            setChallenge((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    songsCorrect: result.songsCorrect!,
+                    currentRound: result.currentRound ?? prev.currentRound,
+                  }
+                : prev,
+            );
+          }
           if (result.sessionComplete) {
             setFinalScore(result.finalScore ?? null);
             setStatus('completed');

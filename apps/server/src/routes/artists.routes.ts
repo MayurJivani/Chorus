@@ -216,6 +216,8 @@ artistsRouter.post(
         artist: currentTrack.artist,
         albumArtUrl: currentTrack.albumArtUrl,
       },
+      songsCorrect,
+      currentRound: session.currentRound,
       sessionComplete,
       timeTakenSeconds,
       ...(sessionComplete
