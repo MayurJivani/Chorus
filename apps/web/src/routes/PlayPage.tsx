@@ -58,7 +58,7 @@ export function PlayPage() {
     SNIPPET_SCHEDULE_SECONDS[Math.min(attemptNumber, SNIPPET_SCHEDULE_SECONDS.length) - 1] ?? 1;
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-57px)] max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
       {/* Glass card wrapping the game */}
       <div className="glass w-full rounded-2xl p-6 flex flex-col items-center gap-6">
         <div className="flex flex-col items-center gap-1 text-center">
@@ -104,8 +104,6 @@ export function PlayPage() {
 
 function Centered({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-[calc(100vh-57px)] items-center justify-center text-slate-300">
-      {children}
-    </div>
+    <div className="flex min-h-full items-center justify-center text-slate-300">{children}</div>
   );
 }

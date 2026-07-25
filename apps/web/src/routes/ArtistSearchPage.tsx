@@ -14,7 +14,7 @@ export function ArtistSearchPage() {
   };
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-57px)] max-w-xl flex-col items-center gap-8 px-4 py-12">
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center gap-8 px-4 py-12">
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}

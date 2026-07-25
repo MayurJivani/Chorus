@@ -33,7 +33,7 @@ export function RootLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-chorus-bg text-slate-100">
+    <div className="h-screen flex flex-col bg-chorus-bg text-slate-100 overflow-hidden">
       {/* Sticky dark header */}
       <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-chorus-bg/90 backdrop-blur-md">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
@@ -162,10 +162,12 @@ export function RootLayout() {
         )}
       </header>
 
-      <Outlet />
+      <main className="flex-1 overflow-auto">
+        <Outlet />
+      </main>
 
       {/* Deezer attribution — required by Deezer API brand guidelines */}
-      <footer className="border-t border-white/[0.06] py-6">
+      <footer className="shrink-0 border-t border-white/[0.06] py-4">
         <div className="mx-auto flex max-w-6xl items-center justify-center px-4 sm:px-6">
           <a
             href="https://www.deezer.com"

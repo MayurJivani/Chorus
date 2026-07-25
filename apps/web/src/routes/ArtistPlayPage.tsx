@@ -106,7 +106,7 @@ export function ArtistPlayPage() {
 
   if (status === 'completed') {
     return (
-      <div className="mx-auto flex min-h-[calc(100vh-57px)] max-w-xl flex-col items-center justify-center gap-8 px-4 py-12">
+      <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-8 px-4 py-12">
         <ArtistSessionSummary
           artistId={artistId}
           artistName={challenge.artistName}
@@ -131,7 +131,7 @@ export function ArtistPlayPage() {
     SNIPPET_SCHEDULE_SECONDS[Math.min(choiceStageIndex, SNIPPET_SCHEDULE_SECONDS.length - 1)] ?? 1;
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-57px)] max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
       {/* Glass game card */}
       <div className="glass w-full rounded-2xl p-6 flex flex-col items-center gap-5">
         {/* Header */}
@@ -238,8 +238,6 @@ export function ArtistPlayPage() {
 
 function Centered({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-[calc(100vh-57px)] items-center justify-center text-slate-400">
-      {children}
-    </div>
+    <div className="flex min-h-full items-center justify-center text-slate-400">{children}</div>
   );
 }

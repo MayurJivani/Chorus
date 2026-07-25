@@ -34,7 +34,7 @@ export function HomePage() {
   }, [user, guestId]);
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-57px)] max-w-5xl flex-col items-center justify-center gap-12 px-4 py-16 text-center">
+    <div className="mx-auto flex min-h-full max-w-5xl flex-col items-center justify-center gap-12 px-4 py-16 text-center">
       {/* Hero */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}

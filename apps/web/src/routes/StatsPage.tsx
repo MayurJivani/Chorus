@@ -22,7 +22,7 @@ export function StatsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[calc(100vh-57px)] items-center justify-center text-slate-400">
+      <div className="flex min-h-full items-center justify-center text-slate-400">
         Loading stats…
       </div>
     );
@@ -30,7 +30,7 @@ export function StatsPage() {
 
   if (!stats) {
     return (
-      <div className="flex min-h-[calc(100vh-57px)] items-center justify-center text-slate-400">
+      <div className="flex min-h-full items-center justify-center text-slate-400">
         Couldn&apos;t load stats.
       </div>
     );
@@ -40,7 +40,7 @@ export function StatsPage() {
     stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0;
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-57px)] max-w-xl flex-col items-center gap-8 px-4 py-12">
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center gap-8 px-4 py-12">
       <motion.h1
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
