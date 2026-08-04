@@ -16,7 +16,7 @@ export function applySecurityMiddleware(app: Express): void {
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'https://*.dzcdn.net', 'data:'],
           mediaSrc: ["'self'", 'https://*.dzcdn.net'],
-          connectSrc: ["'self'"],
+          connectSrc: ["'self'", 'ws:', 'wss:'],
           objectSrc: ["'none'"],
           frameAncestors: ["'none'"],
           baseUri: ["'self'"],

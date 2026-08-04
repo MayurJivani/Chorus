@@ -9,6 +9,8 @@ import { RegisterPage } from './routes/RegisterPage';
 import { AboutPage } from './routes/AboutPage';
 import { ArtistSearchPage } from './routes/ArtistSearchPage';
 import { ArtistPlayPage } from './routes/ArtistPlayPage';
+import { MultiplayerHomePage } from './routes/MultiplayerHomePage';
+import { MultiplayerRoomPage } from './routes/MultiplayerRoomPage';
 
 const router = createBrowserRouter([
   {
@@ -22,6 +24,8 @@ const router = createBrowserRouter([
       { path: '/about', element: <AboutPage /> },
       { path: '/artist', element: <ArtistSearchPage /> },
       { path: '/artist/:artistId/play', element: <ArtistPlayPage /> },
+      { path: '/multiplayer', element: <MultiplayerHomePage /> },
+      { path: '/room/:code', element: <MultiplayerRoomPage /> },
     ],
   },
 ]);

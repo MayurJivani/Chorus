@@ -154,3 +154,49 @@ export interface GuessDistributionBucket {
 }
 
 export type GuessDistributionResponse = GuessDistributionBucket[];
+
+// --- Multiplayer Mode ----------------------------------------------------------------------
+
+export type MultiplayerPhase = 'lobby' | 'playing' | 'round-reveal' | 'finished';
+
+export interface MultiplayerPlayer {
+  playerId: string;
+  displayName: string;
+  isHost: boolean;
+  score: number;
+  roundAnswered: boolean;
+  roundCorrect: boolean | null;
+  roundPoints: number;
+  /** This player's own reveal stage for the current round (0 = only the first slice heard). */
+  stageIndex: number;
+  joinedAt: number;
+}
+
+export interface MultiplayerScoreEntry {
+  playerId: string;
+  displayName: string;
+  score: number;
+  answered: boolean;
+  correctThisRound: boolean | null;
+  /** This player's reveal stage for the current round (0 = heard only the first slice). */
+  stageIndex: number;
+}
+
+export interface MultiplayerRoomSnapshot {
+  code: string;
+  artistId: number;
+  artistName: string;
+  artistPictureUrl: string | null;
+  phase: MultiplayerPhase;
+  hostId: string;
+  currentRound: number;
+  totalRounds: number;
+  players: MultiplayerPlayer[];
+}
+
+export interface MultiplayerCreateRoomResponse {
+  code: string;
+  artistId: number;
+  artistName: string;
+  artistPictureUrl: string | null;
+}

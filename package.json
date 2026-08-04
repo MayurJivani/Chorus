@@ -42,5 +42,8 @@
     "*.{json,md,css}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "ws": "^8.21.2"
   }
 }

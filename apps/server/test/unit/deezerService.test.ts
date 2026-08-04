@@ -220,6 +220,68 @@ describe('getArtistTopTracks', () => {
     expect(tracks.map((t) => t.title)).toEqual(['Yellow']);
   });
 
+  it('keeps only the main version of a song, dropping alt versions like 2x Speed', async () => {
+    mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: undefined }], {
+      1: [
+        {
+          id: 1,
+          title: 'Eyes Closed',
+          duration: 200,
+          preview: 'a.mp3',
+          artist: { name: 'Zayn' },
+        },
+        {
+          id: 2,
+          title: 'Eyes Closed (2x Speed)',
+          duration: 200,
+          preview: 'b.mp3',
+          artist: { name: 'Zayn' },
+        },
+        {
+          id: 3,
+          title: 'Eyes Closed (0.5x)',
+          duration: 200,
+          preview: 'c.mp3',
+          artist: { name: 'Zayn' },
+        },
+        {
+          id: 4,
+          title: 'Pillowtalk',
+          duration: 200,
+          preview: 'd.mp3',
+          artist: { name: 'Zayn' },
+        },
+        {
+          id: 5,
+          title: 'Pillowtalk (Living Room Session)',
+          duration: 200,
+          preview: 'e.mp3',
+          artist: { name: 'Zayn' },
+        },
+      ],
+    });
+
+    const tracks = await getArtistTopTracks(412);
+    expect(tracks.map((t) => t.title)).toEqual(['Eyes Closed', 'Pillowtalk']);
+  });
+
+  it('keeps a versioned-only song rather than dropping it entirely', async () => {
+    mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: undefined }], {
+      1: [
+        {
+          id: 1,
+          title: 'Dream (Album Version)',
+          duration: 200,
+          preview: 'a.mp3',
+          artist: { name: 'Artist' },
+        },
+      ],
+    });
+
+    const tracks = await getArtistTopTracks(412);
+    expect(tracks.map((t) => t.title)).toEqual(['Dream (Album Version)']);
+  });
+
   it('excludes tracks whose title credits a feature when includeFeatures is false', async () => {
     mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: undefined }], {
       1: [

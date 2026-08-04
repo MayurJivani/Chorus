@@ -6,7 +6,7 @@
  * real TTL) so concurrent players loading the same daily puzzle don't each trigger their own
  * call to Deezer's public API.
  */
-import { isUnwantedVersion, mentionsFeature } from '../utils/trackFilters';
+import { isUnwantedVersion, mentionsFeature, normalizeTitle, stripVersionSuffix } from '../utils/trackFilters';
 import { logger } from '../logger';
 
 interface FreshPreview {
@@ -191,8 +191,10 @@ const topTracksCache = new Map<string, CacheEntry<ArtistTrack[]>>();
 
 /**
  * Fetches an artist's full discography (all albums → all tracks), filtering out
- * karaoke/tribute/acoustic/live/remix/etc. versions. `includeFeatures` controls whether
- * tracks whose title credits another artist as a feature are kept.
+ * karaoke/tribute/acoustic/live/remix/etc. versions and deduplicating by base title so
+ * alternate versions (e.g. "Eyes Closed (2x Speed)", "Pillowtalk (Living Room Session)")
+ * never replace the main recording. `includeFeatures` controls whether tracks whose title
+ * credits another artist as a feature are kept.
  *
  * Results are cached for one hour. For popular artists with many albums this may take a
  * moment on the first call, but subsequent loads within the hour reuse the cached pool.
@@ -237,29 +239,34 @@ export async function getArtistTopTracks(
     }
   }
 
-  // Filter and deduplicate by normalized title since the same track can appear on
-  // multiple albums (singles, compilations, deluxe editions, etc.).
-  const seen = new Set<string>();
-  const tracks: ArtistTrack[] = [];
+  // Deduplicate alternate versions by their base title: the same song can appear on
+  // multiple albums and with several version suffixes (e.g. "Eyes Closed" vs
+  // "Eyes Closed (2x Speed)"). Keep one representative per base title, preferring the
+  // plain title so only the main recording of a song is ever picked.
+  const bestByBase = new Map<string, ArtistTrack>();
 
   for (const t of allRawTracks) {
     if (!t.preview) continue;
     if (isUnwantedVersion(t.title)) continue;
     if (!includeFeatures && mentionsFeature(t.title)) continue;
 
-    const normalizedTitle = t.title.toLowerCase().trim();
-    if (seen.has(normalizedTitle)) continue;
-    seen.add(normalizedTitle);
-
-    tracks.push({
+    const candidate: ArtistTrack = {
       deezerTrackId: String(t.id),
       title: t.title,
       artist: t.artist?.name ?? 'Unknown',
       albumArtUrl:
         t.album?.cover_medium ?? (t.albumId != null ? (albumCovers.get(t.albumId) ?? null) : null),
       durationSeconds: t.duration,
-    });
+    };
+
+    const base = normalizeTitle(stripVersionSuffix(t.title));
+    const existing = bestByBase.get(base);
+    if (!existing || isPlainerTitle(base, existing.title, candidate.title)) {
+      bestByBase.set(base, candidate);
+    }
   }
+
+  const tracks = [...bestByBase.values()];
 
   logger.info(
     `Discography for artist ${artistId}: ${allRawTracks.length} raw → ${tracks.length} after filtering`,
@@ -272,4 +279,15 @@ export async function getArtistTopTracks(
 export function clearArtistCaches(): void {
   artistCache.clear();
   topTracksCache.clear();
+}
+
+/** Whether `candidateTitle` is a better representative for `base` than `existingTitle` —
+ *  the plain (base-matching) title wins; otherwise the shorter, less-qualified title. */
+function isPlainerTitle(base: string, existingTitle: string, candidateTitle: string): boolean {
+  const existingNorm = normalizeTitle(existingTitle);
+  const candidateNorm = normalizeTitle(candidateTitle);
+  const existingIsPlain = existingNorm === base;
+  const candidateIsPlain = candidateNorm === base;
+  if (candidateIsPlain !== existingIsPlain) return candidateIsPlain;
+  return candidateNorm.length < existingNorm.length;
 }

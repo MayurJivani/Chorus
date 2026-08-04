@@ -129,6 +129,24 @@ export function HomePage() {
             Explore →
           </span>
         </Link>
+
+        <Link
+          to="/multiplayer"
+          className="glass group flex flex-col gap-3 rounded-2xl p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:shadow-2xl sm:col-span-2"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-xl border border-white/10">
+            ⚡
+          </div>
+          <div>
+            <h2 className="font-bold text-white text-lg">Multiplayer</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              Race friends in real time on a shared snippet timer.
+            </p>
+          </div>
+          <span className="mt-auto text-xs font-semibold text-slate-300 group-hover:text-white transition-colors">
+            Create a room →
+          </span>
+        </Link>
       </motion.div>
     </div>
   );

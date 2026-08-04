@@ -13,7 +13,7 @@ export interface RequestSession {
   expiresAt: Date;
 }
 
-const SESSION_COOKIE_NAME = 'chorus_sid';
+export const SESSION_COOKIE_NAME = 'chorus_sid';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 function generateToken(): string {
@@ -22,6 +22,20 @@ function generateToken(): string {
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+/** Resolves a raw session token (e.g. from a cookie header on a WebSocket upgrade) back to a
+ * valid session, or null when it's missing/expired. Shared by sessionMiddleware and ws.ts. */
+export function getSessionFromToken(token: string): RequestSession | null {
+  const hashed = hashToken(token);
+  const row = db.select().from(sessions).where(eq(sessions.id, hashed)).get();
+  if (!row || new Date(row.expiresAt) <= new Date()) return null;
+  return {
+    id: row.id,
+    userId: row.userId,
+    guestId: row.guestId,
+    expiresAt: new Date(row.expiresAt),
+  };
 }
 
 function cookieOptions(maxAgeMs: number) {

@@ -52,6 +52,7 @@ export function RootLayout() {
           <div className="hidden items-center gap-7 sm:flex">
             <NavLink to="/play">Play</NavLink>
             <NavLink to="/artist">Artist Mode</NavLink>
+            <NavLink to="/multiplayer">Multiplayer</NavLink>
             <NavLink to="/stats">Stats</NavLink>
             <NavLink to="/about">About</NavLink>
 
@@ -113,6 +114,7 @@ export function RootLayout() {
                   ['/', 'Home'],
                   ['/play', 'Play'],
                   ['/artist', 'Artist Mode'],
+                  ['/multiplayer', 'Multiplayer'],
                   ['/stats', 'Stats'],
                   ['/about', 'About'],
                 ] as [string, string][]

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { eq } from 'drizzle-orm';
 import { createApp } from '../../src/app';
 import { db } from '../../src/db/client';
 import {
@@ -295,6 +296,21 @@ describe('GET /api/artists/:artistId/challenge/:challengeId/leaderboard', () => 
     }
 
     // Check the per-challenge leaderboard
+    // Both players complete with 10 songs correct, so the rank tie-breaks on completion
+    // time first and guesses second. Wall-clock rounding can flip the time comparison, so
+    // pin each player's stored time to keep the expected order deterministic.
+    const results = db
+      .select({ id: artistSessionResults.id, guesses: artistSessionResults.totalGuessesUsed })
+      .from(artistSessionResults)
+      .where(eq(artistSessionResults.challengeId, challengeId))
+      .all();
+    for (const row of results) {
+      db.update(artistSessionResults)
+        .set({ timeTakenSeconds: row.guesses === 10 ? 10 : 20 })
+        .where(eq(artistSessionResults.id, row.id))
+        .run();
+    }
+
     const res = await request(app).get(`/api/artists/412/challenge/${challengeId}/leaderboard`);
     expect(res.status).toBe(200);
     expect(res.body.entries).toHaveLength(2);

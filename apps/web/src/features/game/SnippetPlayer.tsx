@@ -8,18 +8,27 @@ interface SnippetPlayerProps {
   onSnippetEnd?: () => void;
   /** When true the snippet auto-plays (e.g. after a skip in choice mode). */
   autoPlay?: boolean;
+  /** A changing value that triggers a (re)play — used by multiplayer rounds, where each
+   *  player reveals more of their own snippet on demand and the new length replays. */
+  playSignal?: number;
+  /** When set, the snippet always starts at this offset instead of a random one, so all
+   *  players hear the same slice of the clip (used for fair multiplayer rounds). */
+  fixedOffsetSeconds?: number;
 }
 
-/** Plays a snippet of the Deezer preview clip from a random offset (with enough
- *  headroom for the full 16s snippet), for exactly `stageSeconds`, with a rotating
- *  vinyl record visual. The offset is picked once per play and stays consistent
- *  across stages within the same round so the player always hears the same slice. */
+/** Plays a snippet of the Deezer preview clip (from a fixed offset when provided,
+ *  otherwise a random offset with enough headroom for the full 16s snippet), for exactly
+ *  `stageSeconds`, with a rotating vinyl record visual. The offset is picked once per play
+ *  and stays consistent across stages within the same round so the player always hears the
+ *  same slice. */
 export function SnippetPlayer({
   previewUrl,
   stageSeconds,
   disabled,
   artistPictureUrl,
   autoPlay,
+  playSignal,
+  fixedOffsetSeconds,
 }: SnippetPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const stopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,14 +63,20 @@ export function SnippetPlayer({
     };
   }, []);
 
-  // Pick a random offset once per previewUrl change (i.e. per round).
+  // Pick the offset once per previewUrl change (i.e. per round). With fixedOffsetSeconds
+  // set, everyone hears the same slice; otherwise a random offset is picked.
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const pickOffset = () => {
       const duration = audio.duration;
-      if (isFinite(duration) && duration > 16) {
+      if (fixedOffsetSeconds != null) {
+        seekOffsetRef.current =
+          isFinite(duration) && duration > 0
+            ? Math.min(fixedOffsetSeconds, Math.max(0, duration - 1))
+            : fixedOffsetSeconds;
+      } else if (isFinite(duration) && duration > 16) {
         seekOffsetRef.current = Math.random() * (duration - 16);
       } else {
         seekOffsetRef.current = 0;
@@ -75,7 +90,7 @@ export function SnippetPlayer({
       audio.addEventListener('loadedmetadata', pickOffset, { once: true });
       return () => audio.removeEventListener('loadedmetadata', pickOffset);
     }
-  }, [previewUrl]);
+  }, [previewUrl, fixedOffsetSeconds]);
 
   // Auto-play when the autoPlay prop becomes true (e.g. after a skip in choice mode).
   const prevAutoPlayRef = useRef(autoPlay);
@@ -85,6 +100,18 @@ export function SnippetPlayer({
     }
     prevAutoPlayRef.current = autoPlay;
   }, [autoPlay, disabled]);
+
+  // Auto-play whenever a player reveals a new snippet stage (multiplayer). Each change
+  // in playSignal triggers exactly one play; disabled blocks it (e.g. during the reveal).
+  const lastPlaySignalRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (playSignal == null) return;
+    if (playSignal !== lastPlaySignalRef.current) {
+      lastPlaySignalRef.current = playSignal;
+      if (!disabled) handlePlay();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playSignal, disabled]);
 
   const handlePlay = () => {
     const audio = audioRef.current;

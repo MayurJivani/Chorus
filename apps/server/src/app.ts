@@ -13,6 +13,7 @@ import { songsRouter } from './routes/songs.routes';
 import { puzzleRouter } from './routes/puzzle.routes';
 import { statsRouter } from './routes/stats.routes';
 import { artistsRouter } from './routes/artists.routes';
+import { multiplayerRouter } from './routes/multiplayer.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -39,6 +40,7 @@ export function createApp(): Express {
   app.use('/api/puzzle', puzzleRouter);
   app.use('/api/stats', statsRouter);
   app.use('/api/artists', artistsRouter);
+  app.use('/api/multiplayer', multiplayerRouter);
 
   // Serve the built Vite frontend in production.
   // `public/` lives alongside `dist/` (i.e. at <server-root>/public).
