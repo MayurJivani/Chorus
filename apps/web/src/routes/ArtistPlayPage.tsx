@@ -149,7 +149,25 @@ export function ArtistPlayPage() {
             animate={{ opacity: 1, y: 0 }}
             className="flex w-full flex-col items-center gap-5 text-center"
           >
-            <div className="flex items-center gap-4 bg-white/5 px-4 py-3 rounded-2xl border border-white/10 w-full max-w-md">
+            {(() => {
+              const lastCorrect = roundHistory[roundHistory.length - 1]?.correct ?? false;
+              return (
+                <p
+                  className={`text-sm font-semibold ${
+                    lastCorrect ? 'text-emerald-400' : 'text-red-400'
+                  }`}
+                >
+                  {lastCorrect ? '✓ Correct!' : '✗ Not this time — it was:'}
+                </p>
+              );
+            })()}
+            <div
+              className={`flex items-center gap-4 px-4 py-3 rounded-2xl border w-full max-w-md ${
+                roundHistory[roundHistory.length - 1]?.correct
+                  ? 'bg-emerald-500/10 border-emerald-500/50'
+                  : 'bg-red-500/10 border-red-500/50'
+              }`}
+            >
               {revealedSong.albumArtUrl ? (
                 <img
                   src={revealedSong.albumArtUrl}
