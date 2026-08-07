@@ -22,16 +22,16 @@
     "prepare": "husky || true"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "concurrently": "^10.0.3",
-    "eslint": "^9.0.0",
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.4",
+    "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
-    "globals": "^17.7.0",
+    "globals": "^17.9.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.2.0",
+    "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
     "typescript": "^7.0.2"
   },
