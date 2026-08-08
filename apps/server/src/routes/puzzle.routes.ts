@@ -5,8 +5,10 @@ import { db } from '../db/client';
 import { gameResults } from '../db/schema';
 import {
   getOrCreateDailyPuzzle,
+  getElapsedPuzzleSeconds,
   getSongById,
   getUtcDateString,
+  markPuzzleStarted,
   SNIPPET_SCHEDULE_SECONDS,
   MAX_GUESSES,
 } from '../services/puzzleService';
@@ -88,6 +90,10 @@ puzzleRouter.get(
       throw new HttpError(500, 'Puzzle song is missing from the song bank');
     }
 
+    // Start the clock the first time this player is handed a playable puzzle.
+    const { userId, guestId } = getIdentity(req);
+    await markPuzzleStarted(userId ?? guestId ?? req.session.guestId, puzzle.id);
+
     // The stored preview_url is a curation-time snapshot — Deezer's signed preview links
     // expire in minutes, so the URL actually handed to a player is always fetched live.
     const fresh = await getFreshPreviewUrl(song.deezerTrackId);
@@ -132,8 +138,11 @@ puzzleRouter.post(
 
     if (final) {
       const { userId, guestId } = getIdentity(req);
+      const ownerKey = userId ?? guestId ?? req.session.guestId;
+      const timeTakenSeconds = await getElapsedPuzzleSeconds(ownerKey, puzzle.id);
+
       await recordGameResult({
-        ownerKey: userId ?? guestId ?? req.session.guestId,
+        ownerKey,
         puzzleDate,
         won: correct,
         guessesUsed: guessNumber,
@@ -146,6 +155,7 @@ puzzleRouter.post(
         won: correct,
         guessesUsed: guessNumber,
         snippetStageReached: guessNumber - 1,
+        timeTakenSeconds,
       });
     }
 

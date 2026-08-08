@@ -21,6 +21,16 @@ describe('GET /api/stats/me', () => {
       gamesPlayed: 0,
       gamesWon: 0,
       guessDistribution: [0, 0, 0, 0, 0, 0],
+      lastPlayedDate: null,
+      // Timing aggregates are null rather than 0 for someone with no history — a "0s fastest
+      // solve" would read as an achievement rather than an absence.
+      averageSolveSeconds: null,
+      fastestSolveSeconds: null,
+      slowestSolveSeconds: null,
+      totalPlaySeconds: 0,
+      averageGuessesPerWin: null,
+      averageSnippetSeconds: null,
+      timedWins: 0,
     });
   });
 

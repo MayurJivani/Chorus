@@ -1,6 +1,6 @@
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { db } from '../db/client';
-import { dailyPuzzles, songs } from '../db/schema';
+import { dailyPuzzles, dailyPuzzleStarts, songs } from '../db/schema';
 import { hashString } from '../utils/deterministic';
 
 /** Seconds of audio revealed at each guess stage — six stages for six guesses, Heardle-style. */
@@ -103,6 +103,36 @@ export async function getOrCreateDailyPuzzle(puzzleDate: string) {
   }
 
   return raced;
+}
+
+/**
+ * Stamps when this player first opened the puzzle, if it isn't already stamped.
+ *
+ * `onConflictDoNothing` is what makes the timing honest: reloading the page, or opening it in
+ * a second tab, must not reset the clock, so only the first view ever wins.
+ */
+export async function markPuzzleStarted(ownerKey: string, puzzleId: number): Promise<void> {
+  await db
+    .insert(dailyPuzzleStarts)
+    .values({ ownerKey, puzzleId })
+    .onConflictDoNothing({ target: [dailyPuzzleStarts.ownerKey, dailyPuzzleStarts.puzzleId] });
+}
+
+/** Seconds between this player's first view of the puzzle and now, or null if never stamped
+ *  (results predating the timing feature, or a client that went straight to guessing). */
+export async function getElapsedPuzzleSeconds(
+  ownerKey: string,
+  puzzleId: number,
+): Promise<number | null> {
+  const rows = await db
+    .select({ startedAt: dailyPuzzleStarts.startedAt })
+    .from(dailyPuzzleStarts)
+    .where(and(eq(dailyPuzzleStarts.ownerKey, ownerKey), eq(dailyPuzzleStarts.puzzleId, puzzleId)))
+    .limit(1);
+
+  const startedAt = rows[0]?.startedAt;
+  if (!startedAt) return null;
+  return Math.max(0, Math.round((Date.now() - startedAt.getTime()) / 1000));
 }
 
 export async function getSongById(songId: number) {

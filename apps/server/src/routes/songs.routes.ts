@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { and, eq, or, sql } from 'drizzle-orm';
+import { and, eq, exists, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { songs } from '../db/schema';
+import { dailyPuzzles, songs } from '../db/schema';
 import { validate } from '../middleware/validate';
 import { searchRateLimiter } from '../middleware/rateLimiters';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -35,7 +35,20 @@ songsRouter.get(
       .from(songs)
       .where(
         and(
-          eq(songs.active, true),
+          // Active songs, *plus* any song that is the answer to a daily puzzle. The chart sync
+          // deactivates songs that drop off the chart, and it will happily do that to a song
+          // already chosen as a past or present answer — at which point the autocomplete could
+          // no longer offer it and the puzzle became literally unguessable. Answers stay
+          // searchable regardless of whether they are still in the active pool.
+          or(
+            eq(songs.active, true),
+            exists(
+              db
+                .select({ one: sql`1` })
+                .from(dailyPuzzles)
+                .where(eq(dailyPuzzles.songId, songs.id)),
+            ),
+          ),
           or(
             sql`${songs.title} ILIKE ${prefix}`,
             sql`${songs.artist} ILIKE ${prefix}`,

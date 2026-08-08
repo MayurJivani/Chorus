@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { StatsResponse } from '../../types/api';
+import { formatDuration } from './formatDuration';
 
 interface ShareCardProps {
   stats: StatsResponse;
@@ -8,7 +9,22 @@ interface ShareCardProps {
 function buildStatsShareText(stats: StatsResponse): string {
   const winRate =
     stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0;
-  return `Chorus stats 🎵\n🔥 ${stats.currentStreak} day streak (best ${stats.maxStreak})\n${winRate}% win rate over ${stats.gamesPlayed} games`;
+
+  const lines = [
+    'Chorus stats 🎵',
+    `🔥 ${stats.currentStreak} day streak (best ${stats.maxStreak})`,
+    `${winRate}% win rate over ${stats.gamesPlayed} games`,
+  ];
+
+  // Only worth bragging about once there is a real time behind it.
+  if (stats.fastestSolveSeconds != null) {
+    lines.push(`⚡ Fastest solve ${formatDuration(stats.fastestSolveSeconds)}`);
+  }
+  if (stats.averageGuessesPerWin != null) {
+    lines.push(`🎯 ${stats.averageGuessesPerWin} guesses per win on average`);
+  }
+
+  return lines.join('\n');
 }
 
 export function ShareCard({ stats }: ShareCardProps) {

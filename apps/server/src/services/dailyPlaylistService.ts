@@ -6,9 +6,9 @@
  * never deactivates them and never force-reactivates them — so a hand-curated
  * all-time list can coexist with the live chart.
  */
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, notExists, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { songs } from '../db/schema';
+import { dailyPuzzles, songs } from '../db/schema';
 import { logger } from '../logger';
 
 interface DailyPlaylist {
@@ -161,7 +161,21 @@ export async function syncDailyPlaylists(): Promise<SyncSummary> {
     const activeRows = await db
       .select({ deezerTrackId: songs.deezerTrackId })
       .from(songs)
-      .where(and(eq(songs.active, true), eq(songs.manualOverride, false)));
+      .where(
+        and(
+          eq(songs.active, true),
+          eq(songs.manualOverride, false),
+          // Never deactivate a song that has been used as a daily answer. Doing so took the
+          // song out of the guess autocomplete, which made that day's puzzle unwinnable — the
+          // one word a player needed to type was the one the search would not return.
+          notExists(
+            db
+              .select({ one: sql`1` })
+              .from(dailyPuzzles)
+              .where(eq(dailyPuzzles.songId, songs.id)),
+          ),
+        ),
+      );
     const staleIds = activeRows.map((r) => r.deezerTrackId).filter((id) => !fetchedIds.has(id));
 
     for (let i = 0; i < staleIds.length; i += BATCH_SIZE) {

@@ -68,6 +68,16 @@ export interface StatsResponse {
   gamesPlayed: number;
   gamesWon: number;
   guessDistribution: number[];
+  lastPlayedDate: string | null;
+  /** Null until at least one puzzle has been finished with timing recorded. */
+  averageSolveSeconds: number | null;
+  fastestSolveSeconds: number | null;
+  slowestSolveSeconds: number | null;
+  totalPlaySeconds: number;
+  averageGuessesPerWin: number | null;
+  averageSnippetSeconds: number | null;
+  /** How many wins the time averages are actually based on. */
+  timedWins: number;
 }
 
 // --- Artist Mode ---------------------------------------------------------------------------

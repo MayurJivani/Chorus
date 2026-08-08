@@ -68,3 +68,44 @@ describe('GET /api/songs/search', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('GET /api/songs/search — daily answers stay searchable', () => {
+  it('returns an inactive song when it is the answer to a daily puzzle', async () => {
+    // The chart sync deactivates songs that drop off the chart, including ones already chosen
+    // as an answer. When that happened the autocomplete stopped offering the song, so the only
+    // guess that could win was the one a player could not type.
+    const [song] = await db
+      .insert(songs)
+      .values({
+        title: 'Retired Chart Hit',
+        artist: 'Someone',
+        deezerTrackId: 'dz-retired',
+        previewUrl: 'https://example.test/retired.mp3',
+        durationSeconds: 200,
+        active: false,
+      })
+      .returning();
+
+    await db.insert(dailyPuzzles).values({ puzzleDate: '2026-09-09', songId: song!.id });
+
+    const res = await request(app).get('/api/songs/search').query({ q: 'Retired' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.results.map((r: { title: string }) => r.title)).toContain('Retired Chart Hit');
+  });
+
+  it('still hides an inactive song that was never a puzzle answer', async () => {
+    await db.insert(songs).values({
+      title: 'Never Chosen',
+      artist: 'Someone',
+      deezerTrackId: 'dz-never',
+      previewUrl: 'https://example.test/never.mp3',
+      durationSeconds: 200,
+      active: false,
+    });
+
+    const res = await request(app).get('/api/songs/search').query({ q: 'Never' });
+
+    expect(res.body.results).toHaveLength(0);
+  });
+});

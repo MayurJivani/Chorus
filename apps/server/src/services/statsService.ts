@@ -1,6 +1,7 @@
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { gameResults, userStats } from '../db/schema';
+import { SNIPPET_SCHEDULE_SECONDS, MAX_GUESSES } from './puzzleService';
 
 const GUESS_DIST_COLUMNS = [
   'guessDist1',
@@ -70,6 +71,78 @@ export async function recordGameResult(input: RecordResultInput): Promise<void> 
 export async function getStats(ownerKey: string) {
   const rows = await db.select().from(userStats).where(eq(userStats.ownerKey, ownerKey)).limit(1);
   return rows[0] ?? null;
+}
+
+export interface SolveTimeStats {
+  /** Mean seconds across won puzzles that have a recorded time. */
+  averageSolveSeconds: number | null;
+  fastestSolveSeconds: number | null;
+  slowestSolveSeconds: number | null;
+  /** Total seconds spent on finished puzzles, wins and losses alike. */
+  totalPlaySeconds: number;
+  /** Mean guesses used across wins — the "how close to the wire" number. */
+  averageGuessesPerWin: number | null;
+  /** Mean seconds of snippet a win needed, derived from the reveal ladder. */
+  averageSnippetSeconds: number | null;
+  /** Wins that have a recorded time; the rest predate timing and are excluded from averages. */
+  timedWins: number;
+}
+
+/**
+ * Per-player aggregates that `user_stats` doesn't carry.
+ *
+ * These are computed from `game_results` rather than kept as running counters because they
+ * are averages and extrema — a counter would have to be rewritten on every play and could not
+ * be recomputed if it ever drifted. `time_taken_seconds` is null for anything recorded before
+ * timing existed, so every average is taken over the timed subset and `timedWins` reports how
+ * much of the history that actually covers.
+ */
+export async function getSolveTimeStats(ownerKey: string): Promise<SolveTimeStats> {
+  const rows = (await db.execute(sql`
+    SELECT
+      AVG(time_taken_seconds) FILTER (WHERE won AND time_taken_seconds IS NOT NULL)      AS "avgWin",
+      MIN(time_taken_seconds) FILTER (WHERE won AND time_taken_seconds IS NOT NULL)::int AS "fastest",
+      MAX(time_taken_seconds) FILTER (WHERE won AND time_taken_seconds IS NOT NULL)::int AS "slowest",
+      COALESCE(SUM(time_taken_seconds), 0)::int                                          AS "totalSeconds",
+      COUNT(*) FILTER (WHERE won AND time_taken_seconds IS NOT NULL)::int                AS "timedWins",
+      AVG(guesses_used) FILTER (WHERE won)                                               AS "avgGuesses",
+      AVG(snippet_stage_reached) FILTER (WHERE won)                                      AS "avgStage"
+    FROM game_results
+    WHERE COALESCE(user_id, guest_id) = ${ownerKey}
+  `)) as unknown as {
+    avgWin: string | null;
+    fastest: number | null;
+    slowest: number | null;
+    totalSeconds: number;
+    timedWins: number;
+    avgGuesses: string | null;
+    avgStage: string | null;
+  }[];
+
+  const row = rows[0];
+  // AVG returns numeric, which postgres-js hands back as a string — parse rather than trust
+  // the declared type, the same trap that made the artist guess histogram concatenate.
+  const num = (value: string | null): number | null => (value == null ? null : Number(value));
+
+  const avgStage = num(row?.avgStage ?? null);
+
+  return {
+    averageSolveSeconds: round1(num(row?.avgWin ?? null)),
+    fastestSolveSeconds: row?.fastest ?? null,
+    slowestSolveSeconds: row?.slowest ?? null,
+    totalPlaySeconds: row?.totalSeconds ?? 0,
+    averageGuessesPerWin: round1(num(row?.avgGuesses ?? null)),
+    // snippet_stage_reached is a 0-based index into the reveal ladder.
+    averageSnippetSeconds:
+      avgStage == null
+        ? null
+        : round1(SNIPPET_SCHEDULE_SECONDS[Math.min(Math.round(avgStage), MAX_GUESSES - 1)] ?? null),
+    timedWins: row?.timedWins ?? 0,
+  };
+}
+
+function round1(value: number | null): number | null {
+  return value == null ? null : Math.round(value * 10) / 10;
 }
 
 /** Migrates a guest's history onto a freshly-registered user account. */

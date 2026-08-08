@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getStats } from '../services/statsService';
+import { getStats, getSolveTimeStats } from '../services/statsService';
 import { asyncHandler } from '../middleware/asyncHandler';
 
 export const statsRouter = Router();
@@ -8,7 +8,10 @@ statsRouter.get(
   '/me',
   asyncHandler(async (req, res) => {
     const ownerKey = req.session.userId ?? req.session.guestId;
-    const stats = await getStats(ownerKey);
+    const [stats, solveTimes] = await Promise.all([
+      getStats(ownerKey),
+      getSolveTimeStats(ownerKey),
+    ]);
 
     if (!stats) {
       res.json({
@@ -17,6 +20,8 @@ statsRouter.get(
         gamesPlayed: 0,
         gamesWon: 0,
         guessDistribution: [0, 0, 0, 0, 0, 0],
+        lastPlayedDate: null,
+        ...solveTimes,
       });
       return;
     }
@@ -34,6 +39,8 @@ statsRouter.get(
         stats.guessDist5,
         stats.guessDist6,
       ],
+      lastPlayedDate: stats.lastPlayedDate,
+      ...solveTimes,
     });
   }),
 );

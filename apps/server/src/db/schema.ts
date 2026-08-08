@@ -66,11 +66,38 @@ export const gameResults = pgTable(
     won: boolean('won').notNull(),
     guessesUsed: integer('guesses_used').notNull(),
     snippetStageReached: integer('snippet_stage_reached').notNull(),
+    // Wall-clock seconds from first opening the puzzle to finishing it. Null for results
+    // recorded before timing existed, and for anyone whose start was never captured.
+    timeTakenSeconds: integer('time_taken_seconds'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex('game_results_user_puzzle_idx').on(table.userId, table.puzzleId),
     uniqueIndex('game_results_guest_puzzle_idx').on(table.guestId, table.puzzleId),
+  ],
+);
+
+/**
+ * When each player first opened a given daily puzzle.
+ *
+ * Solve time has to be measured from something the server saw. Taking an elapsed figure from
+ * the client would make the headline "fastest solve" stat trivially forgeable, and there is
+ * nowhere else to read a start from — a `game_results` row only exists once the puzzle is
+ * already over. One row per player per puzzle, written on first view and never updated, so
+ * reloading the page cannot restart the clock.
+ */
+export const dailyPuzzleStarts = pgTable(
+  'daily_puzzle_starts',
+  {
+    id: serial('id').primaryKey(),
+    ownerKey: text('owner_key').notNull(), // user_id if present, else guest_id
+    puzzleId: integer('puzzle_id')
+      .notNull()
+      .references(() => dailyPuzzles.id, { onDelete: 'cascade' }),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('daily_puzzle_starts_owner_puzzle_idx').on(table.ownerKey, table.puzzleId),
   ],
 );
 
@@ -234,3 +261,4 @@ export type ArtistSessionResult = typeof artistSessionResults.$inferSelect;
 export type ArtistRoundGuess = typeof artistRoundGuesses.$inferSelect;
 export type NewArtistRoundGuess = typeof artistRoundGuesses.$inferInsert;
 export type ArtistTrackPool = typeof artistTrackPools.$inferSelect;
+export type DailyPuzzleStart = typeof dailyPuzzleStarts.$inferSelect;
