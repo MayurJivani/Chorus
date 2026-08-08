@@ -6,11 +6,13 @@ import {
   getArtistById,
   getArtistTopTracks,
   clearArtistCaches,
+  __resetDeezerRateLimit,
 } from '../../src/services/deezerService';
 
 beforeEach(() => {
   clearPreviewCache();
   clearArtistCaches();
+  __resetDeezerRateLimit();
 });
 
 afterEach(() => {
@@ -345,5 +347,38 @@ describe('getArtistTopTracks', () => {
     // Tracks fetch: 1 for false, 1 for true = 2 track calls
     // Total: 4 fetch calls
     expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('Deezer quota handling', () => {
+  it('retries a quota error instead of reporting the track as unavailable', async () => {
+    // Deezer signals throttling with HTTP 200 and an error body, which is otherwise
+    // indistinguishable from a track that genuinely has no preview.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ error: { type: 'Exception', message: 'Quota limit exceeded' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ preview: 'https://example.test/p.mp3', duration: 30 }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await getFreshPreviewUrl('123');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ previewUrl: 'https://example.test/p.mp3', durationSeconds: 30 });
+  });
+
+  it('gives up and returns null when the quota error never clears', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ error: { type: 'Exception', message: 'Quota limit exceeded' } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await getFreshPreviewUrl('456')).toBeNull();
   });
 });

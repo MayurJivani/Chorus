@@ -24,6 +24,89 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
+/**
+ * Deezer allows roughly 50 requests per 5 seconds per IP. Over that it does *not* fail the
+ * HTTP request — it returns 200 with `{"error":{"message":"Quota limit exceeded"}}`, which
+ * reads exactly like "this track has no preview" unless you look for it.
+ *
+ * That distinction matters because the two kinds of call compete: crawling one artist's
+ * discography costs a request per album (over a hundred for a large artist) and would burn the
+ * whole quota, so the preview lookup a player is actually waiting on came back "unavailable"
+ * and their challenge 503'd. Routing every outbound call through one window keeps the process
+ * under the limit no matter what mix of work is in flight, and quota responses are retried
+ * rather than mistaken for missing content.
+ */
+const DEEZER_WINDOW_MS = 5000;
+const QUOTA_RETRIES = 3;
+
+/**
+ * Two budgets, because the traffic is two very different things. Interactive lookups (the
+ * preview a player is staring at a spinner for) may use the whole window; bulk crawling a
+ * discography stops short of it. That reserve is the point: a crawl issues hundreds of
+ * requests back to back and would otherwise hold the entire quota for its duration, so the
+ * one request that actually blocks a player would queue behind it or come back as a quota
+ * error indistinguishable from "no preview exists".
+ */
+const DEEZER_MAX_PER_WINDOW = 45; // headroom under Deezer's ~50
+const DEEZER_BULK_PER_WINDOW = 30; // leaves 15 slots for interactive lookups
+
+let windowStartedAt = 0;
+let windowCount = 0;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function acquireDeezerSlot(bulk: boolean): Promise<void> {
+  const limit = bulk ? DEEZER_BULK_PER_WINDOW : DEEZER_MAX_PER_WINDOW;
+  for (;;) {
+    const now = Date.now();
+    if (now - windowStartedAt >= DEEZER_WINDOW_MS) {
+      windowStartedAt = now;
+      windowCount = 0;
+    }
+    if (windowCount < limit) {
+      windowCount += 1;
+      return;
+    }
+    await sleep(DEEZER_WINDOW_MS - (now - windowStartedAt));
+  }
+}
+
+function isQuotaError(body: unknown): boolean {
+  if (typeof body !== 'object' || body === null) return false;
+  const error = (body as { error?: unknown }).error;
+  if (typeof error !== 'object' || error === null) return false;
+  const message = (error as { message?: unknown }).message;
+  return typeof message === 'string' && /quota/i.test(message);
+}
+
+/** Rate-limited Deezer GET returning parsed JSON, or null if the request failed outright.
+ *  Retries transparently when Deezer answers with a quota error. */
+async function deezerFetchJson<T>(url: string, bulk = false): Promise<T | null> {
+  for (let attempt = 0; attempt <= QUOTA_RETRIES; attempt += 1) {
+    await acquireDeezerSlot(bulk);
+
+    const res = await fetch(url, { headers: { Referer: 'https://chorus.app/' } });
+    if (!res.ok) return null;
+
+    const body = (await res.json()) as T;
+    if (!isQuotaError(body)) return body;
+
+    if (attempt < QUOTA_RETRIES) {
+      logger.warn({ url, attempt }, 'Deezer quota exceeded; backing off');
+      await sleep(DEEZER_WINDOW_MS);
+    }
+  }
+
+  logger.warn({ url }, 'Deezer quota still exceeded after retries');
+  return null;
+}
+
+/** Test helper — resets the rate-limit window so suites don't inherit each other's budget. */
+export function __resetDeezerRateLimit(): void {
+  windowStartedAt = 0;
+  windowCount = 0;
+}
+
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const cache = new Map<string, CacheEntry<FreshPreview>>();
 
@@ -39,13 +122,10 @@ export async function getFreshPreviewUrl(deezerTrackId: string): Promise<FreshPr
     return cached.value;
   }
 
-  const res = await fetch(`https://api.deezer.com/track/${encodeURIComponent(deezerTrackId)}`, {
-    headers: { Referer: 'https://chorus.app/' },
-  });
-  if (!res.ok) return null;
-
-  const body = (await res.json()) as DeezerTrackResponse;
-  if (!body.preview || body.error) return null;
+  const body = await deezerFetchJson<DeezerTrackResponse>(
+    `https://api.deezer.com/track/${encodeURIComponent(deezerTrackId)}`,
+  );
+  if (!body?.preview || body.error) return null;
 
   const value: FreshPreview = { previewUrl: body.preview, durationSeconds: body.duration ?? 0 };
   cache.set(deezerTrackId, { value, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -79,15 +159,11 @@ interface DeezerArtistSearchResponse {
 }
 
 export async function searchArtists(query: string): Promise<ArtistSearchResult[]> {
-  const res = await fetch(
+  const body = await deezerFetchJson<DeezerArtistSearchResponse>(
     `https://api.deezer.com/search/artist?q=${encodeURIComponent(query)}&limit=5`,
-    {
-      headers: { Referer: 'https://chorus.app/' },
-    },
   );
-  if (!res.ok) return [];
+  if (!body) return [];
 
-  const body = (await res.json()) as DeezerArtistSearchResponse;
   return (body.data ?? [])
     .filter(
       (a): a is Required<Pick<DeezerArtistResponse, 'id' | 'name'>> & DeezerArtistResponse =>
@@ -111,18 +187,14 @@ export async function getArtistById(
     return cached.value;
   }
 
-  const res = await fetch(`https://api.deezer.com/artist/${artistId}`, {
-    headers: { Referer: 'https://chorus.app/' },
-  });
+  const body = await deezerFetchJson<DeezerArtistResponse>(
+    `https://api.deezer.com/artist/${artistId}`,
+  );
 
-  let value: { id: number; name: string; pictureUrl: string | null } | null = null;
-  if (res.ok) {
-    const body = (await res.json()) as DeezerArtistResponse;
-    value =
-      body.id && body.name && !body.error
-        ? { id: body.id, name: body.name, pictureUrl: body.picture_medium ?? null }
-        : null;
-  }
+  const value: { id: number; name: string; pictureUrl: string | null } | null =
+    body?.id && body.name && !body.error
+      ? { id: body.id, name: body.name, pictureUrl: body.picture_medium ?? null }
+      : null;
 
   artistCache.set(artistId, { value, expiresAt: Date.now() + ARTIST_CACHE_TTL_MS });
   return value;
@@ -167,9 +239,10 @@ async function fetchAllAlbums(artistId: number): Promise<DeezerAlbum[]> {
   let url: string | null = `https://api.deezer.com/artist/${artistId}/albums?limit=100`;
 
   while (url) {
-    const res = await fetch(url, { headers: { Referer: 'https://chorus.app/' } });
-    if (!res.ok) break;
-    const body = (await res.json()) as DeezerAlbumListResponse;
+    // Annotated because `url` is reassigned from `body.next`, which otherwise makes the
+    // inference circular.
+    const body: DeezerAlbumListResponse | null = await deezerFetchJson(url, true);
+    if (!body) break;
     albums.push(...(body.data ?? []));
     url = body.next ?? null;
   }
@@ -182,9 +255,8 @@ async function fetchAlbumTracks(albumId: number): Promise<DeezerAlbumTrack[]> {
   let url: string | null = `https://api.deezer.com/album/${albumId}/tracks?limit=100`;
 
   while (url) {
-    const res = await fetch(url, { headers: { Referer: 'https://chorus.app/' } });
-    if (!res.ok) break;
-    const body = (await res.json()) as DeezerAlbumTrackResponse;
+    const body: DeezerAlbumTrackResponse | null = await deezerFetchJson(url, true);
+    if (!body) break;
     tracks.push(...(body.data ?? []));
     url = body.next ?? null;
   }
