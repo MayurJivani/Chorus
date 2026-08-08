@@ -28,6 +28,31 @@ describe('isUnwantedVersion', () => {
       expect(isUnwantedVersion(title)).toBe(false);
     },
   );
+
+  // Regression: these were all excluded by substring matching — "live" inside Alive/Delivery/
+  // Olive/Sliver, "demo" inside Demons, "mix" inside Mixtape — silently shrinking the pool.
+  it.each([
+    'Alive',
+    'Delivery',
+    'Demons',
+    'Olive',
+    'Sliver',
+    'Mixtape',
+    'Believer',
+    'Cover Girl',
+    'Forever Young',
+  ])('keeps %s, which only contains a filter term as a substring', (title) => {
+    expect(isUnwantedVersion(title)).toBe(false);
+  });
+
+  it.each([
+    'Wood (Track by Track)',
+    'The Life of a Showgirl (Commentary)',
+    'Album Interview',
+    'Voice Memo',
+  ])('flags spoken-word filler like %s', (title) => {
+    expect(isUnwantedVersion(title)).toBe(true);
+  });
 });
 
 describe('mentionsFeature', () => {
@@ -39,9 +64,12 @@ describe('mentionsFeature', () => {
     expect(mentionsFeature(title)).toBe(true);
   });
 
-  it('does not flag a title with no feature credit', () => {
-    expect(mentionsFeature('The Scientist')).toBe(false);
-  });
+  it.each(['The Scientist', 'Feather', 'Often', 'Gift', 'Soft'])(
+    'does not flag %s, which has no feature credit',
+    (title) => {
+      expect(mentionsFeature(title)).toBe(false);
+    },
+  );
 });
 
 describe('normalizeTitle', () => {

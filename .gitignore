@@ -38,3 +38,9 @@ apps/server/public/
 # Coverage
 coverage/
 .tsbuildinfo
+
+# One-off local scratch scripts and their output (curation experiments, not part of the app)
+*.tmp.ts
+apps/server/check-tmp.ts
+apps/server/match-tmp.ts
+apps/server/pool.json

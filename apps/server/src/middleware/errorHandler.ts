@@ -32,7 +32,16 @@ function getHttpStatus(err: unknown): number | undefined {
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   const status = getHttpStatus(err) ?? 500;
   const isClientError = status >= 400 && status < 500;
-  const message = isClientError && err instanceof Error ? err.message : 'Internal server error';
+
+  // Messages are safe to send when *we* wrote them. Masking used to key off `status < 500`,
+  // which silently swallowed every deliberate 5xx message: a `HttpError(503, 'This song is
+  // temporarily unavailable — please try again shortly')` reached the player as the useless
+  // "Internal server error". An explicitly constructed HttpError is authored copy, so it is
+  // surfaced at any status; anything else is still masked so unexpected failures can't leak
+  // internals.
+  const isAuthoredError = err instanceof HttpError;
+  const canRevealMessage = isAuthoredError || (isClientError && err instanceof Error);
+  const message = canRevealMessage && err instanceof Error ? err.message : 'Internal server error';
 
   if (!isClientError) {
     logger.error({ err, path: req.path }, 'Unhandled error');
@@ -41,8 +50,8 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   }
 
   res.status(status).json({
-    error: isClientError ? message : 'Internal server error',
-    ...(env.NODE_ENV !== 'production' && !isClientError && err instanceof Error
+    error: message,
+    ...(env.NODE_ENV !== 'production' && !canRevealMessage && err instanceof Error
       ? { stack: err.stack }
       : {}),
   });

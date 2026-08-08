@@ -6,7 +6,12 @@
  * real TTL) so concurrent players loading the same daily puzzle don't each trigger their own
  * call to Deezer's public API.
  */
-import { isUnwantedVersion, mentionsFeature, normalizeTitle, stripVersionSuffix } from '../utils/trackFilters';
+import {
+  isUnwantedVersion,
+  mentionsFeature,
+  normalizeTitle,
+  stripVersionSuffix,
+} from '../utils/trackFilters';
 import { logger } from '../logger';
 
 interface FreshPreview {
@@ -190,6 +195,17 @@ async function fetchAlbumTracks(albumId: number): Promise<DeezerAlbumTrack[]> {
 const topTracksCache = new Map<string, CacheEntry<ArtistTrack[]>>();
 
 /**
+ * Discography fetches that are currently running, keyed the same way as the cache.
+ *
+ * Building the pool for a popular artist costs one request per album (~126 for Taylor Swift)
+ * and takes several seconds, during which the cache is still empty. Without this, every
+ * player who opens the same artist in that window starts their own full crawl — N times the
+ * latency for them and N times the load on Deezer, right when it is already slowest. Sharing
+ * the in-flight promise means the second and later callers wait on the first one's result.
+ */
+const topTracksInFlight = new Map<string, Promise<ArtistTrack[]>>();
+
+/**
  * Fetches an artist's full discography (all albums → all tracks), filtering out
  * karaoke/tribute/acoustic/live/remix/etc. versions and deduplicating by base title so
  * alternate versions (e.g. "Eyes Closed (2x Speed)", "Pillowtalk (Living Room Session)")
@@ -209,6 +225,28 @@ export async function getArtistTopTracks(
     return cached.value;
   }
 
+  const inFlight = topTracksInFlight.get(cacheKey);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const pending = fetchArtistTopTracks(artistId, includeFeatures)
+    .then((tracks) => {
+      topTracksCache.set(cacheKey, { value: tracks, expiresAt: Date.now() + ARTIST_CACHE_TTL_MS });
+      return tracks;
+    })
+    // Always release the slot, success or failure, so one failed crawl can't wedge the artist
+    // into permanently returning a rejected promise.
+    .finally(() => topTracksInFlight.delete(cacheKey));
+
+  topTracksInFlight.set(cacheKey, pending);
+  return pending;
+}
+
+async function fetchArtistTopTracks(
+  artistId: number,
+  includeFeatures: boolean,
+): Promise<ArtistTrack[]> {
   logger.info(`Fetching full discography for artist ${artistId}...`);
 
   const albums = await fetchAllAlbums(artistId);
@@ -220,24 +258,30 @@ export async function getArtistTopTracks(
     albumCovers.set(a.id, a.cover_medium ?? null);
   }
 
-  // Fetch tracks from each album concurrently (capped to avoid flooding Deezer).
-  const CONCURRENCY = 5;
+  // Fetch each album's tracks with a fixed pool of workers (capped to avoid flooding Deezer).
+  // A pool rather than fixed batches: batching waited for the slowest request in each group of
+  // five before starting the next, so one slow album stalled four idle slots. Workers pull the
+  // next album as soon as they finish, which keeps every slot busy for the whole crawl.
+  const CONCURRENCY = 8;
   const allRawTracks: (DeezerAlbumTrack & { albumId?: number })[] = [];
+  let nextAlbumIndex = 0;
 
-  for (let i = 0; i < albums.length; i += CONCURRENCY) {
-    const batch = albums.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(
-      batch.map(async (a) => {
-        const tracks = await fetchAlbumTracks(a.id);
-        return tracks.map((t) => ({ ...t, albumId: a.id }));
-      }),
-    );
-    for (const r of results) {
-      if (r.status === 'fulfilled') {
-        allRawTracks.push(...r.value);
+  async function worker(): Promise<void> {
+    for (;;) {
+      const album = albums[nextAlbumIndex];
+      nextAlbumIndex += 1;
+      if (!album) return;
+      try {
+        const tracks = await fetchAlbumTracks(album.id);
+        for (const t of tracks) allRawTracks.push({ ...t, albumId: album.id });
+      } catch (err) {
+        // One unreachable album shouldn't sink the whole discography.
+        logger.warn({ err, albumId: album.id }, 'Album track fetch failed; skipping album');
       }
     }
   }
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, albums.length) }, () => worker()));
 
   // Deduplicate alternate versions by their base title: the same song can appear on
   // multiple albums and with several version suffixes (e.g. "Eyes Closed" vs
@@ -266,17 +310,23 @@ export async function getArtistTopTracks(
     }
   }
 
-  const tracks = [...bestByBase.values()];
+  // Sort by track id before returning. Callers feed this list straight into `seededShuffle`
+  // to pick "these 10 tracks for this artist on this date", which is only reproducible if the
+  // input order is too — and map insertion order here follows whichever worker happened to
+  // finish first. Sorting pins it so the same seed always yields the same challenge.
+  const tracks = [...bestByBase.values()].sort((a, b) =>
+    a.deezerTrackId.localeCompare(b.deezerTrackId),
+  );
 
   logger.info(
     `Discography for artist ${artistId}: ${allRawTracks.length} raw → ${tracks.length} after filtering`,
   );
 
-  topTracksCache.set(cacheKey, { value: tracks, expiresAt: Date.now() + ARTIST_CACHE_TTL_MS });
   return tracks;
 }
 
 export function clearArtistCaches(): void {
+  topTracksInFlight.clear();
   artistCache.clear();
   topTracksCache.clear();
 }

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { db } from '../../src/db/client';
 import {
   artistChallenges,
@@ -8,10 +9,12 @@ import {
   users,
 } from '../../src/db/schema';
 import * as deezerService from '../../src/services/deezerService';
+import { clearArtistPools } from '../../src/services/artistCatalogService';
 
 vi.mock('../../src/services/deezerService', () => ({
   getArtistById: vi.fn(),
   getArtistTopTracks: vi.fn(),
+  getFreshPreviewUrl: vi.fn(),
 }));
 
 // Imported after the mock so the module under test picks up the mocked deezerService.
@@ -21,6 +24,8 @@ import {
   recordArtistRoundResult,
   buildRoundOptions,
   getArtistLeaderboard,
+  resolvePlayableRound,
+  loadChallengeTracks,
   ARTIST_CHALLENGE_SIZE,
 } from '../../src/services/artistChallengeService';
 
@@ -34,12 +39,15 @@ function mockTracks(n: number) {
   }));
 }
 
-beforeEach(() => {
-  db.delete(artistRoundGuesses).run();
-  db.delete(artistSessionResults).run();
-  db.delete(artistChallengeTracks).run();
-  db.delete(artistChallenges).run();
-  db.delete(users).run();
+beforeEach(async () => {
+  // The artist catalog is cached in Postgres, so it must be cleared too — otherwise a stored
+  // pool would satisfy the lookup and the per-test deezerService mock would never be called.
+  await clearArtistPools();
+  await db.delete(artistRoundGuesses);
+  await db.delete(artistSessionResults);
+  await db.delete(artistChallengeTracks);
+  await db.delete(artistChallenges);
+  await db.delete(users);
   vi.clearAllMocks();
   vi.mocked(deezerService.getArtistById).mockResolvedValue({
     id: 412,
@@ -47,6 +55,10 @@ beforeEach(() => {
     pictureUrl: null,
   });
   vi.mocked(deezerService.getArtistTopTracks).mockResolvedValue(mockTracks(20));
+  vi.mocked(deezerService.getFreshPreviewUrl).mockResolvedValue({
+    previewUrl: 'https://example.test/preview.mp3',
+    durationSeconds: 200,
+  });
 });
 
 describe('getOrCreateArtistChallenge', () => {
@@ -101,15 +113,21 @@ describe('getOrCreateArtistChallenge', () => {
 describe('getOrCreateSessionProgress + recordArtistRoundResult', () => {
   it('starts a guest session at round 0 and progresses correctly', async () => {
     const { challenge } = await getOrCreateArtistChallenge(412, '2026-01-01');
-    const session = getOrCreateSessionProgress(challenge.id, { userId: null, guestId: 'guest-1' });
+    const session = await getOrCreateSessionProgress(challenge.id, {
+      userId: null,
+      guestId: 'guest-1',
+    });
 
     expect(session.currentRound).toBe(0);
     expect(session.completed).toBe(false);
 
-    const same = getOrCreateSessionProgress(challenge.id, { userId: null, guestId: 'guest-1' });
+    const same = await getOrCreateSessionProgress(challenge.id, {
+      userId: null,
+      guestId: 'guest-1',
+    });
     expect(same.id).toBe(session.id);
 
-    const result = recordArtistRoundResult(session.id, true, 2, 2);
+    const result = await recordArtistRoundResult(session.id, true, 2, 2);
     expect(result.sessionComplete).toBe(false);
     expect(result.songsCorrect).toBe(1);
     expect(result.totalGuessesUsed).toBe(2);
@@ -117,11 +135,14 @@ describe('getOrCreateSessionProgress + recordArtistRoundResult', () => {
 
   it('marks the session complete after the final round', async () => {
     const { challenge } = await getOrCreateArtistChallenge(412, '2026-01-01');
-    const session = getOrCreateSessionProgress(challenge.id, { userId: null, guestId: 'guest-2' });
+    const session = await getOrCreateSessionProgress(challenge.id, {
+      userId: null,
+      guestId: 'guest-2',
+    });
 
-    let lastResult = recordArtistRoundResult(session.id, true, 1, 1);
+    let lastResult = await recordArtistRoundResult(session.id, true, 1, 1);
     for (let round = 1; round < ARTIST_CHALLENGE_SIZE; round += 1) {
-      lastResult = recordArtistRoundResult(session.id, round % 2 === 0, 3, 4);
+      lastResult = await recordArtistRoundResult(session.id, round % 2 === 0, 3, 4);
     }
 
     expect(lastResult.sessionComplete).toBe(true);
@@ -229,15 +250,35 @@ describe('getArtistLeaderboard', () => {
   it('ranks by songs correct desc, then fewer guesses, and flags the caller', async () => {
     const { challenge } = await getOrCreateArtistChallenge(412, '2026-01-01');
 
-    const guestA = getOrCreateSessionProgress(challenge.id, { userId: null, guestId: 'guest-a' });
-    const guestB = getOrCreateSessionProgress(challenge.id, { userId: null, guestId: 'guest-b' });
+    const guestA = await getOrCreateSessionProgress(challenge.id, {
+      userId: null,
+      guestId: 'guest-a',
+    });
+    const guestB = await getOrCreateSessionProgress(challenge.id, {
+      userId: null,
+      guestId: 'guest-b',
+    });
 
     for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1)
-      recordArtistRoundResult(guestA.id, true, 2, 2); // 10/10, 20 guesses
+      await recordArtistRoundResult(guestA.id, true, 2, 2); // 10/10, 20 guesses
     for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1)
-      recordArtistRoundResult(guestB.id, true, 1, 1); // 10/10, 10 guesses
+      await recordArtistRoundResult(guestB.id, true, 1, 1); // 10/10, 10 guesses
 
-    const { entries, myBest } = getArtistLeaderboard(412, { userId: null, guestId: 'guest-b' });
+    // Wall-clock rounding can flip the time comparison, so pin each player's stored time to
+    // keep the expected order (time-then-guesses) deterministic.
+    await db
+      .update(artistSessionResults)
+      .set({ timeTakenSeconds: 20 })
+      .where(eq(artistSessionResults.id, guestA.id));
+    await db
+      .update(artistSessionResults)
+      .set({ timeTakenSeconds: 10 })
+      .where(eq(artistSessionResults.id, guestB.id));
+
+    const { entries, myBest } = await getArtistLeaderboard(412, {
+      userId: null,
+      guestId: 'guest-b',
+    });
 
     expect(entries[0]?.displayName).toBe('Guest');
     expect(entries[0]?.totalGuessesUsed).toBe(10); // guest-b (fewer guesses) ranks first
@@ -246,19 +287,77 @@ describe('getArtistLeaderboard', () => {
     expect(myBest).toEqual({
       songsCorrect: 10,
       totalGuessesUsed: 10,
-      timeTakenSeconds: expect.any(Number),
+      timeTakenSeconds: 10,
     });
   });
 
   it('only counts completed sessions', async () => {
     const { challenge } = await getOrCreateArtistChallenge(412, '2026-01-01');
-    const session = getOrCreateSessionProgress(challenge.id, {
+    const session = await getOrCreateSessionProgress(challenge.id, {
       userId: null,
       guestId: 'guest-incomplete',
     });
-    recordArtistRoundResult(session.id, true, 1, 1); // only 1 of 10 rounds played
+    await recordArtistRoundResult(session.id, true, 1, 1); // only 1 of 10 rounds played
 
-    const { entries } = getArtistLeaderboard(412, { userId: null, guestId: 'someone-else' });
+    const { entries } = await getArtistLeaderboard(412, {
+      userId: null,
+      guestId: 'someone-else',
+    });
     expect(entries).toHaveLength(0);
+  });
+});
+
+describe('resolvePlayableRound', () => {
+  it('returns the stored track when its preview is playable', async () => {
+    const { tracks } = await getOrCreateArtistChallenge(412, '2026-03-01');
+    const first = tracks[0]!;
+
+    const resolved = await resolvePlayableRound(first, 412, false, [first.deezerTrackId]);
+
+    expect(resolved?.track.deezerTrackId).toBe(first.deezerTrackId);
+    expect(resolved?.previewUrl).toBe('https://example.test/preview.mp3');
+  });
+
+  it('substitutes another catalog track when the stored one has no preview, and persists it', async () => {
+    const { challenge, tracks } = await getOrCreateArtistChallenge(412, '2026-03-02');
+    const dead = tracks[0]!;
+
+    // Only the challenge's own track is unplayable; everything else in the catalog is fine.
+    vi.mocked(deezerService.getFreshPreviewUrl).mockImplementation(async (trackId: string) =>
+      trackId === dead.deezerTrackId
+        ? null
+        : { previewUrl: `https://example.test/${trackId}.mp3`, durationSeconds: 200 },
+    );
+
+    const resolved = await resolvePlayableRound(
+      dead,
+      412,
+      false,
+      tracks.map((t) => t.deezerTrackId),
+    );
+
+    expect(resolved).not.toBeNull();
+    expect(resolved!.track.deezerTrackId).not.toBe(dead.deezerTrackId);
+    // The replacement must not duplicate a track already in the challenge.
+    expect(tracks.map((t) => t.deezerTrackId)).not.toContain(resolved!.track.deezerTrackId);
+
+    // The repair is written back, so the next player of this shared challenge sees the fix.
+    const reloaded = await loadChallengeTracks(challenge.id);
+    expect(reloaded[0]?.deezerTrackId).toBe(resolved!.track.deezerTrackId);
+    expect(reloaded).toHaveLength(ARTIST_CHALLENGE_SIZE);
+  });
+
+  it('gives up and returns null when nothing in the catalog is playable', async () => {
+    const { tracks } = await getOrCreateArtistChallenge(412, '2026-03-03');
+    vi.mocked(deezerService.getFreshPreviewUrl).mockResolvedValue(null);
+
+    const resolved = await resolvePlayableRound(
+      tracks[0]!,
+      412,
+      false,
+      tracks.map((t) => t.deezerTrackId),
+    );
+
+    expect(resolved).toBeNull();
   });
 });

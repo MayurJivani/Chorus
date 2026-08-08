@@ -13,6 +13,7 @@ import {
 import { isCorrectGuess, isFinalAttempt } from '../services/guessService';
 import { recordGameResult } from '../services/statsService';
 import { getFreshPreviewUrl } from '../services/deezerService';
+import { ensureDailyPlaylistsFresh } from '../services/dailyPlaylistService';
 import { validate } from '../middleware/validate';
 import { guessRateLimiter } from '../middleware/rateLimiters';
 import { HttpError } from '../middleware/errorHandler';
@@ -22,24 +23,26 @@ import type { Request } from 'express';
 
 export const puzzleRouter = Router();
 
-function findCompletedResult(puzzleId: number, req: Request) {
+async function findCompletedResult(puzzleId: number, req: Request) {
   const { userId, guestId } = getIdentity(req);
   if (userId) {
-    return db
+    const rows = await db
       .select()
       .from(gameResults)
       .where(and(eq(gameResults.puzzleId, puzzleId), eq(gameResults.userId, userId)))
-      .get();
+      .limit(1);
+    return rows[0];
   }
-  return db
+  const rows = await db
     .select()
     .from(gameResults)
     .where(and(eq(gameResults.puzzleId, puzzleId), eq(gameResults.guestId, guestId ?? '')))
-    .get();
+    .limit(1);
+  return rows[0];
 }
 
-function revealSong(songId: number) {
-  const song = getSongById(songId);
+async function revealSong(songId: number) {
+  const song = await getSongById(songId);
   if (!song) return null;
   return { title: song.title, artist: song.artist, albumArtUrl: song.albumArtUrl };
 }
@@ -47,9 +50,10 @@ function revealSong(songId: number) {
 puzzleRouter.get(
   '/today',
   asyncHandler(async (req, res) => {
+    await ensureDailyPlaylistsFresh();
     const puzzleDate = getUtcDateString();
-    const puzzle = getOrCreateDailyPuzzle(puzzleDate);
-    const completed = findCompletedResult(puzzle.id, req);
+    const puzzle = await getOrCreateDailyPuzzle(puzzleDate);
+    const completed = await findCompletedResult(puzzle.id, req);
 
     if (completed) {
       res.json({
@@ -58,13 +62,13 @@ puzzleRouter.get(
         completed: true,
         won: completed.won,
         guessesUsed: completed.guessesUsed,
-        song: revealSong(puzzle.songId),
+        song: await revealSong(puzzle.songId),
         snippetSchedule: SNIPPET_SCHEDULE_SECONDS,
       });
       return;
     }
 
-    const song = getSongById(puzzle.songId);
+    const song = await getSongById(puzzle.songId);
     if (!song) {
       throw new HttpError(500, 'Puzzle song is missing from the song bank');
     }
@@ -93,43 +97,47 @@ const guessSchema = z.object({
   guessNumber: z.number().int().min(1).max(MAX_GUESSES),
 });
 
-puzzleRouter.post('/today/guess', guessRateLimiter, validate(guessSchema), (req, res) => {
-  const puzzleDate = getUtcDateString();
-  const puzzle = getOrCreateDailyPuzzle(puzzleDate);
+puzzleRouter.post(
+  '/today/guess',
+  guessRateLimiter,
+  validate(guessSchema),
+  asyncHandler(async (req, res) => {
+    await ensureDailyPlaylistsFresh();
+    const puzzleDate = getUtcDateString();
+    const puzzle = await getOrCreateDailyPuzzle(puzzleDate);
 
-  if (findCompletedResult(puzzle.id, req)) {
-    res.status(409).json({ error: "Today's puzzle has already been completed" });
-    return;
-  }
+    if (await findCompletedResult(puzzle.id, req)) {
+      res.status(409).json({ error: "Today's puzzle has already been completed" });
+      return;
+    }
 
-  const { songId, guessNumber } = req.body as z.infer<typeof guessSchema>;
-  const correct = songId !== undefined && isCorrectGuess(songId, puzzle.songId);
-  const final = isFinalAttempt(guessNumber, correct);
+    const { songId, guessNumber } = req.body as z.infer<typeof guessSchema>;
+    const correct = songId !== undefined && isCorrectGuess(songId, puzzle.songId);
+    const final = isFinalAttempt(guessNumber, correct);
 
-  if (final) {
-    const { userId, guestId } = getIdentity(req);
-    recordGameResult({
-      ownerKey: userId ?? guestId ?? req.session.guestId,
-      puzzleDate,
-      won: correct,
-      guessesUsed: guessNumber,
-    });
+    if (final) {
+      const { userId, guestId } = getIdentity(req);
+      await recordGameResult({
+        ownerKey: userId ?? guestId ?? req.session.guestId,
+        puzzleDate,
+        won: correct,
+        guessesUsed: guessNumber,
+      });
 
-    db.insert(gameResults)
-      .values({
+      await db.insert(gameResults).values({
         userId,
         guestId,
         puzzleId: puzzle.id,
         won: correct,
         guessesUsed: guessNumber,
         snippetStageReached: guessNumber - 1,
-      })
-      .run();
-  }
+      });
+    }
 
-  res.json({
-    correct,
-    isFinal: final,
-    song: final ? revealSong(puzzle.songId) : undefined,
-  });
-});
+    res.json({
+      correct,
+      isFinal: final,
+      song: final ? await revealSong(puzzle.songId) : undefined,
+    });
+  }),
+);

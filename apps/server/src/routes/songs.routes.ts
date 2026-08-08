@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { sql } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
+import { songs } from '../db/schema';
 import { validate } from '../middleware/validate';
 import { searchRateLimiter } from '../middleware/rateLimiters';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 export const songsRouter = Router();
 
@@ -11,40 +13,42 @@ const searchSchema = z.object({
   q: z.string().trim().min(1).max(80),
 });
 
-/** Builds a safe FTS5 MATCH expression: quoted, prefix-matched tokens, capped in count. */
-function buildFtsQuery(raw: string): string {
-  const tokens = raw
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 6)
-    .map((token) => `"${token.replace(/"/g, '""')}"*`);
-  return tokens.join(' ');
-}
+songsRouter.get(
+  '/search',
+  searchRateLimiter,
+  validate(searchSchema, 'query'),
+  asyncHandler(async (req, res) => {
+    const { q } = req.query as unknown as z.infer<typeof searchSchema>;
 
-interface SongSearchRow {
-  id: number;
-  title: string;
-  artist: string;
-  albumArtUrl: string | null;
-}
+    // Guess autocomplete across title/artist: prefix ILIKE matches first, with a Postgres
+    // full-text fallback (websearch_to_tsquery tolerates arbitrary user input) so a search
+    // like "michael jackson" still finds an entry whose title doesn't start with the query.
+    const prefix = `${q}%`;
 
-songsRouter.get('/search', searchRateLimiter, validate(searchSchema, 'query'), (req, res) => {
-  const { q } = req.query as unknown as z.infer<typeof searchSchema>;
-  const ftsQuery = buildFtsQuery(q);
+    const rows = await db
+      .select({
+        id: songs.id,
+        title: songs.title,
+        artist: songs.artist,
+        albumArtUrl: songs.albumArtUrl,
+      })
+      .from(songs)
+      .where(
+        and(
+          eq(songs.active, true),
+          or(
+            sql`${songs.title} ILIKE ${prefix}`,
+            sql`${songs.artist} ILIKE ${prefix}`,
+            sql`to_tsvector('english', ${songs.title} || ' ' || ${songs.artist}) @@ websearch_to_tsquery('english', ${q})`,
+          ),
+        ),
+      )
+      .orderBy(
+        sql`CASE WHEN ${songs.title} ILIKE ${prefix} OR ${songs.artist} ILIKE ${prefix} THEN 0 ELSE 1 END`,
+        songs.title,
+      )
+      .limit(8);
 
-  if (!ftsQuery) {
-    res.json({ results: [] });
-    return;
-  }
-
-  const rows = db.all<SongSearchRow>(sql`
-    SELECT s.id as id, s.title as title, s.artist as artist, s.album_art_url as albumArtUrl
-    FROM songs_fts
-    JOIN songs s ON s.id = songs_fts.rowid
-    WHERE songs_fts MATCH ${ftsQuery} AND s.active = 1
-    ORDER BY rank
-    LIMIT 8
-  `);
-
-  res.json({ results: rows });
-});
+    res.json({ results: rows });
+  }),
+);

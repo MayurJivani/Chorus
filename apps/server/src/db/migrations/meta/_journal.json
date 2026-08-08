@@ -1,47 +1,26 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1784398239541,
-      "tag": "0000_goofy_talkback",
+      "version": "7",
+      "when": 1786142870450,
+      "tag": "0000_chief_azazel",
       "breakpoints": true
     },
     {
       "idx": 1,
-      "version": "6",
-      "when": 1784398247948,
-      "tag": "0001_songs_fts",
+      "version": "7",
+      "when": 1786151476569,
+      "tag": "0001_outstanding_bulldozer",
       "breakpoints": true
     },
     {
       "idx": 2,
-      "version": "6",
-      "when": 1784415084180,
-      "tag": "0002_furry_morlocks",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1784420136182,
-      "tag": "0003_daily_zodiak",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1784868288000,
-      "tag": "0004_time_tracking",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1784888315105,
-      "tag": "0005_artist_round_guesses",
+      "version": "7",
+      "when": 1786179047613,
+      "tag": "0002_condemned_patriot",
       "breakpoints": true
     }
   ]

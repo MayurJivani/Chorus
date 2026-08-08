@@ -17,9 +17,19 @@ const UNWANTED_VERSION_TERMS = [
   'slowed',
   'extended mix',
   'radio edit',
+  // Spoken-word album filler — these are *about* a song rather than a recording of one,
+  // so they are never guessable ("Wood (Track by Track)" is Taylor Swift talking, not "Wood").
+  'track by track',
+  'commentary',
+  'interview',
+  'voice memo',
+  'behind the scenes',
+  'skit',
 ];
 
-const FEATURE_TERMS = ['feat.', 'feat ', 'ft.', 'ft ', 'featuring'];
+// Word-boundary matched, so the punctuation/trailing-space variants these used to need
+// ('feat.', 'feat ', 'ft.', 'ft ') collapse into one entry each.
+const FEATURE_TERMS = ['feat', 'ft', 'featuring'];
 
 /** Content that marks a parenthetical/dash suffix as an alternate *version* of a song
  *  (e.g. "(2x Speed)", "(Album Version)", "- Live at Wembley") rather than part of its
@@ -63,25 +73,45 @@ export function normalizeTitle(value: string): string {
     .trim();
 }
 
+/**
+ * Matches `term` against already-normalized text on whole-word boundaries only. Plain
+ * substring matching silently ate real songs — "live" matched *A*live*, De*live*ry, O*live*
+ * and S*live*r; "demo" matched *Demo*ns — so every term check goes through here. Normalized
+ * text contains only `[a-z0-9 ]`, which makes `\b` an exact word-edge test, while multi-word
+ * terms ("sped up", "made famous by") still match as a phrase.
+ */
+const wordMatcherCache = new Map<string, RegExp>();
+
+function matchesTerm(normalizedText: string, term: string): boolean {
+  let matcher = wordMatcherCache.get(term);
+  if (!matcher) {
+    matcher = new RegExp(`\\b${normalizeTitle(term)}\\b`);
+    wordMatcherCache.set(term, matcher);
+  }
+  return matcher.test(normalizedText);
+}
+
 /** True for karaoke/tribute/acoustic/live/remix/etc. versions — never a good pick for a
  * guessing game, which wants the recognizable original recording. */
 export function isUnwantedVersion(title: string): boolean {
   const normalized = normalizeTitle(title);
-  return UNWANTED_VERSION_TERMS.some((term) => normalized.includes(normalizeTitle(term)));
+  return UNWANTED_VERSION_TERMS.some((term) => matchesTerm(normalized, term));
 }
 
 /** True when the title itself credits another artist as a feature/collaboration
  *  (e.g. "Ma Meilleure Ennemie ft. Coldplay") — a signal the searched artist may not be the
  *  track's primary artist. */
 export function mentionsFeature(title: string): boolean {
-  const lower = title.toLowerCase();
-  return FEATURE_TERMS.some((term) => lower.includes(term));
+  const normalized = normalizeTitle(title);
+  return FEATURE_TERMS.some((term) => matchesTerm(normalized, term));
 }
 
 function isVersionMarker(content: string): boolean {
-  const lower = content.toLowerCase();
-  if (/\d+(?:\.\d+)?x/.test(lower)) return true; // 2x / 0.5x / 1.5x speed variants
-  return VERSION_MARKER_TERMS.some((term) => lower.includes(term));
+  // Speed variants ("2x", "0.5x") are checked before normalization, which would split "0.5x"
+  // into "0 5x" and lose the decimal.
+  if (/\d+(?:\.\d+)?x\b/.test(content.toLowerCase())) return true;
+  const normalized = normalizeTitle(content);
+  return VERSION_MARKER_TERMS.some((term) => matchesTerm(normalized, term));
 }
 
 /** Strips alternate-version suffixes from a title, leaving the song's core name —

@@ -22,7 +22,15 @@ const deezerMocks = vi.hoisted(() => ({
   getFreshPreviewUrl: vi.fn(),
 }));
 
+// The catalog service is mocked rather than exercised: it reads the Postgres-backed pool, and
+// a real database round trip cannot resolve inside these fake-timer driven round-flow tests.
+// Its own caching behaviour is covered in artistCatalogService.test.ts.
+const catalogMocks = vi.hoisted(() => ({
+  getArtistCatalog: vi.fn(),
+}));
+
 vi.mock('../../src/services/deezerService', () => deezerMocks);
+vi.mock('../../src/services/artistCatalogService', () => catalogMocks);
 
 interface SentMessage {
   type: string;
@@ -68,8 +76,8 @@ function lastOf(socket: FakeSocket, type: string): SentMessage | undefined {
   return matches[matches.length - 1];
 }
 
-function join(playerId: string, code: string, nickname?: string): void {
-  handleClientMessage(playerId, { type: 'join_room', code, nickname });
+async function join(playerId: string, code: string, nickname?: string): Promise<void> {
+  await handleClientMessage(playerId, { type: 'join_room', code, nickname });
 }
 
 function guess(playerId: string, trackId: string): void {
@@ -96,7 +104,7 @@ beforeEach(() => {
   __resetForTests();
   vi.useFakeTimers();
   vi.clearAllMocks();
-  deezerMocks.getArtistTopTracks.mockResolvedValue(mockTracks(5));
+  catalogMocks.getArtistCatalog.mockResolvedValue(mockTracks(5));
   deezerMocks.getFreshPreviewUrl.mockImplementation(async (id: string) => ({
     previewUrl: `https://preview.test/${id}.mp3`,
     durationSeconds: 30,
@@ -112,15 +120,20 @@ describe('multiplayerService lobby', () => {
   it('creates a room with a short, unambiguous code', () => {
     const { code } = createRoom(412, 'Queen');
     expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
-    expect(__getRoom(code)).toMatchObject({ code, artistId: 412, artistName: 'Queen', phase: 'lobby' });
+    expect(__getRoom(code)).toMatchObject({
+      code,
+      artistId: 412,
+      artistName: 'Queen',
+      phase: 'lobby',
+    });
   });
 
-  it('joins players into a room and assigns the first joiner as host', () => {
+  it('joins players into a room and assigns the first joiner as host', async () => {
     const { code } = createRoom(412, 'Queen');
     const host = register('p1', 'aaaabbbb');
     register('p2', 'ccccdddd');
-    join('p1', code, 'Alex');
-    join('p2', code);
+    await join('p1', code, 'Alex');
+    await join('p2', code);
 
     const hostState = lastOf(host, 'room_state')!.room as {
       phase: string;
@@ -134,47 +147,50 @@ describe('multiplayerService lobby', () => {
     expect(hostState.players.find((p) => p.playerId === 'p1')!.displayName).toBe('Alex');
   });
 
-  it('rejects a join with an unknown room code', () => {
+  it('rejects a join with an unknown room code', async () => {
     const socket = register('p1', 'aaaabbbb');
-    join('p1', 'ZZZZZZ');
+    await join('p1', 'ZZZZZZ');
     const error = lastOf(socket, 'error');
     expect(error?.message).toContain('Room not found');
   });
 
-  it('rejects a join when the room is full', () => {
+  it('rejects a join when the room is full', async () => {
     const { code } = createRoom(412, 'Queen');
     for (let i = 0; i < MP_MAX_PLAYERS; i += 1) {
       register(`p${i}`, `guest${i}`.padEnd(10, '0'));
-      join(`p${i}`, code);
+      await join(`p${i}`, code);
     }
     const extra = register('overflow', 'overflow00');
-    join('overflow', code);
+    await join('overflow', code);
     expect(lastOf(extra, 'error')?.message).toContain('Room is full');
   });
 
   it('rejects a join once the game is in progress', async () => {
     const { code } = createRoom(412, 'Queen');
     register('host', 'hostaaaa');
-    join('host', code);
+    await join('host', code);
     handleClientMessage('host', { type: 'start_game' });
     await vi.advanceTimersByTimeAsync(0);
 
     const late = register('late', 'latebbbb');
-    join('late', code);
+    await join('late', code);
     expect(lastOf(late, 'error')?.message).toContain('already in progress');
   });
 
-  it('reassigns host when the host leaves, and destroys the room when it empties', () => {
+  it('reassigns host when the host leaves, and destroys the room when it empties', async () => {
     const { code } = createRoom(412, 'Queen');
     register('p1', 'aaaabbbb');
     register('p2', 'ccccdddd');
-    join('p1', code);
+    await join('p1', code);
     const guest = register('p3', 'eeeeffff');
-    join('p2', code);
-    join('p3', code);
+    await join('p2', code);
+    await join('p3', code);
 
     handleClientMessage('p1', { type: 'leave_room' });
-    let state = lastOf(guest, 'room_state')!.room as { hostId: string; players: Array<{ playerId: string }> };
+    let state = lastOf(guest, 'room_state')!.room as {
+      hostId: string;
+      players: Array<{ playerId: string }>;
+    };
     expect(state.hostId).toBe('p2');
     expect(state.players).toHaveLength(2);
 
@@ -189,8 +205,8 @@ describe('multiplayerService start_game', () => {
     const { code } = createRoom(412, 'Queen');
     register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbbb');
-    join('host', code);
-    join('guest', code);
+    await join('host', code);
+    await join('guest', code);
 
     handleClientMessage('guest', { type: 'start_game' });
     expect(lastOf(guest, 'error')?.message).toContain('Only the host');
@@ -201,10 +217,10 @@ describe('multiplayerService start_game', () => {
   });
 
   it('refuses to start when the artist does not have enough playable tracks', async () => {
-    deezerMocks.getArtistTopTracks.mockResolvedValue([]);
+    catalogMocks.getArtistCatalog.mockResolvedValue([]);
     const { code } = createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
-    join('host', code);
+    await join('host', code);
 
     handleClientMessage('host', { type: 'start_game' });
     await vi.advanceTimersByTimeAsync(0);
@@ -218,8 +234,8 @@ describe('multiplayerService round flow', () => {
     const { code } = createRoom(412, 'Queen', 'https://art.test/queen.jpg');
     const host = register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbbb');
-    join('host', code);
-    join('guest', code);
+    await join('host', code);
+    await join('guest', code);
 
     handleClientMessage('host', { type: 'start_game' });
     await vi.advanceTimersByTimeAsync(0);
@@ -261,7 +277,7 @@ describe('multiplayerService round flow', () => {
   it('caps reveals at the end of the snippet schedule', async () => {
     const { code } = createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
-    join('host', code);
+    await join('host', code);
 
     handleClientMessage('host', { type: 'start_game' });
     await vi.advanceTimersByTimeAsync(0);
@@ -273,7 +289,9 @@ describe('multiplayerService round flow', () => {
     reveal('host');
     expect(messagesOf(host, 'stage')).toHaveLength(MP_REVEAL_SCHEDULE.length - 1);
     guessCorrect('host', code);
-    expect(lastOf(host, 'guess_result')?.points).toBe(MP_REVEAL_POINTS[MP_REVEAL_SCHEDULE.length - 1]);
+    expect(lastOf(host, 'guess_result')?.points).toBe(
+      MP_REVEAL_POINTS[MP_REVEAL_SCHEDULE.length - 1],
+    );
     expect(__getRoomPhase(code)).toBe('round-reveal');
   });
 
@@ -281,8 +299,8 @@ describe('multiplayerService round flow', () => {
     const { code } = createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
     register('guest', 'guestbbbb');
-    join('host', code);
-    join('guest', code);
+    await join('host', code);
+    await join('guest', code);
 
     handleClientMessage('host', { type: 'start_game' });
     await vi.advanceTimersByTimeAsync(0);
@@ -297,8 +315,8 @@ describe('multiplayerService round flow', () => {
     const { code } = createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
     register('guest', 'guestbbbb');
-    join('host', code);
-    join('guest', code);
+    await join('host', code);
+    await join('guest', code);
 
     handleClientMessage('host', { type: 'start_game' });
     await vi.advanceTimersByTimeAsync(0);
@@ -318,8 +336,8 @@ describe('multiplayerService round flow', () => {
     const { code } = createRoom(412, 'Queen');
     register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbbb');
-    join('host', code);
-    join('guest', code);
+    await join('host', code);
+    await join('guest', code);
 
     handleClientMessage('host', { type: 'start_game' });
     await vi.advanceTimersByTimeAsync(0);
@@ -343,10 +361,10 @@ describe('multiplayerService round flow', () => {
     expect(winner?.playerId).toBe('host');
   });
 
-  it('cleans up connections on unregister', () => {
+  it('cleans up connections on unregister', async () => {
     const { code } = createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
-    join('host', code);
+    await join('host', code);
     unregisterConnection('host');
     expect(host.closed).toBe(false);
     expect(__getRoom(code)).toBeNull();

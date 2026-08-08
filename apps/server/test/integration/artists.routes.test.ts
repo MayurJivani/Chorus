@@ -10,6 +10,7 @@ import {
   sessions,
 } from '../../src/db/schema';
 import * as deezerService from '../../src/services/deezerService';
+import { clearArtistPools } from '../../src/services/artistCatalogService';
 
 vi.mock('../../src/services/deezerService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/services/deezerService')>();
@@ -39,11 +40,13 @@ async function getCsrfToken(agent: ReturnType<typeof request.agent>): Promise<st
   return res.body.csrfToken as string;
 }
 
-beforeEach(() => {
-  db.delete(artistSessionResults).run();
-  db.delete(artistChallengeTracks).run();
-  db.delete(artistChallenges).run();
-  db.delete(sessions).run();
+beforeEach(async () => {
+  // Clear the Postgres-backed artist catalog so each test's deezerService mock is actually hit.
+  await clearArtistPools();
+  await db.delete(artistSessionResults);
+  await db.delete(artistChallengeTracks);
+  await db.delete(artistChallenges);
+  await db.delete(sessions);
   vi.clearAllMocks();
   vi.mocked(deezerService.getArtistById).mockResolvedValue({
     id: 412,
@@ -95,7 +98,8 @@ describe('GET /api/artists/:artistId/tracks/search', () => {
     // The deterministic shuffle only pulls 10 of the 20 mocked tracks into today's challenge,
     // so search for one that's actually in it rather than assuming a fixed title made the cut.
     await request(app).get('/api/artists/412/challenge/today');
-    const aTrack = db.select().from(artistChallengeTracks).all()[0]!;
+    const allTracks = await db.select().from(artistChallengeTracks);
+    const aTrack = allTracks[0]!;
 
     const res = await request(app).get('/api/artists/412/tracks/search').query({ q: aTrack.title });
     expect(res.status).toBe(200);
@@ -132,11 +136,10 @@ describe('POST /api/artists/:artistId/challenge/today/guess', () => {
     const today = await agent.get('/api/artists/412/challenge/today');
     const csrfToken = await getCsrfToken(agent);
 
-    const correctTrack = db
-      .select()
-      .from(artistChallengeTracks)
-      .all()
-      .find((t) => t.challengeId === today.body.challengeId && t.position === 0)!;
+    const challengeTracks = await db.select().from(artistChallengeTracks);
+    const correctTrack = challengeTracks.find(
+      (t) => t.challengeId === today.body.challengeId && t.position === 0,
+    )!;
 
     const res = await agent
       .post('/api/artists/412/challenge/today/guess')
@@ -162,11 +165,10 @@ describe('POST /api/artists/:artistId/challenge/today/guess', () => {
       if (today.body.completed) break;
 
       const csrfToken = await getCsrfToken(agent);
-      const correctTrack = db
-        .select()
-        .from(artistChallengeTracks)
-        .all()
-        .find((t) => t.challengeId === today.body.challengeId && t.position === round)!;
+      const challengeTracks = await db.select().from(artistChallengeTracks);
+      const correctTrack = challengeTracks.find(
+        (t) => t.challengeId === today.body.challengeId && t.position === round,
+      )!;
 
       const res = await agent
         .post('/api/artists/412/challenge/today/guess')
@@ -194,11 +196,10 @@ describe('POST /api/artists/:artistId/challenge/today/guess', () => {
     for (let round = 0; round < 10; round += 1) {
       const today = await agent.get('/api/artists/412/challenge/today');
       const csrfToken = await getCsrfToken(agent);
-      const correctTrack = db
-        .select()
-        .from(artistChallengeTracks)
-        .all()
-        .find((t) => t.challengeId === today.body.challengeId && t.position === round)!;
+      const challengeTracks = await db.select().from(artistChallengeTracks);
+      const correctTrack = challengeTracks.find(
+        (t) => t.challengeId === today.body.challengeId && t.position === round,
+      )!;
 
       await agent
         .post('/api/artists/412/challenge/today/guess')
@@ -223,11 +224,10 @@ describe('GET /api/artists/:artistId/leaderboard', () => {
     for (let round = 0; round < 10; round += 1) {
       const today = await agent.get('/api/artists/412/challenge/today');
       const csrfToken = await getCsrfToken(agent);
-      const correctTrack = db
-        .select()
-        .from(artistChallengeTracks)
-        .all()
-        .find((t) => t.challengeId === today.body.challengeId && t.position === round)!;
+      const challengeTracks = await db.select().from(artistChallengeTracks);
+      const correctTrack = challengeTracks.find(
+        (t) => t.challengeId === today.body.challengeId && t.position === round,
+      )!;
 
       await agent
         .post('/api/artists/412/challenge/today/guess')
@@ -263,11 +263,10 @@ describe('GET /api/artists/:artistId/challenge/:challengeId/leaderboard', () => 
     // First player completes it
     for (let round = 0; round < 10; round += 1) {
       const csrfToken = await getCsrfToken(agent1);
-      const correctTrack = db
-        .select()
-        .from(artistChallengeTracks)
-        .all()
-        .find((t) => t.challengeId === challengeId && t.position === round)!;
+      const challengeTracks = await db.select().from(artistChallengeTracks);
+      const correctTrack = challengeTracks.find(
+        (t) => t.challengeId === challengeId && t.position === round,
+      )!;
 
       await agent1
         .post('/api/artists/412/challenge/today/guess')
@@ -283,11 +282,10 @@ describe('GET /api/artists/:artistId/challenge/:challengeId/leaderboard', () => 
     // Second player completes it too
     for (let round = 0; round < 10; round += 1) {
       const csrfToken = await getCsrfToken(agent2);
-      const correctTrack = db
-        .select()
-        .from(artistChallengeTracks)
-        .all()
-        .find((t) => t.challengeId === challengeId && t.position === round)!;
+      const challengeTracks = await db.select().from(artistChallengeTracks);
+      const correctTrack = challengeTracks.find(
+        (t) => t.challengeId === challengeId && t.position === round,
+      )!;
 
       await agent2
         .post('/api/artists/412/challenge/today/guess')
@@ -299,16 +297,15 @@ describe('GET /api/artists/:artistId/challenge/:challengeId/leaderboard', () => 
     // Both players complete with 10 songs correct, so the rank tie-breaks on completion
     // time first and guesses second. Wall-clock rounding can flip the time comparison, so
     // pin each player's stored time to keep the expected order deterministic.
-    const results = db
+    const results = await db
       .select({ id: artistSessionResults.id, guesses: artistSessionResults.totalGuessesUsed })
       .from(artistSessionResults)
-      .where(eq(artistSessionResults.challengeId, challengeId))
-      .all();
+      .where(eq(artistSessionResults.challengeId, challengeId));
     for (const row of results) {
-      db.update(artistSessionResults)
+      await db
+        .update(artistSessionResults)
         .set({ timeTakenSeconds: row.guesses === 10 ? 10 : 20 })
-        .where(eq(artistSessionResults.id, row.id))
-        .run();
+        .where(eq(artistSessionResults.id, row.id));
     }
 
     const res = await request(app).get(`/api/artists/412/challenge/${challengeId}/leaderboard`);

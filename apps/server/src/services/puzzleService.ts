@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { dailyPuzzles, songs } from '../db/schema';
 import { hashString } from '../utils/deterministic';
@@ -11,17 +11,46 @@ export function getUtcDateString(date: Date = new Date()): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function getOrCreateDailyPuzzle(puzzleDate: string) {
-  const existing = db
+/**
+ * Candidate songs for the daily puzzle, ordered by id.
+ *
+ * The ORDER BY is load-bearing, not cosmetic: the song is chosen by indexing into this array
+ * with a hash of the date, and Postgres makes no ordering guarantee without it. Row order can
+ * shift after any UPDATE (the chart sync rewrites `active`/`verified_at` constantly), so the
+ * "deterministic" pick would quietly resolve to a different song from one day to the next.
+ */
+async function selectPool(curatedOnly: boolean) {
+  return db
+    .select({ id: songs.id })
+    .from(songs)
+    .where(
+      curatedOnly
+        ? and(eq(songs.active, true), eq(songs.manualOverride, true))
+        : eq(songs.active, true),
+    )
+    .orderBy(asc(songs.id));
+}
+
+export async function getOrCreateDailyPuzzle(puzzleDate: string) {
+  const existingRows = await db
     .select()
     .from(dailyPuzzles)
     .where(eq(dailyPuzzles.puzzleDate, puzzleDate))
-    .get();
+    .limit(1);
+  const existing = existingRows[0];
   if (existing) {
     return existing;
   }
 
-  const activeSongs = db.select({ id: songs.id }).from(songs).where(eq(songs.active, true)).all();
+  // The bank holds two very different populations: a hand-curated all-time list
+  // (`manual_override`) and whatever is currently on Deezer's worldwide chart, which the
+  // playlist sync rotates in and out. Only the curated list is eligible for the daily puzzle
+  // — chart entries turn over constantly, so a shared "song of the day" drawn from them
+  // would often be something most players have never heard. The chart sync still keeps the
+  // bank fresh; it just doesn't decide the daily. If curation hasn't run yet, fall back to
+  // every active song so the game degrades instead of failing.
+  const curatedSongs = await selectPool(true);
+  const activeSongs = curatedSongs.length > 0 ? curatedSongs : await selectPool(false);
   if (activeSongs.length === 0) {
     throw new Error('No active songs available to build a daily puzzle');
   }
@@ -33,12 +62,11 @@ export function getOrCreateDailyPuzzle(puzzleDate: string) {
   const recentWindow = Math.max(0, activeSongs.length - 1);
   const recentlyUsed =
     recentWindow > 0
-      ? db
+      ? await db
           .select({ songId: dailyPuzzles.songId })
           .from(dailyPuzzles)
           .orderBy(desc(dailyPuzzles.puzzleDate))
           .limit(recentWindow)
-          .all()
       : [];
   const recentlyUsedIds = new Set(recentlyUsed.map((r) => r.songId));
 
@@ -51,15 +79,33 @@ export function getOrCreateDailyPuzzle(puzzleDate: string) {
     throw new Error('Failed to select a song for the daily puzzle');
   }
 
-  const inserted = db
+  // At the UTC rollover several players hit this path at once. `puzzle_date` is unique, so
+  // only one insert can win; the losers get no row back and simply read the winner's puzzle
+  // instead of erroring — everyone still ends up on the same song.
+  const insertedRows = await db
     .insert(dailyPuzzles)
     .values({ puzzleDate, songId: chosen.id })
-    .returning()
-    .get();
+    .onConflictDoNothing({ target: dailyPuzzles.puzzleDate })
+    .returning();
+  const inserted = insertedRows[0];
+  if (inserted) {
+    return inserted;
+  }
 
-  return inserted;
+  const racedRows = await db
+    .select()
+    .from(dailyPuzzles)
+    .where(eq(dailyPuzzles.puzzleDate, puzzleDate))
+    .limit(1);
+  const raced = racedRows[0];
+  if (!raced) {
+    throw new Error('Failed to create the daily puzzle');
+  }
+
+  return raced;
 }
 
-export function getSongById(songId: number) {
-  return db.select().from(songs).where(eq(songs.id, songId)).get() ?? null;
+export async function getSongById(songId: number) {
+  const rows = await db.select().from(songs).where(eq(songs.id, songId)).limit(1);
+  return rows[0] ?? null;
 }

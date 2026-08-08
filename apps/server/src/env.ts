@@ -4,7 +4,13 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(8888),
-  DATABASE_PATH: z.string().min(1).default('./data/chorus.db'),
+  DATABASE_URL: z
+    .string()
+    .min(1)
+    .refine(
+      (value) => value.startsWith('postgres://') || value.startsWith('postgresql://'),
+      'DATABASE_URL must be a postgres:// or postgresql:// connection string',
+    ),
   SESSION_SECRET: z
     .string()
     .min(

@@ -1,11 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import {
-  searchArtists,
-  getFreshPreviewUrl,
-  getArtistTopTracks,
-  getArtistById,
-} from '../services/deezerService';
+import { searchArtists, getArtistById } from '../services/deezerService';
+import { getArtistCatalog } from '../services/artistCatalogService';
 import {
   recordArtistRoundResult,
   buildRoundOptions,
@@ -15,6 +11,7 @@ import {
   getActiveSession,
   getActiveSessionOrStartNew,
   loadChallengeTracks,
+  resolvePlayableRound,
 } from '../services/artistChallengeService';
 import { isFinalAttempt } from '../services/guessService';
 import { SNIPPET_SCHEDULE_SECONDS, MAX_GUESSES } from '../services/puzzleService';
@@ -100,26 +97,34 @@ artistsRouter.get(
       return;
     }
 
-    const currentTrack = tracks[session.currentRound];
-    if (!currentTrack) {
+    const storedTrack = tracks[session.currentRound];
+    if (!storedTrack) {
       throw new HttpError(500, 'Challenge round is out of range');
     }
 
-    const fresh = await getFreshPreviewUrl(currentTrack.deezerTrackId);
-    if (!fresh) {
+    // Repairs the slot in place if this track turns out to have no playable preview, rather
+    // than leaving the challenge permanently stuck on an unplayable round.
+    const playable = await resolvePlayableRound(
+      storedTrack,
+      artistId,
+      includeFeatures,
+      tracks.map((t) => t.deezerTrackId),
+    );
+    if (!playable) {
       throw new HttpError(503, 'This song is temporarily unavailable — please try again shortly');
     }
+    const currentTrack = playable.track;
 
     // Only fetch decoys and build multiple-choice options when the client is in 'choice' mode.
     // In 'search' mode we skip the extra Deezer call and omit `options` from the response.
     const isChoiceMode = mode === 'choice';
     const options = isChoiceMode
-      ? buildRoundOptions(currentTrack, await getArtistTopTracks(artistId, includeFeatures))
+      ? buildRoundOptions(currentTrack, await getArtistCatalog(artistId, includeFeatures))
       : undefined;
 
     res.json({
       ...base,
-      previewUrl: fresh.previewUrl,
+      previewUrl: playable.previewUrl,
       snippetSchedule: SNIPPET_SCHEDULE_SECONDS,
       maxGuesses: MAX_GUESSES,
       ...(options !== undefined ? { options } : {}),
@@ -140,7 +145,7 @@ artistsRouter.get(
 
     // Searches the artist's whole (filtered) catalog, not just today's 10 challenge tracks —
     // narrowing suggestions to the answer set would make guessing trivial.
-    const pool = await getArtistTopTracks(artistId, includeFeatures);
+    const pool = await getArtistCatalog(artistId, includeFeatures);
     const needle = q.toLowerCase();
     const results = pool
       .filter(
@@ -177,7 +182,7 @@ artistsRouter.post(
     const { deezerTrackId, guessNumber, guessMode } = req.body as z.infer<typeof guessSchema>;
 
     const identity = getIdentity(req);
-    const active = getActiveSession(artistId, includeFeatures, identity);
+    const active = await getActiveSession(artistId, includeFeatures, identity);
 
     if (!active) {
       res.status(409).json({ error: 'No active session found for this artist challenge' });
@@ -185,7 +190,7 @@ artistsRouter.post(
     }
 
     const { session, challenge } = active;
-    const tracks = loadChallengeTracks(challenge.id);
+    const tracks = await loadChallengeTracks(challenge.id);
 
     const currentTrack = tracks[session.currentRound];
     if (!currentTrack) {
@@ -206,7 +211,7 @@ artistsRouter.post(
       SNIPPET_SCHEDULE_SECONDS[Math.min(guessNumber, SNIPPET_SCHEDULE_SECONDS.length) - 1] ?? 16;
 
     const { sessionComplete, songsCorrect, totalGuessesUsed, timeTakenSeconds } =
-      recordArtistRoundResult(session.id, correct, guessNumber, snippetStageSeconds);
+      await recordArtistRoundResult(session.id, correct, guessNumber, snippetStageSeconds);
 
     res.json({
       correct,
@@ -242,29 +247,29 @@ const challengeIdParamsSchema = z.object({
 artistsRouter.get(
   '/:artistId/challenge/:challengeId/leaderboard',
   validate(challengeIdParamsSchema, 'params'),
-  (req, res) => {
+  asyncHandler(async (req, res) => {
     const { challengeId } = req.params as unknown as z.infer<typeof challengeIdParamsSchema>;
     const identity = getIdentity(req);
-    res.json(getChallengeLeaderboard(challengeId, identity));
-  },
+    res.json(await getChallengeLeaderboard(challengeId, identity));
+  }),
 );
 
 artistsRouter.get(
   '/:artistId/leaderboard',
   validate(artistIdParamsSchema, 'params'),
-  (req, res) => {
+  asyncHandler(async (req, res) => {
     const { artistId } = req.params as unknown as z.infer<typeof artistIdParamsSchema>;
     const identity = getIdentity(req);
-    res.json(getArtistLeaderboard(artistId, identity));
-  },
+    res.json(await getArtistLeaderboard(artistId, identity));
+  }),
 );
 
 artistsRouter.get(
   '/:artistId/stats/guess-distribution',
   validate(artistIdParamsSchema, 'params'),
-  (req, res) => {
+  asyncHandler(async (req, res) => {
     const { artistId } = req.params as unknown as z.infer<typeof artistIdParamsSchema>;
     const identity = getIdentity(req);
-    res.json(getArtistGuessDistribution(artistId, identity));
-  },
+    res.json(await getArtistGuessDistribution(artistId, identity));
+  }),
 );

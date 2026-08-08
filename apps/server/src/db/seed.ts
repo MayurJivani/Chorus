@@ -215,7 +215,8 @@ function pickBestMatch(results: DeezerTrack[]): DeezerTrack | null {
  * a separate manual curation step.
  */
 export async function seedIfEmpty(): Promise<void> {
-  const row = db.select({ value: count() }).from(songs).get();
+  const countRows = await db.select({ value: count() }).from(songs).limit(1);
+  const row = countRows[0];
   if (row && row.value > 0) {
     return;
   }
@@ -233,19 +234,22 @@ export async function seedIfEmpty(): Promise<void> {
       if (!match) continue;
 
       const deezerTrackId = String(match.id);
-      const dup = db.select().from(songs).where(eq(songs.deezerTrackId, deezerTrackId)).get();
+      const dupRows = await db
+        .select()
+        .from(songs)
+        .where(eq(songs.deezerTrackId, deezerTrackId))
+        .limit(1);
+      const dup = dupRows[0];
       if (dup) continue;
 
-      db.insert(songs)
-        .values({
-          title: match.title,
-          artist: match.artist.name,
-          deezerTrackId,
-          previewUrl: match.preview,
-          albumArtUrl: match.album?.cover_medium ?? null,
-          durationSeconds: match.duration,
-        })
-        .run();
+      await db.insert(songs).values({
+        title: match.title,
+        artist: match.artist.name,
+        deezerTrackId,
+        previewUrl: match.preview,
+        albumArtUrl: match.album?.cover_medium ?? null,
+        durationSeconds: match.duration,
+      });
       inserted++;
     } catch {
       errors++;

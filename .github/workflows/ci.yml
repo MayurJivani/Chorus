@@ -9,6 +9,24 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+
+    # The server suite talks to a real PostgreSQL — the schema uses jsonb, partial-unique
+    # indexes and window functions, so an in-memory stand-in wouldn't prove much.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chorus_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v7
 
@@ -28,6 +46,10 @@ jobs:
 
       - name: Test
         run: npm run test
+        env:
+          # Must end in `_test` — test/setup.ts refuses to run anywhere else, since the
+          # integration tests truncate tables.
+          DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5432/chorus_test
 
       - name: Build
         run: npm run build

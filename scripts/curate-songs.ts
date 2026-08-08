@@ -59,21 +59,24 @@ async function curateOne(candidate: Candidate): Promise<'inserted' | 'duplicate'
   }
 
   const deezerTrackId = String(match.id);
-  const existing = db.select().from(songs).where(eq(songs.deezerTrackId, deezerTrackId)).get();
+  const existingRows = await db
+    .select()
+    .from(songs)
+    .where(eq(songs.deezerTrackId, deezerTrackId))
+    .limit(1);
+  const existing = existingRows[0];
   if (existing) {
     return 'duplicate';
   }
 
-  db.insert(songs)
-    .values({
-      title: match.title,
-      artist: match.artist.name,
-      deezerTrackId,
-      previewUrl: match.preview,
-      albumArtUrl: match.album?.cover_medium ?? null,
-      durationSeconds: match.duration,
-    })
-    .run();
+  await db.insert(songs).values({
+    title: match.title,
+    artist: match.artist.name,
+    deezerTrackId,
+    previewUrl: match.preview,
+    albumArtUrl: match.album?.cover_medium ?? null,
+    durationSeconds: match.duration,
+  });
 
   return 'inserted';
 }
@@ -114,6 +117,10 @@ main()
     process.exitCode = 1;
   })
   .finally(() => {
-    // Ensure the process exits even if better-sqlite3 leaves the event loop alive.
-    process.exit(process.exitCode ?? 0);
+    // Ensure the process exits even if the postgres client leaves a connection open.
+    void (async () => {
+      const { sqlClient } = await import('../apps/server/src/db/client');
+      await sqlClient.end().catch(() => undefined);
+      process.exit(process.exitCode ?? 0);
+    })();
   });

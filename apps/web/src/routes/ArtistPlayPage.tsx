@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useArtistGameState } from '../features/artist/useArtistGameState';
 import { SnippetPlayer } from '../features/game/SnippetPlayer';
@@ -97,11 +97,11 @@ export function ArtistPlayPage() {
   }, [challenge?.currentRound]);
 
   if (status === 'loading') {
-    return <Centered>Loading challenge…</Centered>;
+    return <ChallengeLoading />;
   }
 
   if (status === 'error' || !challenge) {
-    return <Centered>{errorMessage ?? 'Something went wrong.'}</Centered>;
+    return <ChallengeError message={errorMessage ?? 'Something went wrong.'} />;
   }
 
   if (status === 'completed') {
@@ -254,8 +254,78 @@ export function ArtistPlayPage() {
   );
 }
 
-function Centered({ children }: { children: ReactNode }) {
+/**
+ * The first person to open an artist waits on a full Deezer catalog crawl, which can run to
+ * several seconds for a large discography (later visitors hit the cached pool and load
+ * instantly). A bare "Loading…" for that long reads as a hung page, so this shows a pulsing
+ * skeleton of the game card and, once the wait stops feeling instant, explains *why*.
+ */
+function ChallengeLoading() {
+  const [showSlowHint, setShowSlowHint] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSlowHint(true), 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="flex min-h-full items-center justify-center text-slate-400">{children}</div>
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
+      <div
+        className="glass w-full rounded-2xl p-6 flex flex-col items-center gap-5"
+        role="status"
+        aria-live="polite"
+      >
+        <span className="sr-only">Loading challenge</span>
+
+        <div className="flex flex-col items-center gap-2 w-full">
+          <div className="h-5 w-40 rounded-lg bg-white/10 animate-pulse" />
+          <div className="h-3 w-28 rounded-lg bg-white/5 animate-pulse" />
+        </div>
+
+        <div className="flex gap-1.5 w-full justify-center" aria-hidden="true">
+          {SNIPPET_SCHEDULE_SECONDS.map((seconds) => (
+            <div key={seconds} className="h-1.5 flex-1 max-w-12 rounded-full bg-white/5" />
+          ))}
+        </div>
+
+        <div className="h-28 w-28 rounded-2xl bg-white/10 animate-pulse" />
+
+        <div className="w-full space-y-2">
+          <div className="h-11 w-full rounded-xl bg-white/[0.07] animate-pulse" />
+          <div className="h-11 w-full rounded-xl bg-white/[0.05] animate-pulse" />
+          <div className="h-11 w-full rounded-xl bg-white/[0.03] animate-pulse" />
+        </div>
+
+        <p className="text-sm text-slate-400 text-center">
+          {showSlowHint
+            ? 'Digging through this artist’s discography — this only takes a moment the first time.'
+            : 'Building your challenge…'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ChallengeError({ message }: { message: string }) {
+  return (
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
+      <div className="glass w-full rounded-2xl p-8 flex flex-col items-center gap-5 text-center">
+        <div className="text-3xl" aria-hidden="true">
+          🎧
+        </div>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-lg font-bold text-white">Couldn’t start this challenge</h1>
+          <p className="text-sm text-slate-400">{message}</p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <button type="button" onClick={() => window.location.reload()} className="btn-primary">
+            Try again
+          </button>
+          <Link to="/artist" className="btn-secondary">
+            Pick another artist
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

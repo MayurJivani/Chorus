@@ -7,8 +7,8 @@ import { recordGameResult } from '../../src/services/statsService';
 
 const app = createApp();
 
-beforeEach(() => {
-  db.delete(userStats).run();
+beforeEach(async () => {
+  await db.delete(userStats);
 });
 
 describe('GET /api/stats/me', () => {
@@ -29,7 +29,12 @@ describe('GET /api/stats/me', () => {
     const me = await agent.get('/api/auth/me');
     const guestId = me.body.guestId as string;
 
-    recordGameResult({ ownerKey: guestId, puzzleDate: '2026-01-01', won: true, guessesUsed: 3 });
+    await recordGameResult({
+      ownerKey: guestId,
+      puzzleDate: '2026-01-01',
+      won: true,
+      guessesUsed: 3,
+    });
 
     const res = await agent.get('/api/stats/me');
     expect(res.status).toBe(200);

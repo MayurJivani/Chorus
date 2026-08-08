@@ -24,7 +24,7 @@ function parseCookies(header?: string): Record<string, string> {
   return out;
 }
 
-function resolveSession(req: IncomingMessage): RequestSession | null {
+async function resolveSession(req: IncomingMessage): Promise<RequestSession | null> {
   const token = parseCookies(req.headers.cookie)[SESSION_COOKIE_NAME];
   return token ? getSessionFromToken(token) : null;
 }
@@ -59,14 +59,15 @@ export function attachWebSocketServer(server: Server): void {
       socket.destroy();
       return;
     }
-    const session = resolveSession(req);
-    if (!session) {
-      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-      socket.destroy();
-      return;
-    }
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit('connection', ws, req, session);
+    void resolveSession(req).then((session) => {
+      if (!session) {
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit('connection', ws, req, session);
+      });
     });
   });
 
@@ -94,7 +95,7 @@ export function attachWebSocketServer(server: Server): void {
       } catch {
         return;
       }
-      multiplayer.handleClientMessage(playerId, parsed);
+      void multiplayer.handleClientMessage(playerId, parsed);
     });
 
     ws.on('close', () => {

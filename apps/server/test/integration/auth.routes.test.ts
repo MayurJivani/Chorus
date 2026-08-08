@@ -6,9 +6,9 @@ import { users, sessions } from '../../src/db/schema';
 
 const app = createApp();
 
-beforeEach(() => {
-  db.delete(sessions).run();
-  db.delete(users).run();
+beforeEach(async () => {
+  await db.delete(sessions);
+  await db.delete(users);
 });
 
 async function getCsrfToken(agent: ReturnType<typeof request.agent>): Promise<string> {
@@ -28,14 +28,11 @@ describe('auth routes', () => {
     const agent = request.agent(app);
     const csrfToken = await getCsrfToken(agent);
 
-    const registerRes = await agent
-      .post('/api/auth/register')
-      .set('X-CSRF-Token', csrfToken)
-      .send({
-        email: 'new@example.com',
-        password: 'correct horse battery staple',
-        displayName: 'New',
-      });
+    const registerRes = await agent.post('/api/auth/register').set('X-CSRF-Token', csrfToken).send({
+      email: 'new@example.com',
+      password: 'correct horse battery staple',
+      displayName: 'New',
+    });
 
     expect(registerRes.status).toBe(201);
     expect(registerRes.body.user.email).toBe('new@example.com');
@@ -53,27 +50,22 @@ describe('auth routes', () => {
   });
 
   it('rejects registration without a valid CSRF token', async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send({
-        email: 'nocsrf@example.com',
-        password: 'correct horse battery staple',
-        displayName: 'X',
-      });
+    const res = await request(app).post('/api/auth/register').send({
+      email: 'nocsrf@example.com',
+      password: 'correct horse battery staple',
+      displayName: 'X',
+    });
     expect(res.status).toBe(403);
   });
 
   it('rejects a duplicate email with 409', async () => {
     const agent = request.agent(app);
     const csrfToken = await getCsrfToken(agent);
-    await agent
-      .post('/api/auth/register')
-      .set('X-CSRF-Token', csrfToken)
-      .send({
-        email: 'dup@example.com',
-        password: 'correct horse battery staple',
-        displayName: 'A',
-      });
+    await agent.post('/api/auth/register').set('X-CSRF-Token', csrfToken).send({
+      email: 'dup@example.com',
+      password: 'correct horse battery staple',
+      displayName: 'A',
+    });
 
     const csrfToken2 = await getCsrfToken(agent);
     const res = await agent
@@ -87,14 +79,11 @@ describe('auth routes', () => {
   it('rejects login with a wrong password and accepts the right one', async () => {
     const agent = request.agent(app);
     const csrfToken = await getCsrfToken(agent);
-    const registerRes = await agent
-      .post('/api/auth/register')
-      .set('X-CSRF-Token', csrfToken)
-      .send({
-        email: 'login@example.com',
-        password: 'correct horse battery staple',
-        displayName: 'A',
-      });
+    const registerRes = await agent.post('/api/auth/register').set('X-CSRF-Token', csrfToken).send({
+      email: 'login@example.com',
+      password: 'correct horse battery staple',
+      displayName: 'A',
+    });
     const logoutRes = await agent
       .post('/api/auth/logout')
       .set('X-CSRF-Token', registerRes.body.csrfToken);

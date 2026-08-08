@@ -26,15 +26,16 @@ function hashToken(token: string): string {
 
 /** Resolves a raw session token (e.g. from a cookie header on a WebSocket upgrade) back to a
  * valid session, or null when it's missing/expired. Shared by sessionMiddleware and ws.ts. */
-export function getSessionFromToken(token: string): RequestSession | null {
+export async function getSessionFromToken(token: string): Promise<RequestSession | null> {
   const hashed = hashToken(token);
-  const row = db.select().from(sessions).where(eq(sessions.id, hashed)).get();
-  if (!row || new Date(row.expiresAt) <= new Date()) return null;
+  const rows = await db.select().from(sessions).where(eq(sessions.id, hashed)).limit(1);
+  const row = rows[0];
+  if (!row || row.expiresAt.getTime() <= Date.now()) return null;
   return {
     id: row.id,
     userId: row.userId,
     guestId: row.guestId,
-    expiresAt: new Date(row.expiresAt),
+    expiresAt: row.expiresAt,
   };
 }
 
@@ -56,15 +57,15 @@ function clearSessionCookie(res: Response): void {
   res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
 }
 
-function insertSession(
+async function insertSession(
   userId: string | null,
   guestId: string,
-): { token: string; session: RequestSession } {
+): Promise<{ token: string; session: RequestSession }> {
   const token = generateToken();
   const id = hashToken(token);
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
-  db.insert(sessions).values({ id, userId, guestId, expiresAt: expiresAt.toISOString() }).run();
+  await db.insert(sessions).values({ id, userId, guestId, expiresAt });
 
   return { token, session: { id, userId, guestId, expiresAt } };
 }
@@ -75,19 +76,24 @@ function insertSession(
  * play frictionless while giving CSRF protection a stable session identifier
  * to bind against on every request.
  */
-export function sessionMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function sessionMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const token = req.cookies?.[SESSION_COOKIE_NAME] as string | undefined;
 
   if (token) {
     const hashed = hashToken(token);
-    const row = db.select().from(sessions).where(eq(sessions.id, hashed)).get();
+    const rows = await db.select().from(sessions).where(eq(sessions.id, hashed)).limit(1);
+    const row = rows[0];
 
-    if (row && new Date(row.expiresAt) > new Date()) {
+    if (row && row.expiresAt.getTime() > Date.now()) {
       req.session = {
         id: row.id,
         userId: row.userId,
         guestId: row.guestId,
-        expiresAt: new Date(row.expiresAt),
+        expiresAt: row.expiresAt,
       };
       next();
       return;
@@ -95,11 +101,11 @@ export function sessionMiddleware(req: Request, res: Response, next: NextFunctio
 
     // Stale/expired/unknown token — clean up if the row exists, then fall through to issuing a new one.
     if (row) {
-      db.delete(sessions).where(eq(sessions.id, hashed)).run();
+      await db.delete(sessions).where(eq(sessions.id, hashed));
     }
   }
 
-  req.session = issueGuestSession(res);
+  req.session = await issueGuestSession(res);
   // The CSRF cookie is bound to the session id. This is a *silent* session issuance (no
   // cookie the caller sent was valid), so whatever CSRF cookie the browser is holding — if
   // any — is now stale too; regenerate it here rather than leaving the client to discover
@@ -111,8 +117,8 @@ export function sessionMiddleware(req: Request, res: Response, next: NextFunctio
 /** Issues a brand-new anonymous session and sets its cookie. Used both as the sessionMiddleware
  * fallback and explicitly after logout, so the response always leaves the client with a session
  * (and therefore a CSRF pairing) that's actually valid for the next request. */
-export function issueGuestSession(res: Response): RequestSession {
-  const { token, session } = insertSession(null, randomUUID());
+export async function issueGuestSession(res: Response): Promise<RequestSession> {
+  const { token, session } = await insertSession(null, randomUUID());
   setSessionCookie(res, token, session.expiresAt);
   return session;
 }
@@ -125,9 +131,13 @@ export function issueGuestSession(res: Response): RequestSession {
  * currently holding — callers MUST also regenerate the CSRF token (see `generateCsrfToken`
  * in middleware/csrf.ts) and return it in the response body after calling this.
  */
-export function bindUserToSession(req: Request, res: Response, userId: string): RequestSession {
-  db.delete(sessions).where(eq(sessions.id, req.session.id)).run();
-  const { token, session } = insertSession(userId, req.session.guestId);
+export async function bindUserToSession(
+  req: Request,
+  res: Response,
+  userId: string,
+): Promise<RequestSession> {
+  await db.delete(sessions).where(eq(sessions.id, req.session.id));
+  const { token, session } = await insertSession(userId, req.session.guestId);
   setSessionCookie(res, token, session.expiresAt);
   req.session = session;
   return session;
@@ -135,9 +145,9 @@ export function bindUserToSession(req: Request, res: Response, userId: string): 
 
 /** Ends the current session and immediately issues a fresh guest session so the response
  * leaves the client with a valid session/CSRF pairing rather than a dangling stale one. */
-export function destroySession(req: Request, res: Response): RequestSession {
-  db.delete(sessions).where(eq(sessions.id, req.session.id)).run();
+export async function destroySession(req: Request, res: Response): Promise<RequestSession> {
+  await db.delete(sessions).where(eq(sessions.id, req.session.id));
   clearSessionCookie(res);
-  req.session = issueGuestSession(res);
+  req.session = await issueGuestSession(res);
   return req.session;
 }

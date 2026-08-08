@@ -19,7 +19,15 @@ export function validate(schema: ZodSchema, target: ValidationTarget = 'body') {
     }
 
     if (target === 'query') {
-      Object.assign(req.query, result.data);
+      // Express 5 exposes req.query via a prototype getter that re-parses on every access,
+      // so Object.assign would mutate a throwaway object. Replace it with an own property
+      // holding the validated (and transformed) query values instead.
+      Object.defineProperty(req, 'query', {
+        value: result.data,
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
     } else {
       req[target] = result.data;
     }

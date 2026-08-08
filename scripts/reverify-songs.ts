@@ -59,7 +59,7 @@ async function findFreshMatch(song: Song): Promise<DeezerSearchResponse['data'][
 }
 
 async function main(): Promise<void> {
-  const activeSongs = db.select().from(songs).where(eq(songs.active, true)).all();
+  const activeSongs = await db.select().from(songs).where(eq(songs.active, true));
   const tally = { healthy: 0, refreshed: 0, deactivated: 0 };
 
   for (const song of activeSongs) {
@@ -67,10 +67,7 @@ async function main(): Promise<void> {
     const available = await trackStillAvailable(song.deezerTrackId);
 
     if (available) {
-      db.update(songs)
-        .set({ verifiedAt: new Date().toISOString() })
-        .where(eq(songs.id, song.id))
-        .run();
+      await db.update(songs).set({ verifiedAt: new Date() }).where(eq(songs.id, song.id));
       tally.healthy += 1;
       console.log(`  ok ${label}`);
       await sleep(100);
@@ -81,20 +78,20 @@ async function main(): Promise<void> {
     const fresh = await findFreshMatch(song);
 
     if (fresh) {
-      db.update(songs)
+      await db
+        .update(songs)
         .set({
           deezerTrackId: String(fresh.id),
           previewUrl: fresh.preview,
           albumArtUrl: fresh.album?.cover_medium ?? song.albumArtUrl,
           durationSeconds: fresh.duration,
-          verifiedAt: new Date().toISOString(),
+          verifiedAt: new Date(),
         })
-        .where(eq(songs.id, song.id))
-        .run();
+        .where(eq(songs.id, song.id));
       tally.refreshed += 1;
       console.log(`  ~ refreshed ${label}`);
     } else {
-      db.update(songs).set({ active: false }).where(eq(songs.id, song.id)).run();
+      await db.update(songs).set({ active: false }).where(eq(songs.id, song.id));
       tally.deactivated += 1;
       console.warn(`  x deactivated ${label} (no replacement found)`);
     }
@@ -114,5 +111,10 @@ main()
     process.exitCode = 1;
   })
   .finally(() => {
-    process.exit(process.exitCode ?? 0);
+    // Ensure the process exits even if the postgres client leaves a connection open.
+    void (async () => {
+      const { sqlClient } = await import('../apps/server/src/db/client');
+      await sqlClient.end().catch(() => undefined);
+      process.exit(process.exitCode ?? 0);
+    })();
   });

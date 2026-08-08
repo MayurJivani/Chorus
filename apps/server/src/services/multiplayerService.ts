@@ -3,7 +3,8 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { users } from '../db/schema';
 import type { Identity } from '../auth/identity';
-import { getArtistTopTracks, getFreshPreviewUrl, type ArtistTrack } from './deezerService';
+import { getFreshPreviewUrl, type ArtistTrack } from './deezerService';
+import { getArtistCatalog } from './artistCatalogService';
 import { seededShuffle } from '../utils/deterministic';
 import { logger } from '../logger';
 
@@ -145,14 +146,15 @@ export function unregisterConnection(playerId: string): void {
   identities.delete(playerId);
 }
 
-function resolveDisplayName(identity: Identity, nickname?: string): string {
+async function resolveDisplayName(identity: Identity, nickname?: string): Promise<string> {
   if (nickname) return nickname;
   if (identity.userId) {
-    const user = db
+    const rows = await db
       .select({ displayName: users.displayName })
       .from(users)
       .where(eq(users.id, identity.userId))
-      .get();
+      .limit(1);
+    const user = rows[0];
     if (user) return user.displayName;
   }
   if (identity.guestId) {
@@ -161,7 +163,7 @@ function resolveDisplayName(identity: Identity, nickname?: string): string {
   return 'Guest';
 }
 
-export function handleClientMessage(playerId: string, message: unknown): void {
+export async function handleClientMessage(playerId: string, message: unknown): Promise<void> {
   if (typeof message !== 'object' || message === null) return;
   const { type, ...payload } = message as Record<string, unknown>;
 
@@ -171,7 +173,7 @@ export function handleClientMessage(playerId: string, message: unknown): void {
         typeof payload.code === 'string' ? payload.code.trim().toUpperCase().slice(0, 12) : '';
       const nickname =
         typeof payload.nickname === 'string' ? payload.nickname.trim().slice(0, 24) : undefined;
-      joinRoom(playerId, code, nickname);
+      await joinRoom(playerId, code, nickname);
       break;
     }
     case 'leave_room':
@@ -199,13 +201,13 @@ export function handleClientMessage(playerId: string, message: unknown): void {
   }
 }
 
-function joinRoom(playerId: string, code: string, nickname?: string): void {
+async function joinRoom(playerId: string, code: string, nickname?: string): Promise<void> {
   const current = playerRooms.get(playerId);
   if (current === code) return;
   if (current) leaveRoom(playerId);
 
   const room = rooms.get(code);
-  if (!room) return sendError(playerId, "Room not found — check the code and try again.");
+  if (!room) return sendError(playerId, 'Room not found — check the code and try again.');
   if (room.phase !== 'lobby') return sendError(playerId, 'That game is already in progress.');
   if (room.players.size >= MP_MAX_PLAYERS) return sendError(playerId, 'Room is full.');
 
@@ -213,7 +215,7 @@ function joinRoom(playerId: string, code: string, nickname?: string): void {
   const isHost = room.players.size === 0;
   const player: MpPlayer = {
     playerId,
-    displayName: resolveDisplayName(identity, nickname),
+    displayName: await resolveDisplayName(identity, nickname),
     identity,
     socket: sockets.get(playerId)!,
     isHost,
@@ -277,7 +279,7 @@ export async function startGame(playerId: string): Promise<void> {
   }
 
   try {
-    const pool = await getArtistTopTracks(room.artistId, false);
+    const pool = await getArtistCatalog(room.artistId, false);
     if (pool.length < MP_ROUNDS) {
       return sendError(
         playerId,

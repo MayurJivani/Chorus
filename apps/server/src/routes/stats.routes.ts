@@ -1,35 +1,39 @@
 import { Router } from 'express';
 import { getStats } from '../services/statsService';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 export const statsRouter = Router();
 
-statsRouter.get('/me', (req, res) => {
-  const ownerKey = req.session.userId ?? req.session.guestId;
-  const stats = getStats(ownerKey);
+statsRouter.get(
+  '/me',
+  asyncHandler(async (req, res) => {
+    const ownerKey = req.session.userId ?? req.session.guestId;
+    const stats = await getStats(ownerKey);
 
-  if (!stats) {
+    if (!stats) {
+      res.json({
+        currentStreak: 0,
+        maxStreak: 0,
+        gamesPlayed: 0,
+        gamesWon: 0,
+        guessDistribution: [0, 0, 0, 0, 0, 0],
+      });
+      return;
+    }
+
     res.json({
-      currentStreak: 0,
-      maxStreak: 0,
-      gamesPlayed: 0,
-      gamesWon: 0,
-      guessDistribution: [0, 0, 0, 0, 0, 0],
+      currentStreak: stats.currentStreak,
+      maxStreak: stats.maxStreak,
+      gamesPlayed: stats.gamesPlayed,
+      gamesWon: stats.gamesWon,
+      guessDistribution: [
+        stats.guessDist1,
+        stats.guessDist2,
+        stats.guessDist3,
+        stats.guessDist4,
+        stats.guessDist5,
+        stats.guessDist6,
+      ],
     });
-    return;
-  }
-
-  res.json({
-    currentStreak: stats.currentStreak,
-    maxStreak: stats.maxStreak,
-    gamesPlayed: stats.gamesPlayed,
-    gamesWon: stats.gamesWon,
-    guessDistribution: [
-      stats.guessDist1,
-      stats.guessDist2,
-      stats.guessDist3,
-      stats.guessDist4,
-      stats.guessDist5,
-      stats.guessDist6,
-    ],
-  });
-});
+  }),
+);

@@ -17,8 +17,8 @@ vi.mock('../../src/services/deezerService', () => ({
 
 const app = createApp();
 
-function seedSong(n: number) {
-  return db
+async function seedSong(n: number) {
+  const [song] = await db
     .insert(songs)
     .values({
       title: `Song ${n}`,
@@ -28,8 +28,8 @@ function seedSong(n: number) {
       albumArtUrl: `https://example.test/art-${n}.jpg`,
       durationSeconds: 180,
     })
-    .returning()
-    .get();
+    .returning();
+  return song;
 }
 
 async function getCsrfToken(agent: ReturnType<typeof request.agent>): Promise<string> {
@@ -37,17 +37,17 @@ async function getCsrfToken(agent: ReturnType<typeof request.agent>): Promise<st
   return res.body.csrfToken as string;
 }
 
-beforeEach(() => {
-  db.delete(gameResults).run();
-  db.delete(userStats).run();
-  db.delete(dailyPuzzles).run();
-  db.delete(songs).run();
-  db.delete(sessions).run();
+beforeEach(async () => {
+  await db.delete(gameResults);
+  await db.delete(userStats);
+  await db.delete(dailyPuzzles);
+  await db.delete(songs);
+  await db.delete(sessions);
 });
 
 describe('GET /api/puzzle/today', () => {
   it('returns the preview url and schedule without revealing the answer', async () => {
-    seedSong(1);
+    await seedSong(1);
     const res = await request(app).get('/api/puzzle/today');
 
     expect(res.status).toBe(200);
@@ -59,9 +59,9 @@ describe('GET /api/puzzle/today', () => {
   });
 
   it('is deterministic across repeated calls the same day', async () => {
-    seedSong(1);
-    seedSong(2);
-    seedSong(3);
+    await seedSong(1);
+    await seedSong(2);
+    await seedSong(3);
 
     const first = await request(app).get('/api/puzzle/today');
     const second = await request(app).get('/api/puzzle/today');
@@ -73,7 +73,7 @@ describe('GET /api/puzzle/today', () => {
 
 describe('POST /api/puzzle/today/guess', () => {
   it('rejects a guess submitted without a CSRF token', async () => {
-    seedSong(1);
+    await seedSong(1);
     const res = await request(app)
       .post('/api/puzzle/today/guess')
       .send({ songId: 1, guessNumber: 1 });
@@ -81,7 +81,7 @@ describe('POST /api/puzzle/today/guess', () => {
   });
 
   it('treats an omitted songId as a skip: never correct, still consumes an attempt', async () => {
-    seedSong(1);
+    await seedSong(1);
     const agent = request.agent(app);
     await agent.get('/api/puzzle/today');
     const csrfToken = await getCsrfToken(agent);
@@ -97,7 +97,7 @@ describe('POST /api/puzzle/today/guess', () => {
   });
 
   it('reveals and records a loss when skips exhaust all attempts', async () => {
-    seedSong(1);
+    await seedSong(1);
     const agent = request.agent(app);
     await agent.get('/api/puzzle/today');
     const csrfToken = await getCsrfToken(agent);
@@ -113,8 +113,8 @@ describe('POST /api/puzzle/today/guess', () => {
   });
 
   it('does not reveal the answer on a wrong, non-final guess', async () => {
-    const song = seedSong(1);
-    seedSong(2); // a second song so the wrong guess is a distinct, real id
+    const song = (await seedSong(1))!;
+    await seedSong(2); // a second song so the wrong guess is a distinct, real id
 
     const agent = request.agent(app);
     await agent.get('/api/puzzle/today');
@@ -133,18 +133,15 @@ describe('POST /api/puzzle/today/guess', () => {
   });
 
   it('reveals the answer and records a win on a correct guess', async () => {
-    seedSong(1);
+    await seedSong(1);
     const agent = request.agent(app);
     const today = await agent.get('/api/puzzle/today');
     const puzzleId = today.body.puzzleId as number;
     const csrfToken = await getCsrfToken(agent);
 
     // Find the answer's song id via the daily_puzzles row directly (test-only shortcut).
-    const puzzleRow = db
-      .select()
-      .from(dailyPuzzles)
-      .all()
-      .find((p) => p.id === puzzleId)!;
+    const puzzleRows = await db.select().from(dailyPuzzles);
+    const puzzleRow = puzzleRows.find((p) => p.id === puzzleId)!;
 
     const res = await agent
       .post('/api/puzzle/today/guess')
@@ -156,15 +153,15 @@ describe('POST /api/puzzle/today/guess', () => {
     expect(res.body.isFinal).toBe(true);
     expect(res.body.song.title).toEqual(expect.any(String));
 
-    const stored = db.select().from(gameResults).all();
+    const stored = await db.select().from(gameResults);
     expect(stored).toHaveLength(1);
     expect(stored[0]?.won).toBe(true);
     expect(stored[0]?.guessesUsed).toBe(2);
   });
 
   it('reveals the answer and records a loss after the max guess is used', async () => {
-    const song = seedSong(1);
-    seedSong(2);
+    const song = (await seedSong(1))!;
+    await seedSong(2);
     const agent = request.agent(app);
     await agent.get('/api/puzzle/today');
     const csrfToken = await getCsrfToken(agent);
@@ -182,15 +179,12 @@ describe('POST /api/puzzle/today/guess', () => {
   });
 
   it('rejects a second attempt to submit after the puzzle is already completed', async () => {
-    seedSong(1);
+    await seedSong(1);
     const agent = request.agent(app);
     const today = await agent.get('/api/puzzle/today');
     const csrfToken = await getCsrfToken(agent);
-    const puzzleRow = db
-      .select()
-      .from(dailyPuzzles)
-      .all()
-      .find((p) => p.id === today.body.puzzleId)!;
+    const puzzleRows = await db.select().from(dailyPuzzles);
+    const puzzleRow = puzzleRows.find((p) => p.id === today.body.puzzleId)!;
 
     await agent
       .post('/api/puzzle/today/guess')
@@ -205,15 +199,12 @@ describe('POST /api/puzzle/today/guess', () => {
   });
 
   it('GET /today reflects completion and reveals the answer once the puzzle is done', async () => {
-    seedSong(1);
+    await seedSong(1);
     const agent = request.agent(app);
     const today = await agent.get('/api/puzzle/today');
     const csrfToken = await getCsrfToken(agent);
-    const puzzleRow = db
-      .select()
-      .from(dailyPuzzles)
-      .all()
-      .find((p) => p.id === today.body.puzzleId)!;
+    const puzzleRows = await db.select().from(dailyPuzzles);
+    const puzzleRow = puzzleRows.find((p) => p.id === today.body.puzzleId)!;
 
     await agent
       .post('/api/puzzle/today/guess')

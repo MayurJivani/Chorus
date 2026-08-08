@@ -7,8 +7,8 @@ import {
   SNIPPET_SCHEDULE_SECONDS,
 } from '../../src/services/puzzleService';
 
-function seedSong(n: number) {
-  return db
+async function seedSong(n: number) {
+  const [song] = await db
     .insert(songs)
     .values({
       title: `Song ${n}`,
@@ -17,13 +17,13 @@ function seedSong(n: number) {
       previewUrl: `https://example.test/preview-${n}.mp3`,
       durationSeconds: 180,
     })
-    .returning()
-    .get();
+    .returning();
+  return song;
 }
 
-beforeEach(() => {
-  db.delete(dailyPuzzles).run();
-  db.delete(songs).run();
+beforeEach(async () => {
+  await db.delete(dailyPuzzles);
+  await db.delete(songs);
 });
 
 describe('getUtcDateString', () => {
@@ -45,27 +45,27 @@ describe('SNIPPET_SCHEDULE_SECONDS', () => {
 });
 
 describe('getOrCreateDailyPuzzle', () => {
-  it('throws when there are no active songs', () => {
-    expect(() => getOrCreateDailyPuzzle('2026-01-01')).toThrow();
+  it('throws when there are no active songs', async () => {
+    await expect(getOrCreateDailyPuzzle('2026-01-01')).rejects.toThrow();
   });
 
-  it('deterministically returns the same song for the same date', () => {
-    for (let i = 0; i < 5; i += 1) seedSong(i);
+  it('deterministically returns the same song for the same date', async () => {
+    for (let i = 0; i < 5; i += 1) await seedSong(i);
 
-    const first = getOrCreateDailyPuzzle('2026-01-01');
-    const second = getOrCreateDailyPuzzle('2026-01-01');
+    const first = await getOrCreateDailyPuzzle('2026-01-01');
+    const second = await getOrCreateDailyPuzzle('2026-01-01');
 
     expect(second.id).toBe(first.id);
     expect(second.songId).toBe(first.songId);
   });
 
-  it('only ever creates one row per date', () => {
-    for (let i = 0; i < 5; i += 1) seedSong(i);
+  it('only ever creates one row per date', async () => {
+    for (let i = 0; i < 5; i += 1) await seedSong(i);
 
-    getOrCreateDailyPuzzle('2026-02-14');
-    getOrCreateDailyPuzzle('2026-02-14');
+    await getOrCreateDailyPuzzle('2026-02-14');
+    await getOrCreateDailyPuzzle('2026-02-14');
 
-    const rows = db.select().from(dailyPuzzles).all();
+    const rows = await db.select().from(dailyPuzzles);
     expect(rows).toHaveLength(1);
   });
 
@@ -75,13 +75,13 @@ describe('getOrCreateDailyPuzzle', () => {
     return getUtcDateString(base);
   }
 
-  it('never repeats a song until every other active song has had a turn', () => {
+  it('never repeats a song until every other active song has had a turn', async () => {
     const songCount = 8;
-    for (let i = 0; i < songCount; i += 1) seedSong(i);
+    for (let i = 0; i < songCount; i += 1) await seedSong(i);
 
     const usedSongIds: number[] = [];
     for (let day = 0; day < songCount; day += 1) {
-      const puzzle = getOrCreateDailyPuzzle(dateAt(day));
+      const puzzle = await getOrCreateDailyPuzzle(dateAt(day));
       usedSongIds.push(puzzle.songId);
     }
 
@@ -89,18 +89,18 @@ describe('getOrCreateDailyPuzzle', () => {
     expect(new Set(usedSongIds).size).toBe(songCount);
   });
 
-  it('allows repeats again once a full cycle has completed', () => {
+  it('allows repeats again once a full cycle has completed', async () => {
     const songCount = 4;
-    for (let i = 0; i < songCount; i += 1) seedSong(i);
+    for (let i = 0; i < songCount; i += 1) await seedSong(i);
 
     const firstCycle: number[] = [];
     for (let day = 0; day < songCount; day += 1) {
-      firstCycle.push(getOrCreateDailyPuzzle(dateAt(day)).songId);
+      firstCycle.push((await getOrCreateDailyPuzzle(dateAt(day))).songId);
     }
 
     // The (songCount + 1)th day should not throw, and must pick from the active set —
     // by now the exclusion window has rolled off day 0, so day 0's song is a valid pick again.
-    const next = getOrCreateDailyPuzzle(dateAt(songCount));
+    const next = await getOrCreateDailyPuzzle(dateAt(songCount));
     expect(firstCycle).toContain(next.songId);
   });
 });

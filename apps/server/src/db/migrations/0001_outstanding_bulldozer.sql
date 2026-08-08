@@ -1,0 +1,1 @@
+ALTER TABLE "songs" ADD COLUMN "manual_override" boolean DEFAULT false NOT NULL;

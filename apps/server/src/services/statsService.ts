@@ -24,13 +24,14 @@ export interface RecordResultInput {
   guessesUsed: number; // 1-6 when won, otherwise the number of attempts used before giving up
 }
 
-export function recordGameResult(input: RecordResultInput): void {
-  db.transaction((tx) => {
-    const existing = tx
+export async function recordGameResult(input: RecordResultInput): Promise<void> {
+  await db.transaction(async (tx) => {
+    const existingRows = await tx
       .select()
       .from(userStats)
       .where(eq(userStats.ownerKey, input.ownerKey))
-      .get();
+      .limit(1);
+    const existing = existingRows[0];
 
     const continuesStreak = existing?.lastPlayedDate === yesterday(input.puzzleDate);
     const currentStreak = input.won
@@ -46,7 +47,7 @@ export function recordGameResult(input: RecordResultInput): void {
       gamesPlayed: (existing?.gamesPlayed ?? 0) + 1,
       gamesWon: (existing?.gamesWon ?? 0) + (input.won ? 1 : 0),
       lastPlayedDate: input.puzzleDate,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     };
 
     const distColumn =
@@ -56,39 +57,46 @@ export function recordGameResult(input: RecordResultInput): void {
     const distUpdate = distColumn ? { [distColumn]: (existing?.[distColumn] ?? 0) + 1 } : {};
 
     if (existing) {
-      tx.update(userStats)
+      await tx
+        .update(userStats)
         .set({ ...base, ...distUpdate })
-        .where(eq(userStats.ownerKey, input.ownerKey))
-        .run();
+        .where(eq(userStats.ownerKey, input.ownerKey));
     } else {
-      tx.insert(userStats)
-        .values({ ownerKey: input.ownerKey, ...base, ...distUpdate })
-        .run();
+      await tx.insert(userStats).values({ ownerKey: input.ownerKey, ...base, ...distUpdate });
     }
   });
 }
 
-export function getStats(ownerKey: string) {
-  return db.select().from(userStats).where(eq(userStats.ownerKey, ownerKey)).get() ?? null;
+export async function getStats(ownerKey: string) {
+  const rows = await db.select().from(userStats).where(eq(userStats.ownerKey, ownerKey)).limit(1);
+  return rows[0] ?? null;
 }
 
 /** Migrates a guest's history onto a freshly-registered user account. */
-export function mergeGuestStatsIntoUser(guestId: string, userId: string): void {
-  db.transaction((tx) => {
-    const guestStats = tx.select().from(userStats).where(eq(userStats.ownerKey, guestId)).get();
-    const userStatsRow = tx.select().from(userStats).where(eq(userStats.ownerKey, userId)).get();
+export async function mergeGuestStatsIntoUser(guestId: string, userId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const guestStatsRows = await tx
+      .select()
+      .from(userStats)
+      .where(eq(userStats.ownerKey, guestId))
+      .limit(1);
+    const guestStats = guestStatsRows[0];
+    const userStatsRows = await tx
+      .select()
+      .from(userStats)
+      .where(eq(userStats.ownerKey, userId))
+      .limit(1);
+    const userStatsRow = userStatsRows[0];
 
     // A brand-new account should never already have stats, but guard defensively rather than clobber.
     if (guestStats && !userStatsRow) {
-      tx.insert(userStats)
-        .values({ ...guestStats, ownerKey: userId })
-        .run();
-      tx.delete(userStats).where(eq(userStats.ownerKey, guestId)).run();
+      await tx.insert(userStats).values({ ...guestStats, ownerKey: userId });
+      await tx.delete(userStats).where(eq(userStats.ownerKey, guestId));
     }
 
-    tx.update(gameResults)
+    await tx
+      .update(gameResults)
       .set({ userId })
-      .where(and(eq(gameResults.guestId, guestId), isNull(gameResults.userId)))
-      .run();
+      .where(and(eq(gameResults.guestId, guestId), isNull(gameResults.userId)));
   });
 }

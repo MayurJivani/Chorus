@@ -11,12 +11,13 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
+    "db:migrate-sqlite": "tsx ../../scripts/migrate-sqlite-to-postgres.ts",
     "curate:songs": "tsx ../../scripts/curate-songs.ts",
-    "reverify:songs": "tsx ../../scripts/reverify-songs.ts"
+    "reverify:songs": "tsx ../../scripts/reverify-songs.ts",
+    "export:pool": "tsx src/db/exportPool.ts"
   },
   "dependencies": {
     "argon2": "^0.45.1",
-    "better-sqlite3": "^13.0.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "csrf-csrf": "^4.0.3",
@@ -27,12 +28,14 @@
     "helmet": "^8.0.0",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
+    "postgres": "^3.4.7",
     "uuid": "^14.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/cookie-parser": "^1.4.8",
+    "better-sqlite3": "^13.0.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^26.1.1",
