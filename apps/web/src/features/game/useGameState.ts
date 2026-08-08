@@ -7,6 +7,8 @@ export type GameStatus = 'loading' | 'playing' | 'won' | 'lost' | 'error';
 export interface GuessAttempt {
   song: SongSearchResult | null; // null represents a skip
   correct: boolean;
+  /** Wrong song, but by the right artist — the only real narrowing hint the game can give. */
+  sameArtist?: boolean;
 }
 
 interface GameState {
@@ -63,7 +65,10 @@ export function useGameState(): GameState {
           songId: song?.id as number | undefined,
           guessNumber: attemptNumber,
         });
-        setHistory((prev) => [...prev, { song, correct: result.correct }]);
+        setHistory((prev) => [
+          ...prev,
+          { song, correct: result.correct, sameArtist: result.sameArtist },
+        ]);
 
         if (result.isFinal) {
           setRevealedSong(result.song ?? null);

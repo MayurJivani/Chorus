@@ -10,6 +10,7 @@ import {
   isUnwantedVersion,
   mentionsFeature,
   normalizeTitle,
+  stripAnyTrailingQualifier,
   stripVersionSuffix,
 } from '../utils/trackFilters';
 import { logger } from '../logger';
@@ -361,11 +362,23 @@ async function fetchArtistTopTracks(
   // plain title so only the main recording of a song is ever picked.
   const bestByBase = new Map<string, ArtistTrack>();
 
-  for (const t of allRawTracks) {
-    if (!t.preview) continue;
-    if (isUnwantedVersion(t.title)) continue;
-    if (!includeFeatures && mentionsFeature(t.title)) continue;
+  const eligible = allRawTracks.filter(
+    (t) =>
+      t.preview && !isUnwantedVersion(t.title) && (includeFeatures || !mentionsFeature(t.title)),
+  );
 
+  // Titles this artist releases with no trailing qualifier at all. Anything that reduces to one
+  // of these once its qualifier is removed is an alternate cut of that song, whatever the
+  // qualifier happens to be called — which is how ZAYN's "EYES CLOSED (BARE)" and
+  // "EYES CLOSED (UNVEILED)" collapse onto "EYES CLOSED" without either word being known to
+  // the filter. Keyword matching alone left all three in the pool as separate "songs".
+  const plainTitles = new Set(
+    eligible
+      .filter((t) => stripAnyTrailingQualifier(t.title) === t.title.trim())
+      .map((t) => normalizeTitle(t.title)),
+  );
+
+  for (const t of eligible) {
     const candidate: ArtistTrack = {
       deezerTrackId: String(t.id),
       title: t.title,
@@ -375,7 +388,11 @@ async function fetchArtistTopTracks(
       durationSeconds: t.duration,
     };
 
-    const base = normalizeTitle(stripVersionSuffix(t.title));
+    const strippedBare = normalizeTitle(stripAnyTrailingQualifier(t.title));
+    const base = plainTitles.has(strippedBare)
+      ? strippedBare
+      : normalizeTitle(stripVersionSuffix(t.title));
+
     const existing = bestByBase.get(base);
     if (!existing || isPlainerTitle(base, existing.title, candidate.title)) {
       bestByBase.set(base, candidate);

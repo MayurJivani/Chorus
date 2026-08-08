@@ -19,6 +19,7 @@ import { guessRateLimiter } from '../middleware/rateLimiters';
 import { HttpError } from '../middleware/errorHandler';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getIdentity } from '../auth/identity';
+import { normalizeTitle } from '../utils/trackFilters';
 import type { Request } from 'express';
 
 export const puzzleRouter = Router();
@@ -39,6 +40,20 @@ async function findCompletedResult(puzzleId: number, req: Request) {
     .where(and(eq(gameResults.puzzleId, puzzleId), eq(gameResults.guestId, guestId ?? '')))
     .limit(1);
   return rows[0];
+}
+
+/** Whether a wrong guess at least picked a song by the same artist as the answer. Artist names
+ *  are compared normalized so "Beyoncé" and "Beyonce" count as a match. */
+async function isSameArtist(guessedSongId: number | undefined, answerSongId: number) {
+  if (guessedSongId === undefined) return false;
+
+  const [guessed, answer] = await Promise.all([
+    getSongById(guessedSongId),
+    getSongById(answerSongId),
+  ]);
+  if (!guessed || !answer) return false;
+
+  return normalizeTitle(guessed.artist) === normalizeTitle(answer.artist);
 }
 
 async function revealSong(songId: number) {
@@ -137,6 +152,12 @@ puzzleRouter.post(
     res.json({
       correct,
       isFinal: final,
+      // "You had the right artist" is the one piece of feedback a snippet game can give that
+      // actually narrows the search, and it costs nothing to compute. It is derived on the
+      // server rather than by comparing artist strings in the browser, because the client is
+      // never told the answer's artist until the puzzle is over — sending it would hand over
+      // the answer to anyone opening the network tab.
+      sameArtist: !correct && !final ? await isSameArtist(songId, puzzle.songId) : undefined,
       song: final ? await revealSong(puzzle.songId) : undefined,
     });
   }),

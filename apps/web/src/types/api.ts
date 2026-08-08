@@ -47,6 +47,8 @@ export type PuzzleResponse = PuzzleInProgress | PuzzleCompleted;
 export interface GuessResult {
   correct: boolean;
   isFinal: boolean;
+  /** Set on a non-final wrong guess: the guess named a different song by the right artist. */
+  sameArtist?: boolean;
   song?: RevealedSong;
 }
 

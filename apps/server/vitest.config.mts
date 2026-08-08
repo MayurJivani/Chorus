@@ -48,5 +48,10 @@ export default defineConfig({
     // leaderboard test alone plays two full 10-round sessions, which is several hundred
     // sequential queries. CI runs against a local Postgres and finishes far inside this.
     testTimeout: 120000,
+    // Same reason, for setup/teardown: a `beforeEach` that clears five tables is five
+    // sequential round trips, which intermittently exceeded the 10s default once the rest of
+    // the suite had the connection busy. Raised in step with testTimeout rather than left to
+    // fail as a flake that looks like a real assertion error.
+    hookTimeout: 120000,
   },
 });

@@ -1,18 +1,17 @@
 /** Shared title-quality checks used anywhere a track title from Deezer needs filtering —
  * song-bank curation, re-verification, and Artist Mode's live discography lookups. */
 
+/** Terms that mark an alternate version wherever they appear in a title — nobody names a real
+ *  song "Karaoke" or "Radio Edit". */
 const UNWANTED_VERSION_TERMS = [
   'karaoke',
   'tribute',
   'made famous by',
+  'originally performed by',
   'cover version',
   'in the style of',
-  'acoustic',
-  'live',
   'remix',
   'instrumental',
-  'demo',
-  'rehearsal',
   'sped up',
   'slowed',
   'extended mix',
@@ -26,6 +25,15 @@ const UNWANTED_VERSION_TERMS = [
   'behind the scenes',
   'skit',
 ];
+
+/**
+ * Terms that only mark an alternate version inside a trailing qualifier — "Yellow (Acoustic)"
+ * and "Yellow - Live at Wembley" are alternates, but "Live Your Life" (T.I.), "Live Like You
+ * Were Dying" (Tim McGraw) and "Live and Let Die" are ordinary songs whose titles happen to
+ * contain the word. Matching these anywhere in the title, even on a word boundary, quietly
+ * deleted real songs from both the daily bank and Artist Mode.
+ */
+const QUALIFIER_ONLY_UNWANTED_TERMS = ['live', 'acoustic', 'demo', 'rehearsal', 'unplugged'];
 
 // Word-boundary matched, so the punctuation/trailing-space variants these used to need
 // ('feat.', 'feat ', 'ft.', 'ft ') collapse into one entry each.
@@ -91,11 +99,50 @@ function matchesTerm(normalizedText: string, term: string): boolean {
   return matcher.test(normalizedText);
 }
 
+/** The trailing parenthetical / bracketed / dash-separated chunks of a title — the places a
+ *  label puts version information ("(Acoustic)", "[Deluxe]", "- Live at Wembley"). */
+function trailingQualifiers(title: string): string[] {
+  const qualifiers: string[] = [];
+  let result = title.trim();
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    const paren = result.match(/\s*\(([^)]*)\)\s*$/);
+    if (paren && paren.index != null && paren.index > 0) {
+      qualifiers.push(paren[1] ?? '');
+      result = result.slice(0, paren.index).trimEnd();
+      changed = true;
+      continue;
+    }
+    const bracket = result.match(/\s*\[([^\]]*)\]\s*$/);
+    if (bracket && bracket.index != null && bracket.index > 0) {
+      qualifiers.push(bracket[1] ?? '');
+      result = result.slice(0, bracket.index).trimEnd();
+      changed = true;
+      continue;
+    }
+    const dash = result.match(/\s[-–—]\s*(.+)$/);
+    if (dash && dash.index != null && dash.index > 0) {
+      qualifiers.push(dash[1] ?? '');
+      result = result.slice(0, dash.index).trimEnd();
+      changed = true;
+    }
+  }
+
+  return qualifiers;
+}
+
 /** True for karaoke/tribute/acoustic/live/remix/etc. versions — never a good pick for a
  * guessing game, which wants the recognizable original recording. */
 export function isUnwantedVersion(title: string): boolean {
   const normalized = normalizeTitle(title);
-  return UNWANTED_VERSION_TERMS.some((term) => matchesTerm(normalized, term));
+  if (UNWANTED_VERSION_TERMS.some((term) => matchesTerm(normalized, term))) return true;
+
+  return trailingQualifiers(title).some((qualifier) => {
+    const normalizedQualifier = normalizeTitle(qualifier);
+    return QUALIFIER_ONLY_UNWANTED_TERMS.some((term) => matchesTerm(normalizedQualifier, term));
+  });
 }
 
 /** True when the title itself credits another artist as a feature/collaboration
@@ -119,6 +166,42 @@ function isVersionMarker(content: string): boolean {
  *  "Pillowtalk", "Yellow - Live at Wembley" → "Yellow". Only trailing qualifiers that look
  *  like version markers are removed, so real parenthetical titles ("Single Ladies (Put a
  *  Ring on It)") are left untouched. Used to dedupe a discography down to the main version. */
+/**
+ * Strips *any* trailing parenthetical or dash qualifier, whether or not it looks like a known
+ * version word — "EYES CLOSED (BARE)" → "EYES CLOSED", "Song - Whatever" → "Song".
+ *
+ * This is deliberately more aggressive than `stripVersionSuffix`, and is only safe because the
+ * caller checks the result against titles that actually exist in the same artist's catalog.
+ * Labels invent endless variant names (BARE, UNVEILED, 2.0, 0.5, Reimagined…) and no keyword
+ * list keeps up; "is there a plain recording of this exact title by this artist?" is a
+ * question the data can answer directly.
+ */
+export function stripAnyTrailingQualifier(title: string): string {
+  let result = title.trim();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const paren = result.match(/\s*\(([^)]*)\)\s*$/);
+    if (paren && paren.index != null && paren.index > 0) {
+      result = result.slice(0, paren.index).trimEnd();
+      changed = true;
+      continue;
+    }
+    const bracket = result.match(/\s*\[([^\]]*)\]\s*$/);
+    if (bracket && bracket.index != null && bracket.index > 0) {
+      result = result.slice(0, bracket.index).trimEnd();
+      changed = true;
+      continue;
+    }
+    const dash = result.match(/\s[-–—]\s*(.+)$/);
+    if (dash && dash.index != null && dash.index > 0) {
+      result = result.slice(0, dash.index).trimEnd();
+      changed = true;
+    }
+  }
+  return result.trim();
+}
+
 export function stripVersionSuffix(title: string): string {
   let result = title.trim();
   let changed = true;

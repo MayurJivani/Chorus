@@ -3,6 +3,7 @@ import { useGameState } from '../features/game/useGameState';
 import { SnippetPlayer } from '../features/game/SnippetPlayer';
 import { SnippetProgressBar } from '../features/game/SnippetProgressBar';
 import { AttemptPips } from '../features/game/AttemptPips';
+import { GuessHistory } from '../features/game/GuessHistory';
 import { GuessInput } from '../features/game/GuessInput';
 import { WinLoseOverlay } from '../features/game/WinLoseOverlay';
 import { SNIPPET_SCHEDULE_SECONDS } from '../types/api';
@@ -53,14 +54,17 @@ export function PlayPage() {
   }
 
   const isOver = status === 'won' || status === 'lost';
+  const lastAttempt = history[history.length - 1];
   const previewUrl = puzzle.completed ? null : puzzle.previewUrl;
   const stageSeconds =
     SNIPPET_SCHEDULE_SECONDS[Math.min(attemptNumber, SNIPPET_SCHEDULE_SECONDS.length) - 1] ?? 1;
 
   return (
-    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
-      {/* Glass card wrapping the game */}
-      <div className="glass w-full rounded-2xl p-6 flex flex-col items-center gap-6">
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-4 sm:py-12">
+      {/* Glass card wrapping the game. Padding and gaps tighten on small screens so the whole
+          game — record, transport, pips, input and guess list — still fits a phone viewport
+          without the page scrolling. */}
+      <div className="glass w-full rounded-2xl p-4 sm:p-6 flex flex-col items-center gap-3 sm:gap-6">
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold text-white">Daily Puzzle</h1>
           <p className="text-xs text-slate-500 font-mono">{puzzle.puzzleDate}</p>
@@ -78,6 +82,12 @@ export function PlayPage() {
 
         <AttemptPips history={history} />
 
+        {!isOver && lastAttempt?.sameArtist && (
+          <p className="text-sm font-semibold text-amber-400" role="status">
+            Right artist — wrong song. Keep going.
+          </p>
+        )}
+
         {!isOver && (
           <GuessInput
             onGuess={guess}
@@ -86,6 +96,8 @@ export function PlayPage() {
             guessFeedback={guessFeedback}
           />
         )}
+
+        {!isOver && <GuessHistory history={history} />}
 
         {errorMessage && <p className="text-sm text-chorus-danger">{errorMessage}</p>}
       </div>

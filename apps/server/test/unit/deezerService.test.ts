@@ -145,6 +145,60 @@ describe('getArtistTopTracks', () => {
     return fetchMock;
   }
 
+  it('collapses label-invented variants onto the plain recording (ZAYN "EYES CLOSED")', async () => {
+    // "BARE" and "UNVEILED" are not version keywords anywhere — the only thing marking them as
+    // alternates is that a plain "EYES CLOSED" exists in the same catalog.
+    mockAlbumsAndTracks([{ id: 1, title: 'Album' }], {
+      1: [
+        {
+          id: 1,
+          title: 'EYES CLOSED (BARE)',
+          duration: 200,
+          preview: 'a.mp3',
+          artist: { name: 'ZAYN' },
+        },
+        { id: 2, title: 'EYES CLOSED', duration: 200, preview: 'b.mp3', artist: { name: 'ZAYN' } },
+        {
+          id: 3,
+          title: 'EYES CLOSED (UNVEILED)',
+          duration: 200,
+          preview: 'c.mp3',
+          artist: { name: 'ZAYN' },
+        },
+        {
+          id: 4,
+          title: 'EYES CLOSED (2.0)',
+          duration: 200,
+          preview: 'd.mp3',
+          artist: { name: 'ZAYN' },
+        },
+      ],
+    });
+
+    const tracks = await getArtistTopTracks(9761322);
+
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0]).toMatchObject({ deezerTrackId: '2', title: 'EYES CLOSED' });
+  });
+
+  it('keeps a parenthetical title when no plain recording of it exists', async () => {
+    mockAlbumsAndTracks([{ id: 1, title: 'Album' }], {
+      1: [
+        {
+          id: 10,
+          title: 'Single Ladies (Put a Ring on It)',
+          duration: 200,
+          preview: 'a.mp3',
+          artist: { name: 'Beyonce' },
+        },
+        { id: 11, title: 'Halo', duration: 200, preview: 'b.mp3', artist: { name: 'Beyonce' } },
+      ],
+    });
+
+    const titles = (await getArtistTopTracks(1)).map((t) => t.title).sort();
+    expect(titles).toEqual(['Halo', 'Single Ladies (Put a Ring on It)']);
+  });
+
   it('carries album cover_medium into track results', async () => {
     mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: 'album-a.jpg' }], {
       1: [

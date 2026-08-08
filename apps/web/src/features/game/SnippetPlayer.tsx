@@ -147,7 +147,9 @@ export function SnippetPlayer({
           onClick={handlePlay}
           className={
             'relative cursor-pointer select-none ' +
-            'w-48 h-48 sm:w-56 sm:h-56 rounded-full ' +
+            // Stepped down on small screens: at 192px the record plus the transport, pips,
+            // input and guess list overflowed a 375x812 viewport and cut off the Skip button.
+            'w-32 h-32 sm:w-48 sm:h-48 lg:w-56 lg:h-56 rounded-full ' +
             'shadow-[0_20px_50px_rgba(0,0,0,0.6)] border-4 border-neutral-900 ' +
             'transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] ' +
             (isPlaying ? 'animate-[spin_12s_linear_infinite]' : '') +

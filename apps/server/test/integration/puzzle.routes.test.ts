@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { eq } from 'drizzle-orm';
 import { createApp } from '../../src/app';
 import { db } from '../../src/db/client';
 import { songs, dailyPuzzles, gameResults, userStats, sessions } from '../../src/db/schema';
@@ -224,3 +225,82 @@ describe('getUtcDateString sanity', () => {
     expect(getUtcDateString()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
+
+describe('same-artist hint', () => {
+  /** Seeds a song with an explicit artist so two songs can deliberately share one. */
+  async function seedSongByArtist(n: number, artist: string) {
+    const [song] = await db
+      .insert(songs)
+      .values({
+        title: `Song ${n}`,
+        artist,
+        deezerTrackId: `track-${n}`,
+        previewUrl: `https://example.test/preview-${n}.mp3`,
+        durationSeconds: 180,
+      })
+      .returning();
+    return song!;
+  }
+
+  it('reports sameArtist for a wrong guess by the answer’s artist', async () => {
+    // Both songs share an artist, so whichever one the puzzle picks, the other is guaranteed
+    // to be a wrong guess by the right artist — no branch in the test can skip the assertion.
+    const first = await seedSongByArtist(1, 'Shared Artist');
+    const second = await seedSongByArtist(2, 'Shared Artist');
+
+    const agent = request.agent(app);
+    const puzzle = await agent.get('/api/puzzle/today');
+    const answerId = await currentAnswerId(puzzle.body.puzzleId);
+    const guessId = answerId === first.id ? second.id : first.id;
+    expect(guessId).not.toBe(answerId);
+
+    const res = await agent
+      .post('/api/puzzle/today/guess')
+      .set('X-CSRF-Token', await getCsrfToken(agent))
+      .send({ songId: guessId, guessNumber: 1 });
+
+    expect(res.body.correct).toBe(false);
+    expect(res.body.isFinal).toBe(false);
+    expect(res.body.sameArtist).toBe(true);
+  });
+
+  it('does not report sameArtist for an unrelated wrong guess', async () => {
+    await seedSongByArtist(1, 'Artist One');
+    await seedSongByArtist(2, 'Artist Two');
+
+    const agent = request.agent(app);
+    const puzzle = await agent.get('/api/puzzle/today');
+    const answerId = await currentAnswerId(puzzle.body.puzzleId);
+    const others = await db.select().from(songs);
+    const wrong = others.find((s) => s.id !== answerId)!;
+
+    const res = await agent
+      .post('/api/puzzle/today/guess')
+      .set('X-CSRF-Token', await getCsrfToken(agent))
+      .send({ songId: wrong.id, guessNumber: 1 });
+
+    expect(res.body.correct).toBe(false);
+    expect(res.body.sameArtist).toBe(false);
+  });
+
+  it('never leaks the hint on the final attempt, where the answer is revealed anyway', async () => {
+    await seedSongByArtist(1, 'Shared Artist');
+    const sibling = await seedSongByArtist(2, 'Shared Artist');
+
+    const agent = request.agent(app);
+    await agent.get('/api/puzzle/today');
+
+    const res = await agent
+      .post('/api/puzzle/today/guess')
+      .set('X-CSRF-Token', await getCsrfToken(agent))
+      .send({ songId: sibling.id, guessNumber: 6 });
+
+    expect(res.body.isFinal).toBe(true);
+    expect(res.body.sameArtist).toBeUndefined();
+  });
+});
+
+async function currentAnswerId(puzzleId: number): Promise<number> {
+  const rows = await db.select().from(dailyPuzzles).where(eq(dailyPuzzles.id, puzzleId)).limit(1);
+  return rows[0]!.songId;
+}

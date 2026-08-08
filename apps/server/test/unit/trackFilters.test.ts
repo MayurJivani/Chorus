@@ -3,6 +3,7 @@ import {
   isUnwantedVersion,
   mentionsFeature,
   normalizeTitle,
+  stripAnyTrailingQualifier,
   stripVersionSuffix,
 } from '../../src/utils/trackFilters';
 
@@ -107,5 +108,49 @@ describe('stripVersionSuffix', () => {
 
   it('leaves plain titles unchanged', () => {
     expect(stripVersionSuffix('Eyes Closed')).toBe('Eyes Closed');
+  });
+});
+
+describe('stripAnyTrailingQualifier', () => {
+  it.each([
+    ['EYES CLOSED (BARE)', 'EYES CLOSED'],
+    ['EYES CLOSED (UNVEILED)', 'EYES CLOSED'],
+    ['Eyes Closed (2.0)', 'Eyes Closed'],
+    ['Eyes Closed (0.5)', 'Eyes Closed'],
+    ['Song [Deluxe]', 'Song'],
+    ['Song - Whatever They Called It', 'Song'],
+    ['Single Ladies (Put a Ring on It)', 'Single Ladies'],
+  ])('strips any trailing qualifier: %s → %s', (title, expected) => {
+    expect(stripAnyTrailingQualifier(title)).toBe(expected);
+  });
+
+  it('leaves a plain title untouched, so it can be recognised as the plain form', () => {
+    expect(stripAnyTrailingQualifier('Eyes Closed')).toBe('Eyes Closed');
+  });
+
+  it('never strips a title down to nothing', () => {
+    expect(stripAnyTrailingQualifier('(Untitled)')).toBe('(Untitled)');
+  });
+});
+
+describe('isUnwantedVersion — "live" and friends only count as qualifiers', () => {
+  it.each([
+    'Live Your Life',
+    'Live Like You Were Dying',
+    'Live and Let Die',
+    'Acoustic Guitar Blues',
+    'Demo Days',
+  ])('keeps %s, where the word is part of the actual title', (title) => {
+    expect(isUnwantedVersion(title)).toBe(false);
+  });
+
+  it.each([
+    'Yellow (Acoustic)',
+    'Yellow - Live at Wembley',
+    'Yellow [Live]',
+    'Yellow (Demo)',
+    'Yellow (Unplugged)',
+  ])('still flags %s, where it sits in a trailing qualifier', (title) => {
+    expect(isUnwantedVersion(title)).toBe(true);
   });
 });

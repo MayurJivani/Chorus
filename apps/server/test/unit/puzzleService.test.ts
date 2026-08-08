@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../../src/db/client';
-import { songs, dailyPuzzles } from '../../src/db/schema';
+import { songs, dailyPuzzles, gameResults, userStats } from '../../src/db/schema';
 import {
   getOrCreateDailyPuzzle,
   getUtcDateString,
@@ -22,6 +22,10 @@ async function seedSong(n: number) {
 }
 
 beforeEach(async () => {
+  // Delete in dependency order: game_results references daily_puzzles, and rows left behind
+  // by another test file would otherwise make this cleanup fail on a foreign key.
+  await db.delete(gameResults);
+  await db.delete(userStats);
   await db.delete(dailyPuzzles);
   await db.delete(songs);
 });
