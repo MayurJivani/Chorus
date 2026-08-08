@@ -6,6 +6,7 @@ import { logger } from './logger';
 import { seedIfEmpty } from './db/seed';
 import { ensureDailyPlaylistsFresh } from './services/dailyPlaylistService';
 import { startArtistPoolEviction } from './services/artistCatalogService';
+import { startSessionSweep } from './auth/session';
 
 const app = createApp();
 const server = createServer(app);
@@ -26,3 +27,6 @@ seedIfEmpty()
 
 // Sweep artist catalogs nobody has played in 30 days, now and once a day after.
 startArtistPoolEviction();
+
+// Reclaim expired sessions, now and every six hours after.
+startSessionSweep();

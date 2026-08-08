@@ -1,10 +1,11 @@
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, lt } from 'drizzle-orm';
 import type { Request, Response, NextFunction } from 'express';
 import { db } from '../db/client';
 import { sessions } from '../db/schema';
 import { env } from '../env';
 import { generateCsrfToken } from '../middleware/csrf';
+import { logger } from '../logger';
 
 export interface RequestSession {
   id: string; // hashed token, primary key of the sessions row
@@ -141,6 +142,44 @@ export async function bindUserToSession(
   setSessionCookie(res, token, session.expiresAt);
   req.session = session;
   return session;
+}
+
+/**
+ * Deletes sessions past their expiry. Returns how many were removed.
+ *
+ * Expired rows were previously only cleaned up if someone happened to present that exact
+ * stale token again — which for an abandoned guest session never happens. Since a request
+ * arriving without a valid cookie silently mints a new guest session, anything hitting the
+ * API without cookie support (crawlers, uptime checks, scripted traffic) added a row per
+ * request that then sat in the table indefinitely. This makes the table self-limiting.
+ */
+export async function deleteExpiredSessions(): Promise<number> {
+  const removed = await db
+    .delete(sessions)
+    .where(lt(sessions.expiresAt, new Date()))
+    .returning({ id: sessions.id });
+
+  if (removed.length > 0) {
+    logger.info({ removed: removed.length }, 'Deleted expired sessions');
+  }
+  return removed.length;
+}
+
+const SESSION_SWEEP_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
+/** Runs the expiry sweep at startup and every six hours after. Unref'd so it never holds the
+ *  process open during shutdown. */
+export function startSessionSweep(): NodeJS.Timeout {
+  const sweep = (): void => {
+    void deleteExpiredSessions().catch((err) =>
+      logger.error({ err }, 'Expired session sweep failed'),
+    );
+  };
+
+  sweep();
+  const timer = setInterval(sweep, SESSION_SWEEP_INTERVAL_MS);
+  timer.unref();
+  return timer;
 }
 
 /** Ends the current session and immediately issues a fresh guest session so the response

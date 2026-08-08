@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { getMyStats } from '../api/stats';
 import { useSession } from '../hooks/useSession';
 import { GuessDistributionChart } from '../features/stats/GuessDistributionChart';
@@ -38,6 +39,42 @@ export function StatsPage() {
 
   const winRate =
     stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0;
+
+  // A player who has never finished a puzzle has nothing to show, and a screen of zeroes
+  // beside an empty chart reads as a broken page rather than an empty one. Point them at the
+  // puzzle instead — it is the only useful thing to do from here.
+  if (stats.gamesPlayed === 0) {
+    return (
+      <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass flex w-full flex-col items-center gap-4 rounded-2xl p-8"
+        >
+          <span className="text-4xl" aria-hidden="true">
+            📊
+          </span>
+          <h1 className="text-2xl font-bold text-white">No stats yet</h1>
+          <p className="max-w-sm text-sm text-slate-400">
+            Finish a daily puzzle and your streak, win rate and guess distribution will show up
+            here.
+          </p>
+          <Link to="/play" className="btn-primary mt-1">
+            Play today&apos;s puzzle
+          </Link>
+          {!user && (
+            <p className="text-xs text-slate-500">
+              Playing as a guest —{' '}
+              <Link to="/register" className="underline hover:text-slate-300">
+                create an account
+              </Link>{' '}
+              to keep your streak across devices.
+            </p>
+          )}
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex min-h-full max-w-xl flex-col items-center gap-8 px-4 py-12">

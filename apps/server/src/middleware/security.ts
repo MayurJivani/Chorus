@@ -16,7 +16,11 @@ export function applySecurityMiddleware(app: Express): void {
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'https://*.dzcdn.net', 'data:'],
           mediaSrc: ["'self'", 'https://*.dzcdn.net'],
-          connectSrc: ["'self'", 'ws:', 'wss:'],
+          // Bare `ws:`/`wss:` scheme sources allow a socket to *any* host, which would let
+          // injected script exfiltrate over a WebSocket the rest of this policy is careful to
+          // prevent. Multiplayer's socket is attached to this same server, so same-origin is
+          // all it ever needs — browsers match a same-origin ws://wss:// URL against 'self'.
+          connectSrc: ["'self'"],
           objectSrc: ["'none'"],
           frameAncestors: ["'none'"],
           baseUri: ["'self'"],
