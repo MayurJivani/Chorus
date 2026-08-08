@@ -120,3 +120,56 @@ describe('useArtistGameState — final round', () => {
     expect(result.current.status).toBe('playing');
   });
 });
+
+describe('useArtistGameState — selecting an artist', () => {
+  it('starts a fresh run rather than resuming an abandoned one', async () => {
+    // The server resumes the most recent session unless playAgain is set, so the client has to
+    // ask for a new challenge explicitly.
+    api.getArtistChallenge.mockResolvedValue({ ...challenge, currentRound: 0, songsCorrect: 0 });
+
+    const { result } = renderGame();
+    await waitFor(() => expect(result.current.status).toBe('playing'));
+
+    expect(api.getArtistChallenge).toHaveBeenCalledTimes(1);
+    const [artistId, includeFeatures, playAgain] = api.getArtistChallenge.mock.calls[0]!;
+    expect(artistId).toBe(412);
+    expect(includeFeatures).toBe(false);
+    expect(playAgain).toBe(true);
+  });
+
+  it('drops straight into a new challenge when the previous run was completed', async () => {
+    // Previously the finished session was resumed, stranding the player on the results page
+    // until they pressed "New challenge". A fresh challenge is never `completed`.
+    api.getArtistChallenge.mockResolvedValue({ ...challenge, currentRound: 0, completed: false });
+
+    const { result } = renderGame();
+    await waitFor(() => expect(result.current.status).toBe('playing'));
+
+    expect(result.current.status).not.toBe('completed');
+    expect(api.getArtistChallenge.mock.calls[0]![2]).toBe(true);
+  });
+
+  it('loads the exact challenge behind a shared link instead of starting a new one', async () => {
+    api.getArtistChallenge.mockResolvedValue({ ...challenge, currentRound: 0 });
+
+    const { result } = renderHook(() => useArtistGameState(412, false, 'search', 77));
+    await waitFor(() => expect(result.current.status).toBe('playing'));
+
+    const [, , playAgain, , challengeId] = api.getArtistChallenge.mock.calls[0]!;
+    expect(playAgain).toBe(false);
+    expect(challengeId).toBe(77);
+  });
+
+  it('does not start a second challenge when the component re-renders', async () => {
+    api.getArtistChallenge.mockResolvedValue({ ...challenge, currentRound: 0 });
+
+    const { result, rerender } = renderGame();
+    await waitFor(() => expect(result.current.status).toBe('playing'));
+
+    rerender();
+    rerender();
+
+    // Each extra start would create and abandon another challenge server-side.
+    expect(api.getArtistChallenge).toHaveBeenCalledTimes(1);
+  });
+});

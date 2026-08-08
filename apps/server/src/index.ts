@@ -7,6 +7,7 @@ import { seedIfEmpty } from './db/seed';
 import { ensureDailyPlaylistsFresh } from './services/dailyPlaylistService';
 import { startArtistPoolEviction } from './services/artistCatalogService';
 import { startSessionSweep } from './auth/session';
+import { startAbandonedChallengeEviction } from './services/artistChallengeService';
 
 const app = createApp();
 const server = createServer(app);
@@ -30,3 +31,6 @@ startArtistPoolEviction();
 
 // Reclaim expired sessions, now and every six hours after.
 startSessionSweep();
+
+// Collect artist challenges nobody ever played a round of, now and once a day after.
+startAbandonedChallengeEviction();

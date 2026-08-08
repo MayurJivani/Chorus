@@ -25,6 +25,7 @@ import {
   buildRoundOptions,
   getArtistLeaderboard,
   getArtistGuessDistribution,
+  evictAbandonedChallenges,
   resolvePlayableRound,
   loadChallengeTracks,
   ARTIST_CHALLENGE_SIZE,
@@ -408,5 +409,64 @@ describe('getArtistGuessDistribution', () => {
     const buckets = await getArtistGuessDistribution(999999, identity);
     expect(buckets).toHaveLength(6);
     expect(buckets.reduce((sum, b) => sum + b.allPlayers + b.myGuesses, 0)).toBe(0);
+  });
+});
+
+describe('evictAbandonedChallenges', () => {
+  const identity = { userId: null, guestId: 'guest-evict' };
+
+  /** Backdates a challenge so it falls outside the retention window. */
+  async function backdate(challengeId: number) {
+    await db
+      .update(artistChallenges)
+      .set({ createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) })
+      .where(eq(artistChallenges.id, challengeId));
+  }
+
+  it('removes an old challenge nobody played, along with its tracks and session', async () => {
+    const { challenge } = await getOrCreateArtistChallenge(412, '2026-05-01');
+    await getOrCreateSessionProgress(challenge.id, identity);
+    await backdate(challenge.id);
+
+    expect(await evictAbandonedChallenges()).toBe(1);
+
+    expect(await db.select().from(artistChallenges)).toHaveLength(0);
+    // Cascading foreign keys must take the dependent rows with it.
+    expect(await loadChallengeTracks(challenge.id)).toHaveLength(0);
+    expect(await db.select().from(artistSessionResults)).toHaveLength(0);
+  });
+
+  it('keeps an old challenge someone actually played a round of', async () => {
+    const { challenge } = await getOrCreateArtistChallenge(412, '2026-05-02');
+    const session = await getOrCreateSessionProgress(challenge.id, identity);
+    await db
+      .update(artistSessionResults)
+      .set({ currentRound: 3 })
+      .where(eq(artistSessionResults.id, session.id));
+    await backdate(challenge.id);
+
+    expect(await evictAbandonedChallenges()).toBe(0);
+    expect(await db.select().from(artistChallenges)).toHaveLength(1);
+  });
+
+  it('keeps a completed challenge, so leaderboard standings survive', async () => {
+    const { challenge } = await getOrCreateArtistChallenge(412, '2026-05-03');
+    const session = await getOrCreateSessionProgress(challenge.id, identity);
+    await db
+      .update(artistSessionResults)
+      .set({ completed: true, songsCorrect: 7 })
+      .where(eq(artistSessionResults.id, session.id));
+    await backdate(challenge.id);
+
+    expect(await evictAbandonedChallenges()).toBe(0);
+    expect(await db.select().from(artistChallenges)).toHaveLength(1);
+  });
+
+  it('keeps a freshly abandoned challenge, so a new shared link still resolves', async () => {
+    const { challenge } = await getOrCreateArtistChallenge(412, '2026-05-04');
+    await getOrCreateSessionProgress(challenge.id, identity);
+
+    expect(await evictAbandonedChallenges()).toBe(0);
+    expect(await db.select().from(artistChallenges)).toHaveLength(1);
   });
 });

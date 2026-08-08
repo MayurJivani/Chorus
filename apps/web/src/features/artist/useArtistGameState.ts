@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getArtistChallenge, submitArtistGuess } from '../../api/artists';
 import type {
   ArtistChallengeResponse,
@@ -74,9 +74,22 @@ export function useArtistGameState(
     [artistId, includeFeatures, guessMode, sharedChallengeId],
   );
 
+  // Which artist/mode selection has already been started, so a fresh run is begun once per
+  // selection rather than on every render. A ref rather than state because StrictMode invokes
+  // this effect twice in development, and without the guard each visit would create (and
+  // abandon) a second challenge.
+  const startedSelectionRef = useRef<string | null>(null);
+
   useEffect(() => {
-    void loadCurrentRound();
-  }, [loadCurrentRound]);
+    const selection = `${artistId}:${includeFeatures}:${guessMode}:${sharedChallengeId ?? ''}`;
+    if (startedSelectionRef.current === selection) return;
+    startedSelectionRef.current = selection;
+
+    // Opening an artist always begins a new run — picking an artist you abandoned halfway
+    // should not drop you back into that half-finished attempt. The one exception is a shared
+    // challenge link, whose whole purpose is to load one specific challenge.
+    void loadCurrentRound(sharedChallengeId == null);
+  }, [artistId, includeFeatures, guessMode, sharedChallengeId, loadCurrentRound]);
 
   const submit = useCallback(
     async (song: SongSearchResult | null) => {

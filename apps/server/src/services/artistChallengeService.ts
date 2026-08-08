@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { eq, and, desc, asc, sql } from 'drizzle-orm';
+import { eq, and, desc, asc, gt, lt, notExists, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   artistChallenges,
@@ -326,6 +326,73 @@ function shuffle<T>(items: readonly T[]): T[] {
     result[j] = temp;
   }
   return result;
+}
+
+/** Abandoned challenges older than this are collected. Long enough that a shared link still
+ *  works for a week even if nobody has opened it yet. */
+export const ABANDONED_CHALLENGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Deletes challenges nobody ever played a round of. Returns how many were removed.
+ *
+ * Opening an artist always starts a fresh challenge — that is the point, so an abandoned
+ * half-run is never resumed — but it also means every visit writes a challenge row plus ten
+ * track rows plus a session row, including visits where the player immediately backs out.
+ * Without this, browsing artists grows the database indefinitely for runs nobody played.
+ *
+ * Only challenges where *no* session got past round zero are eligible, so anything with real
+ * play behind it (and therefore leaderboard standings) is kept regardless of age. The
+ * cascading foreign keys clear the track and session rows.
+ */
+export async function evictAbandonedChallenges(
+  ttlMs = ABANDONED_CHALLENGE_TTL_MS,
+): Promise<number> {
+  const cutoff = new Date(Date.now() - ttlMs);
+
+  const removed = await db
+    .delete(artistChallenges)
+    .where(
+      and(
+        lt(artistChallenges.createdAt, cutoff),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(artistSessionResults)
+            .where(
+              and(
+                eq(artistSessionResults.challengeId, artistChallenges.id),
+                or(
+                  gt(artistSessionResults.currentRound, 0),
+                  eq(artistSessionResults.completed, true),
+                ),
+              ),
+            ),
+        ),
+      ),
+    )
+    .returning({ id: artistChallenges.id });
+
+  if (removed.length > 0) {
+    logger.info({ removed: removed.length, cutoff }, 'Evicted abandoned artist challenges');
+  }
+  return removed.length;
+}
+
+const CHALLENGE_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/** Runs the abandoned-challenge sweep at startup and daily after. Unref'd so it never holds
+ *  the process open during shutdown. */
+export function startAbandonedChallengeEviction(): NodeJS.Timeout {
+  const sweep = (): void => {
+    void evictAbandonedChallenges().catch((err) =>
+      logger.error({ err }, 'Abandoned challenge eviction failed'),
+    );
+  };
+
+  sweep();
+  const timer = setInterval(sweep, CHALLENGE_SWEEP_INTERVAL_MS);
+  timer.unref();
+  return timer;
 }
 
 /** How many replacement candidates to try before giving up on a dead challenge slot. */
