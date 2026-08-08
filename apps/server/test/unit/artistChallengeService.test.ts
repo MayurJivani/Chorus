@@ -24,6 +24,7 @@ import {
   recordArtistRoundResult,
   buildRoundOptions,
   getArtistLeaderboard,
+  getArtistGuessDistribution,
   resolvePlayableRound,
   loadChallengeTracks,
   ARTIST_CHALLENGE_SIZE,
@@ -359,5 +360,53 @@ describe('resolvePlayableRound', () => {
     );
 
     expect(resolved).toBeNull();
+  });
+});
+
+describe('getArtistGuessDistribution', () => {
+  const identity = { userId: null, guestId: 'guest-dist' };
+
+  async function completedSessionWithGuesses(stages: number[]) {
+    const { challenge } = await getOrCreateArtistChallenge(412, '2026-04-01');
+    const session = await getOrCreateSessionProgress(challenge.id, identity);
+    await db
+      .update(artistSessionResults)
+      .set({ completed: true })
+      .where(eq(artistSessionResults.id, session.id));
+
+    await db.insert(artistRoundGuesses).values(
+      stages.map((snippetStageSeconds, position) => ({
+        sessionId: session.id,
+        position,
+        correct: true,
+        snippetStageSeconds,
+      })),
+    );
+  }
+
+  it('returns counts as numbers, not the strings Postgres bigint yields', async () => {
+    await completedSessionWithGuesses([1, 1, 4]);
+
+    const buckets = await getArtistGuessDistribution(412, identity);
+
+    // Asserting the runtime type explicitly: the row type is a hand-written assertion, so a
+    // bigint coming back as "2" instead of 2 type-checks fine and only breaks in the browser.
+    for (const bucket of buckets) {
+      expect(typeof bucket.allPlayers).toBe('number');
+      expect(typeof bucket.myGuesses).toBe('number');
+    }
+
+    // The exact failure this guards: summing buckets must add, not concatenate.
+    const total = buckets.reduce((sum, b) => sum + b.allPlayers, 0);
+    expect(total).toBe(3);
+    expect(buckets.find((b) => b.snippetSeconds === 1)?.allPlayers).toBe(2);
+    expect(buckets.find((b) => b.snippetSeconds === 4)?.allPlayers).toBe(1);
+    expect(buckets.find((b) => b.snippetSeconds === 2)?.allPlayers).toBe(0);
+  });
+
+  it('reports zeroes for an artist with no completed guesses', async () => {
+    const buckets = await getArtistGuessDistribution(999999, identity);
+    expect(buckets).toHaveLength(6);
+    expect(buckets.reduce((sum, b) => sum + b.allPlayers + b.myGuesses, 0)).toBe(0);
   });
 });

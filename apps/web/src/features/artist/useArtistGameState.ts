@@ -17,6 +17,8 @@ interface ArtistGameState {
   roundHistory: GuessAttempt[];
   revealedSong: RevealedSong | null;
   finalScore: ArtistGuessResult['finalScore'] | null;
+  /** The run is over and the on-screen reveal is its last round. */
+  sessionComplete: boolean;
   errorMessage: string | null;
   submitting: boolean;
   guess: (song: SongSearchResult) => Promise<void>;
@@ -39,6 +41,8 @@ export function useArtistGameState(
   const [finalScore, setFinalScore] = useState<ArtistGuessResult['finalScore'] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // True once the tenth round has been answered but its reveal is still on screen.
+  const [sessionComplete, setSessionComplete] = useState(false);
 
   const loadCurrentRound = useCallback(
     async (playAgain?: boolean) => {
@@ -56,6 +60,7 @@ export function useArtistGameState(
         setAttemptNumber(1);
         setRoundHistory([]);
         setRevealedSong(null);
+        setSessionComplete(false);
         setStatus(current.completed ? 'completed' : 'playing');
       } catch (err) {
         setStatus('error');
@@ -108,12 +113,15 @@ export function useArtistGameState(
                 : prev,
             );
           }
+          // The final round gets the same reveal as every other one. It used to jump straight
+          // to the summary, so the tenth song's answer was the only one a player never saw —
+          // most obviously when they skipped it, which is exactly when they want to know.
+          // The summary is now one button press away instead of automatic.
           if (result.sessionComplete) {
             setFinalScore(result.finalScore ?? null);
-            setStatus('completed');
-          } else {
-            setStatus('round-ended');
+            setSessionComplete(true);
           }
+          setStatus('round-ended');
         } else {
           setAttemptNumber((n) => n + 1);
         }
@@ -128,7 +136,15 @@ export function useArtistGameState(
 
   const guess = useCallback((song: SongSearchResult) => submit(song), [submit]);
   const skip = useCallback(() => submit(null), [submit]);
-  const nextRound = useCallback(() => loadCurrentRound(), [loadCurrentRound]);
+  const nextRound = useCallback(async () => {
+    // After the last round the reveal is the only thing left to dismiss — there is no next
+    // round to fetch, so move to the summary rather than re-requesting a finished challenge.
+    if (sessionComplete) {
+      setStatus('completed');
+      return;
+    }
+    await loadCurrentRound();
+  }, [sessionComplete, loadCurrentRound]);
   const playAgain = useCallback(() => loadCurrentRound(true), [loadCurrentRound]);
 
   return {
@@ -138,6 +154,7 @@ export function useArtistGameState(
     roundHistory,
     revealedSong,
     finalScore,
+    sessionComplete,
     errorMessage,
     submitting,
     guess,

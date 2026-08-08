@@ -555,8 +555,13 @@ export async function getArtistGuessDistribution(
 ): Promise<GuessDistributionBucket[]> {
   const deezerArtistId = String(artistId);
 
+  // The `::int` casts are load-bearing. Postgres COUNT(*) is bigint, which postgres-js returns
+  // as a *string* to avoid precision loss, and the row type assertion below cannot catch that.
+  // The client then summed the buckets with `+`, concatenating instead of adding — the legend
+  // read "All players (01800000)" and the average divided by that, showing "avg 0.0s".
+
   const allRows = (await db.execute(sql`
-    SELECT g.snippet_stage_seconds as "snippetStageSeconds", COUNT(*) as count
+    SELECT g.snippet_stage_seconds as "snippetStageSeconds", COUNT(*)::int as count
     FROM artist_round_guesses g
     JOIN artist_session_results s ON s.id = g.session_id
     JOIN artist_challenges c ON c.id = s.challenge_id
@@ -567,7 +572,7 @@ export async function getArtistGuessDistribution(
   `)) as unknown as { snippetStageSeconds: number; count: number }[];
 
   const myRows = (await db.execute(sql`
-    SELECT g.snippet_stage_seconds as "snippetStageSeconds", COUNT(*) as count
+    SELECT g.snippet_stage_seconds as "snippetStageSeconds", COUNT(*)::int as count
     FROM artist_round_guesses g
     JOIN artist_session_results s ON s.id = g.session_id
     JOIN artist_challenges c ON c.id = s.challenge_id

@@ -28,6 +28,7 @@ export function ArtistPlayPage() {
     roundHistory,
     revealedSong,
     finalScore,
+    sessionComplete,
     errorMessage,
     submitting,
     guess,
@@ -204,7 +205,7 @@ export function ArtistPlayPage() {
               onClick={() => void nextRound()}
               className="btn-primary w-full max-w-md"
             >
-              Next song →
+              {sessionComplete ? 'See results →' : 'Next song →'}
             </button>
           </motion.div>
         ) : (
