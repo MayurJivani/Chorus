@@ -508,6 +508,8 @@ interface LeaderboardRow {
   timeTakenSeconds: number | null;
 }
 
+/** Guests are excluded upstream, so every row here belongs to a registered account — the
+ *  'Guest' fallback below only guards against a null display_name, never anonymity. */
 function buildLeaderboardEntries(rows: LeaderboardRow[], myKey: string): ArtistLeaderboardEntry[] {
   return rows.map((row, index) => ({
     rank: index + 1,
@@ -550,9 +552,11 @@ export async function getArtistLeaderboard(
         ) as rn
       FROM artist_session_results r
       JOIN artist_challenges c ON c.id = r.challenge_id
-      LEFT JOIN users u ON u.id = r.user_id
-      WHERE c.deezer_artist_id = ${deezerArtistId} AND r.completed = true
-    )
+      JOIN users u ON u.id = r.user_id
+      WHERE c.deezer_artist_id = ${deezerArtistId}
+        AND r.completed = true
+        AND r.user_id IS NOT NULL
+    ) ranked
     WHERE rn = 1
     ORDER BY "songsCorrect" DESC, "timeTakenSeconds" ASC NULLS LAST, "totalGuessesUsed" ASC
     LIMIT ${limit}
@@ -599,8 +603,10 @@ export async function getChallengeLeaderboard(
       r.total_guesses_used as "totalGuessesUsed",
       r.time_taken_seconds as "timeTakenSeconds"
     FROM artist_session_results r
-    LEFT JOIN users u ON u.id = r.user_id
-    WHERE r.challenge_id = ${challengeId} AND r.completed = true
+    JOIN users u ON u.id = r.user_id
+    WHERE r.challenge_id = ${challengeId}
+      AND r.completed = true
+      AND r.user_id IS NOT NULL
     ORDER BY "songsCorrect" DESC, "timeTakenSeconds" ASC NULLS LAST, "totalGuessesUsed" ASC
     LIMIT ${limit}
   `)) as unknown as LeaderboardRow[];

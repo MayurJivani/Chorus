@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { db } from '../../src/db/client';
-import { songs } from '../../src/db/schema';
+import { dailyPuzzles, gameResults, songs } from '../../src/db/schema';
 import {
   DAILY_PLAYLISTS,
   fetchPlaylistTracks,
@@ -10,6 +10,10 @@ import {
 } from '../../src/services/dailyPlaylistService';
 
 beforeEach(async () => {
+  // Delete in dependency order: daily_puzzles references songs (and game_results references
+  // daily_puzzles), so rows left by another test file would block the songs cleanup.
+  await db.delete(gameResults);
+  await db.delete(dailyPuzzles);
   await db.delete(songs);
 });
 

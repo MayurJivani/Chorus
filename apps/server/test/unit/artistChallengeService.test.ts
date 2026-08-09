@@ -249,42 +249,52 @@ describe('buildRoundOptions', () => {
 });
 
 describe('getArtistLeaderboard', () => {
+  /** The board only lists registered accounts, so ranking fixtures need real users. */
+  async function seedUser(id: string, displayName: string) {
+    await db
+      .insert(users)
+      .values({ id, email: `${id}@example.test`, passwordHash: 'x', displayName });
+  }
+
   it('ranks by songs correct desc, then fewer guesses, and flags the caller', async () => {
     const { challenge } = await getOrCreateArtistChallenge(412, '2026-01-01');
+    await seedUser('user-a', 'Ada');
+    await seedUser('user-b', 'Grace');
 
-    const guestA = await getOrCreateSessionProgress(challenge.id, {
-      userId: null,
-      guestId: 'guest-a',
+    const playerA = await getOrCreateSessionProgress(challenge.id, {
+      userId: 'user-a',
+      guestId: null,
     });
-    const guestB = await getOrCreateSessionProgress(challenge.id, {
-      userId: null,
-      guestId: 'guest-b',
+    const playerB = await getOrCreateSessionProgress(challenge.id, {
+      userId: 'user-b',
+      guestId: null,
     });
 
     for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1)
-      await recordArtistRoundResult(guestA.id, true, 2, 2); // 10/10, 20 guesses
+      await recordArtistRoundResult(playerA.id, true, 2, 2); // 10/10, 20 guesses
     for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1)
-      await recordArtistRoundResult(guestB.id, true, 1, 1); // 10/10, 10 guesses
+      await recordArtistRoundResult(playerB.id, true, 1, 1); // 10/10, 10 guesses
 
     // Wall-clock rounding can flip the time comparison, so pin each player's stored time to
     // keep the expected order (time-then-guesses) deterministic.
     await db
       .update(artistSessionResults)
       .set({ timeTakenSeconds: 20 })
-      .where(eq(artistSessionResults.id, guestA.id));
+      .where(eq(artistSessionResults.id, playerA.id));
     await db
       .update(artistSessionResults)
       .set({ timeTakenSeconds: 10 })
-      .where(eq(artistSessionResults.id, guestB.id));
+      .where(eq(artistSessionResults.id, playerB.id));
 
     const { entries, myBest } = await getArtistLeaderboard(412, {
-      userId: null,
-      guestId: 'guest-b',
+      userId: 'user-b',
+      guestId: null,
     });
 
-    expect(entries[0]?.displayName).toBe('Guest');
-    expect(entries[0]?.totalGuessesUsed).toBe(10); // guest-b (fewer guesses) ranks first
+    expect(entries[0]?.displayName).toBe('Grace');
+    expect(entries[0]?.totalGuessesUsed).toBe(10); // Grace (fewer guesses) ranks first
     expect(entries[0]?.isYou).toBe(true);
+    expect(entries[1]?.displayName).toBe('Ada');
     expect(entries[1]?.isYou).toBe(false);
     expect(myBest).toEqual({
       songsCorrect: 10,

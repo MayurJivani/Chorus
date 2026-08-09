@@ -212,3 +212,32 @@ export interface MultiplayerCreateRoomResponse {
   artistName: string;
   artistPictureUrl: string | null;
 }
+
+export interface GlobalLeaderboardEntry {
+  rank: number;
+  userId: string;
+  displayName: string;
+  runs: number;
+  songsCorrect: number;
+  songsPossible: number;
+  accuracy: number;
+  bestRun: number;
+  averageTimeSeconds: number | null;
+  fastestRunSeconds: number | null;
+  isYou: boolean;
+}
+
+export interface MostPlayedArtist {
+  deezerArtistId: string;
+  artistName: string;
+  runs: number;
+  players: number;
+  averageScore: number;
+}
+
+export interface LeaderboardResponse {
+  players: GlobalLeaderboardEntry[];
+  mostPlayedArtists: MostPlayedArtist[];
+  /** False for guests, who cannot appear on the board until they have an account. */
+  isRegistered: boolean;
+}

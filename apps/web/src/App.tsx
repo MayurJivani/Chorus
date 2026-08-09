@@ -4,6 +4,7 @@ import { RootLayout } from './routes/RootLayout';
 import { HomePage } from './routes/HomePage';
 import { PlayPage } from './routes/PlayPage';
 import { StatsPage } from './routes/StatsPage';
+import { LeaderboardPage } from './routes/LeaderboardPage';
 import { LoginPage } from './routes/LoginPage';
 import { RegisterPage } from './routes/RegisterPage';
 import { AboutPage } from './routes/AboutPage';
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
       { path: '/', element: <HomePage /> },
       { path: '/play', element: <PlayPage /> },
       { path: '/stats', element: <StatsPage /> },
+      { path: '/leaderboard', element: <LeaderboardPage /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegisterPage /> },
       { path: '/about', element: <AboutPage /> },

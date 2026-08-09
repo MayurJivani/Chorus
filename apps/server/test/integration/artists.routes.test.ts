@@ -8,6 +8,7 @@ import {
   artistChallengeTracks,
   artistSessionResults,
   sessions,
+  users,
 } from '../../src/db/schema';
 import * as deezerService from '../../src/services/deezerService';
 import { clearArtistPools } from '../../src/services/artistCatalogService';
@@ -47,6 +48,9 @@ beforeEach(async () => {
   await db.delete(artistChallengeTracks);
   await db.delete(artistChallenges);
   await db.delete(sessions);
+  // Leaderboard fixtures create accounts; without this they survive into the next test and
+  // collide on the primary key.
+  await db.delete(users);
   vi.clearAllMocks();
   vi.mocked(deezerService.getArtistById).mockResolvedValue({
     id: 412,
@@ -237,9 +241,10 @@ describe('GET /api/artists/:artistId/leaderboard', () => {
 
     const leaderboard = await agent.get('/api/artists/412/leaderboard');
     expect(leaderboard.status).toBe(200);
-    expect(leaderboard.body.entries).toHaveLength(1);
-    expect(leaderboard.body.entries[0].isYou).toBe(true);
-    expect(leaderboard.body.entries[0].displayName).toBe('Guest');
+    // The board lists registered accounts only — a guest identity is just a cookie, so it is
+    // neither stable nor attributable enough to rank. Their own score still comes back as
+    // `myBest`, which is what the result screen shows them.
+    expect(leaderboard.body.entries).toHaveLength(0);
     expect(leaderboard.body.myBest).toEqual({
       songsCorrect: 10,
       totalGuessesUsed: 10,
@@ -305,6 +310,22 @@ describe('GET /api/artists/:artistId/challenge/:challengeId/leaderboard', () => 
       await db
         .update(artistSessionResults)
         .set({ timeTakenSeconds: row.guesses === 10 ? 10 : 20 })
+        .where(eq(artistSessionResults.id, row.id));
+    }
+
+    // Both runs were played anonymously, and the board lists registered accounts only. Attach
+    // each run to an account so the ordering this test exists to check is still exercised.
+    for (const [index, row] of results.entries()) {
+      const userId = `lb-user-${index}`;
+      await db.insert(users).values({
+        id: userId,
+        email: `${userId}@example.test`,
+        passwordHash: 'x',
+        displayName: `Player ${index}`,
+      });
+      await db
+        .update(artistSessionResults)
+        .set({ userId, guestId: null })
         .where(eq(artistSessionResults.id, row.id));
     }
 

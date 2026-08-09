@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { ArtistLeaderboard } from './ArtistLeaderboard';
 import { ArtistGuessDistribution } from './ArtistGuessDistribution';
+import { useSession } from '../../hooks/useSession';
 
 interface ArtistSessionSummaryProps {
   artistId: number;
@@ -36,6 +37,7 @@ export function ArtistSessionSummary({
   onPlayAgain,
 }: ArtistSessionSummaryProps) {
   const [copied, setCopied] = useState(false);
+  const { user } = useSession();
 
   useEffect(() => {
     if (songsCorrect >= totalRounds * 0.7) {
@@ -72,6 +74,28 @@ export function ArtistSessionSummary({
           )}
         </p>
       </div>
+
+      {/* A guest has just earned a score they can never be ranked with, so this is the moment
+          the offer is worth making — right beside the leaderboard they are missing from. */}
+      {!user && (
+        <div className="w-full rounded-2xl border border-chorus-accent/30 bg-chorus-accent/10 p-4">
+          <p className="text-sm font-semibold text-white">
+            {songsCorrect}/{totalRounds} — want this on the leaderboard?
+          </p>
+          <p className="mt-1 text-xs text-slate-300">
+            Guest runs aren&apos;t ranked. Create an account to claim your spot and keep your
+            scores.
+          </p>
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <Link to="/register" className="btn-primary flex-1 !py-2 text-sm">
+              Claim your spot
+            </Link>
+            <Link to="/login" className="btn-secondary flex-1 !py-2 text-sm">
+              Log in
+            </Link>
+          </div>
+        </div>
+      )}
 
       <ArtistLeaderboard artistId={artistId} artistName={artistName} challengeId={challengeId} />
 

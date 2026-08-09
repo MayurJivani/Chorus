@@ -53,6 +53,7 @@ export function RootLayout() {
             <NavLink to="/play">Play</NavLink>
             <NavLink to="/artist">Artist Mode</NavLink>
             <NavLink to="/multiplayer">Multiplayer</NavLink>
+            <NavLink to="/leaderboard">Leaderboard</NavLink>
             <NavLink to="/stats">Stats</NavLink>
             <NavLink to="/about">About</NavLink>
 
@@ -115,6 +116,7 @@ export function RootLayout() {
                   ['/play', 'Play'],
                   ['/artist', 'Artist Mode'],
                   ['/multiplayer', 'Multiplayer'],
+                  ['/leaderboard', 'Leaderboard'],
                   ['/stats', 'Stats'],
                   ['/about', 'About'],
                 ] as [string, string][]
