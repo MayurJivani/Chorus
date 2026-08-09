@@ -119,7 +119,9 @@ export function LeaderboardPage() {
 
         {players.length === 0 ? (
           <p className="py-4 text-center text-sm text-slate-400">
-            Nobody has finished an artist challenge yet — be the first.
+            {/* Not "nobody has played yet" — the artist list above may well show finished runs.
+                They were just played by guests, who are never ranked. */}
+            No ranked players yet. Finish an artist challenge with an account to be the first.
           </p>
         ) : (
           <div className="overflow-x-auto">
