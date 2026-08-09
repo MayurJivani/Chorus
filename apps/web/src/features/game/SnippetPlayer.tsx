@@ -33,7 +33,11 @@ export function SnippetPlayer({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const stopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seekOffsetRef = useRef<number>(0);
+  /** Audio position at which the current play must stop; null when not playing. */
+  const playUntilRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  /** The browser refused to start playback without a gesture. */
+  const [blocked, setBlocked] = useState(false);
   const [volume, setVolume] = useState(() => {
     try {
       const saved = localStorage.getItem('snippet-volume');
@@ -58,8 +62,13 @@ export function SnippetPlayer({
   }, [volume]);
 
   useEffect(() => {
+    const audio = audioRef.current;
     return () => {
       if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+      // Pause on the way out as well as clearing the timer. Clearing alone left a playing
+      // element with nothing scheduled to stop it, so it ran to the end of the clip — which
+      // in multiplayer meant a player heard the whole song instead of their one-second slice.
+      audio?.pause();
     };
   }, []);
 
@@ -119,19 +128,56 @@ export function SnippetPlayer({
 
     if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
 
-    audio.currentTime = seekOffsetRef.current;
-    void audio.play();
-    setIsPlaying(true);
+    const startAt = seekOffsetRef.current;
+    audio.currentTime = startAt;
+    // The hard limit is a position in the clip, not a wall-clock delay. A timer alone is only
+    // as reliable as its scheduling — anything that cleared it (an unmount, a re-render) left
+    // playback running to the end of the preview, handing the player the entire song.
+    playUntilRef.current = startAt + stageSeconds;
 
-    stopTimeoutRef.current = setTimeout(() => {
-      audio.pause();
-      setIsPlaying(false);
-    }, stageSeconds * 1000);
+    setBlocked(false);
+    void audio
+      .play()
+      .then(() => setIsPlaying(true))
+      .catch(() => {
+        // Autoplay refused — most often a round that started from a socket message rather
+        // than a tap. Say so instead of showing a spinning record over silence.
+        setIsPlaying(false);
+        setBlocked(true);
+      });
+
+    stopTimeoutRef.current = setTimeout(() => stopPlayback(), stageSeconds * 1000);
+  };
+
+  const stopPlayback = () => {
+    const audio = audioRef.current;
+    if (stopTimeoutRef.current) {
+      clearTimeout(stopTimeoutRef.current);
+      stopTimeoutRef.current = null;
+    }
+    playUntilRef.current = null;
+    audio?.pause();
+    setIsPlaying(false);
+  };
+
+  /** Backstop for the timer: whatever happens to the scheduled stop, playback can never run
+   *  past the stage's slice of the clip. */
+  const handleTimeUpdate = () => {
+    const audio = audioRef.current;
+    const limit = playUntilRef.current;
+    if (!audio || limit == null) return;
+    if (audio.currentTime >= limit) stopPlayback();
   };
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <audio ref={audioRef} src={previewUrl} preload="auto" onEnded={() => setIsPlaying(false)} />
+      <audio
+        ref={audioRef}
+        src={previewUrl}
+        preload="auto"
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={() => setIsPlaying(false)}
+      />
 
       {/* Vinyl Record Player Container */}
       <div className="relative">
@@ -239,6 +285,15 @@ export function SnippetPlayer({
 
         <span className="text-xs font-mono font-semibold text-slate-400">{stageSeconds}s</span>
       </div>
+
+      {/* Autoplay refusals used to be invisible: the record span and the state said "playing"
+          while nothing came out of the speakers. Most likely on a multiplayer round, which
+          starts from a socket message rather than a tap. */}
+      {blocked && (
+        <p className="text-center text-xs text-amber-400" role="status">
+          Tap the record to play — your browser blocked audio from starting on its own.
+        </p>
+      )}
 
       {/* Volume slider */}
       <div className="flex items-center gap-2 w-full max-w-[220px]">

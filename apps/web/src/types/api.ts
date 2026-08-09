@@ -194,11 +194,14 @@ export interface MultiplayerScoreEntry {
   stageIndex: number;
 }
 
+export type MultiplayerGuessMode = 'search' | 'choice';
+
 export interface MultiplayerRoomSnapshot {
   code: string;
   artistId: number;
   artistName: string;
   artistPictureUrl: string | null;
+  guessMode: MultiplayerGuessMode;
   phase: MultiplayerPhase;
   hostId: string;
   currentRound: number;
@@ -211,6 +214,7 @@ export interface MultiplayerCreateRoomResponse {
   artistId: number;
   artistName: string;
   artistPictureUrl: string | null;
+  guessMode: MultiplayerGuessMode;
 }
 
 export interface GlobalLeaderboardEntry {

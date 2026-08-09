@@ -8,7 +8,12 @@ import { HttpError } from '../middleware/errorHandler';
 
 export const multiplayerRouter = Router();
 
-const createRoomSchema = z.object({ artistId: z.coerce.number().int().positive() });
+const createRoomSchema = z.object({
+  artistId: z.coerce.number().int().positive(),
+  // Chosen when the room is made, not per player: everyone in a race has to be answering the
+  // same way for the scores to mean anything.
+  guessMode: z.enum(['search', 'choice']).optional().default('search'),
+});
 
 /**
  * Creates an empty multiplayer room for an artist. The creator then connects over the
@@ -19,10 +24,16 @@ multiplayerRouter.post(
   '/rooms',
   validate(createRoomSchema),
   asyncHandler(async (req, res) => {
-    const { artistId } = req.body as z.infer<typeof createRoomSchema>;
+    const { artistId, guessMode } = req.body as z.infer<typeof createRoomSchema>;
     const artist = await getArtistById(artistId);
     if (!artist) throw new HttpError(404, 'Artist not found');
-    const { code } = createRoom(artistId, artist.name, artist.pictureUrl);
-    res.status(201).json({ code, artistId, artistName: artist.name, artistPictureUrl: artist.pictureUrl });
+    const { code } = createRoom(artistId, artist.name, artist.pictureUrl, guessMode);
+    res.status(201).json({
+      code,
+      artistId,
+      artistName: artist.name,
+      artistPictureUrl: artist.pictureUrl,
+      guessMode,
+    });
   }),
 );

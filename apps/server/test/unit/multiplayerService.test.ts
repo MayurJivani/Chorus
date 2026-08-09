@@ -370,3 +370,61 @@ describe('multiplayerService round flow', () => {
     expect(__getRoom(code)).toBeNull();
   });
 });
+
+describe('multiplayerService guess mode', () => {
+  it('defaults to search mode and sends no options', async () => {
+    const { code } = createRoom(412, 'Queen');
+    const host = register('host', 'hostaaaa');
+    await join('host', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    const start = lastOf(host, 'round_start');
+    expect(start?.guessMode).toBe('search');
+    expect(start?.options).toBeUndefined();
+    expect(__getRoom(code)).toMatchObject({ guessMode: 'search' });
+  });
+
+  it('sends three options per round in choice mode', async () => {
+    const { code } = createRoom(412, 'Queen', null, 'choice');
+    const host = register('host', 'hostaaaa');
+    await join('host', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    const start = lastOf(host, 'round_start');
+    expect(start?.guessMode).toBe('choice');
+    const options = start?.options as { deezerTrackId: string; title: string }[];
+    expect(options).toHaveLength(3);
+    // The correct answer has to be among them, or the round is unwinnable.
+    const current = __getCurrentTrack(code);
+    expect(options.map((o) => o.deezerTrackId)).toContain(current?.deezerTrackId);
+  });
+
+  it('gives every player in the room the same three options', async () => {
+    const { code } = createRoom(412, 'Queen', null, 'choice');
+    const host = register('host', 'hostaaaa');
+    const guest = register('guest', 'guestbbb');
+    await join('host', code);
+    await join('guest', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    const hostOptions = lastOf(host, 'round_start')?.options;
+    const guestOptions = lastOf(guest, 'round_start')?.options;
+    // A race is only fair if both players are choosing between the same answers.
+    expect(guestOptions).toEqual(hostOptions);
+  });
+
+  it('carries the mode on the room snapshot so joiners see it in the lobby', async () => {
+    const { code } = createRoom(412, 'Queen', null, 'choice');
+    const guest = register('guest', 'guestbbb');
+    await join('guest', code);
+
+    const state = lastOf(guest, 'room_state')?.room as { guessMode: string };
+    expect(state.guessMode).toBe('choice');
+  });
+});

@@ -5,6 +5,7 @@ import { users } from '../db/schema';
 import type { Identity } from '../auth/identity';
 import { getFreshPreviewUrl, type ArtistTrack } from './deezerService';
 import { getArtistCatalog } from './artistCatalogService';
+import { buildRoundOptions, type RoundOption } from './artistChallengeService';
 import { seededShuffle } from '../utils/deterministic';
 import { logger } from '../logger';
 
@@ -48,16 +49,23 @@ interface MpPlayer extends MpPlayerState {
   identity: Identity;
 }
 
+/** How players answer: type-to-search over the artist's catalog, or pick one of three. */
+export type MpGuessMode = 'search' | 'choice';
+
 interface MpRoom {
   code: string;
   artistId: number;
   artistName: string;
   artistPictureUrl: string | null;
+  guessMode: MpGuessMode;
   phase: MpRoomPhase;
   hostId: string;
   players: Map<string, MpPlayer>;
   tracks: ArtistTrack[];
   previewUrls: string[];
+  /** Per-round multiple-choice options, empty in search mode. Built once when the game starts
+   *  so every player is offered exactly the same three answers. */
+  roundOptions: RoundOption[][];
   currentRound: number;
   roundStartedAt: number;
   timers: ReturnType<typeof setTimeout>[];
@@ -79,6 +87,7 @@ export interface MpRoomSnapshot {
   artistId: number;
   artistName: string;
   artistPictureUrl: string | null;
+  guessMode: MpGuessMode;
   phase: MpRoomPhase;
   hostId: string;
   currentRound: number;
@@ -104,6 +113,7 @@ export function createRoom(
   artistId: number,
   artistName: string,
   artistPictureUrl: string | null = null,
+  guessMode: MpGuessMode = 'search',
 ): { code: string } {
   let code = '';
   do {
@@ -115,18 +125,20 @@ export function createRoom(
     artistId,
     artistName,
     artistPictureUrl,
+    guessMode,
     phase: 'lobby',
     hostId: '',
     players: new Map(),
     tracks: [],
     previewUrls: [],
+    roundOptions: [],
     currentRound: 0,
     roundStartedAt: 0,
     timers: [],
     createdAt: Date.now(),
   });
 
-  logger.info({ code, artistId, artistName }, 'Multiplayer room created');
+  logger.info({ code, artistId, artistName, guessMode }, 'Multiplayer room created');
   return { code };
 }
 
@@ -298,6 +310,10 @@ export async function startGame(playerId: string): Promise<void> {
 
     room.tracks = chosen;
     room.previewUrls = previews.map((p) => p!.previewUrl);
+    // Decoys are drawn once, here, rather than per player: everyone must be shown the same
+    // three answers or the round is not a fair race.
+    room.roundOptions =
+      room.guessMode === 'choice' ? chosen.map((track) => buildRoundOptions(track, pool)) : [];
 
     for (const p of room.players.values()) {
       p.score = 0;
@@ -341,6 +357,8 @@ function startRound(room: MpRoom, roundIndex: number): void {
     albumArtUrl: track?.albumArtUrl ?? null,
     artistPictureUrl: room.artistPictureUrl,
     revealDurationMs: MP_REVEAL_DURATION_MS,
+    guessMode: room.guessMode,
+    ...(room.guessMode === 'choice' ? { options: room.roundOptions[roundIndex] ?? [] } : {}),
   });
 
   // A single timer caps the whole round. Each player reveals more audio at their own pace
@@ -476,6 +494,7 @@ function buildRoomSnapshot(room: MpRoom): MpRoomSnapshot {
     artistId: room.artistId,
     artistName: room.artistName,
     artistPictureUrl: room.artistPictureUrl,
+    guessMode: room.guessMode,
     phase: room.phase,
     hostId: room.hostId,
     currentRound: room.currentRound,

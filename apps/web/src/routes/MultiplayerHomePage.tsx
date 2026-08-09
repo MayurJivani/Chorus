@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArtistSearchInput } from '../features/artist/ArtistSearchInput';
 import { createMultiplayerRoom } from '../api/multiplayer';
-import type { ArtistSearchResult } from '../types/api';
+import type { ArtistSearchResult, MultiplayerGuessMode } from '../types/api';
 
 export function MultiplayerHomePage() {
   const navigate = useNavigate();
   const [artist, setArtist] = useState<ArtistSearchResult | null>(null);
+  // Fixed for the whole room rather than per player: a race only means something if everyone
+  // is answering the same way.
+  const [guessMode, setGuessMode] = useState<MultiplayerGuessMode>('search');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,13 +19,13 @@ export function MultiplayerHomePage() {
     setCreating(true);
     setError(null);
     try {
-      const { code } = await createMultiplayerRoom(artist.id);
+      const { code } = await createMultiplayerRoom(artist.id, guessMode);
       navigate(`/room/${code}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create a room — please try again.');
       setCreating(false);
     }
-  }, [artist, creating, navigate]);
+  }, [artist, creating, guessMode, navigate]);
 
   return (
     <div className="mx-auto flex min-h-full max-w-xl flex-col items-center gap-8 px-4 py-12">
@@ -33,8 +36,8 @@ export function MultiplayerHomePage() {
       >
         <h1 className="text-4xl font-extrabold tracking-tight text-white">Multiplayer</h1>
         <p className="max-w-md text-sm leading-relaxed text-slate-400">
-          Pick an artist, create a room, and race your friends in real time. Everyone hears the
-          same growing snippet on a shared timer — guess first to lock in the most points.
+          Pick an artist, create a room, and race your friends in real time. Everyone hears the same
+          growing snippet on a shared timer — guess first to lock in the most points.
         </p>
       </motion.div>
 
@@ -61,6 +64,37 @@ export function MultiplayerHomePage() {
             <div>
               <h2 className="text-lg font-bold text-white">{artist.name}</h2>
               <p className="text-xs text-slate-400">5-song real-time race</p>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              How does everyone guess?
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  ['search', '🔍 Type to search', 'Search the artist’s catalog'],
+                  ['choice', '🎯 Multiple choice', 'Pick one of three'],
+                ] as [MultiplayerGuessMode, string, string][]
+              ).map(([mode, label, hint]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setGuessMode(mode)}
+                  aria-pressed={guessMode === mode}
+                  className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                    guessMode === mode
+                      ? 'border-chorus-accent/60 bg-chorus-accent/10 text-white'
+                      : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/25'
+                  }`}
+                >
+                  <span className="block text-sm font-semibold">{label}</span>
+                  <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
+                    {hint}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
 

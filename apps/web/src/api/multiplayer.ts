@@ -1,10 +1,13 @@
 import { apiRequest } from './client';
-import type { MultiplayerCreateRoomResponse } from '../types/api';
+import type { MultiplayerCreateRoomResponse, MultiplayerGuessMode } from '../types/api';
 
-export function createMultiplayerRoom(artistId: number): Promise<MultiplayerCreateRoomResponse> {
+export function createMultiplayerRoom(
+  artistId: number,
+  guessMode: MultiplayerGuessMode = 'search',
+): Promise<MultiplayerCreateRoomResponse> {
   return apiRequest<MultiplayerCreateRoomResponse>('/multiplayer/rooms', {
     method: 'POST',
-    body: { artistId },
+    body: { artistId, guessMode },
   });
 }
 

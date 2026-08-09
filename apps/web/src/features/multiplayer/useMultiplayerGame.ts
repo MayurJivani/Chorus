@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { multiplayerSocketUrl } from '../../api/multiplayer';
-import type { MultiplayerRoomSnapshot, MultiplayerScoreEntry } from '../../types/api';
+import type {
+  ArtistRoundOption,
+  MultiplayerGuessMode,
+  MultiplayerRoomSnapshot,
+  MultiplayerScoreEntry,
+} from '../../types/api';
 
 export type MultiplayerConnectionStatus = 'connecting' | 'open' | 'closed';
 
@@ -15,6 +20,9 @@ export interface MultiplayerRound {
   albumArtUrl: string | null;
   artistPictureUrl: string | null;
   revealDurationMs: number;
+  guessMode?: MultiplayerGuessMode;
+  /** Present in choice mode: the same three answers for every player in the room. */
+  options?: ArtistRoundOption[];
 }
 
 export interface MultiplayerGuessResult {
@@ -75,7 +83,8 @@ export function useMultiplayerGame(
   code: string,
   nickname?: string | null,
 ): UseMultiplayerGameResult {
-  const [connectionStatus, setConnectionStatus] = useState<MultiplayerConnectionStatus>('connecting');
+  const [connectionStatus, setConnectionStatus] =
+    useState<MultiplayerConnectionStatus>('connecting');
   const [room, setRoom] = useState<MultiplayerRoomSnapshot | null>(null);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [round, setRound] = useState<MultiplayerRound | null>(null);
@@ -115,6 +124,10 @@ export function useMultiplayerGame(
           albumArtUrl: raw.albumArtUrl as string | null,
           artistPictureUrl: raw.artistPictureUrl as string | null,
           revealDurationMs: raw.revealDurationMs as number,
+          guessMode: raw.guessMode as MultiplayerGuessMode | undefined,
+          // Only present in choice mode; the round payload is whitelisted field by field, so
+          // anything not copied here never reaches the UI.
+          options: raw.options as ArtistRoundOption[] | undefined,
         });
         setStageIndex(0);
         setRoundEnd(null);

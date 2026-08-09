@@ -1,8 +1,13 @@
 import { motion } from 'framer-motion';
-import type { MultiplayerRoomSnapshot, MultiplayerScoreEntry, SongSearchResult } from '../../types/api';
+import type {
+  MultiplayerRoomSnapshot,
+  MultiplayerScoreEntry,
+  SongSearchResult,
+} from '../../types/api';
 import { SnippetPlayer } from '../game/SnippetPlayer';
 import { SnippetProgressBar } from '../game/SnippetProgressBar';
 import { GuessInput } from '../game/GuessInput';
+import { MultipleChoiceGuess } from '../artist/MultipleChoiceGuess';
 import { MultiplayerScoreboard } from './MultiplayerScoreboard';
 import type {
   MultiplayerGuessResult,
@@ -88,9 +93,7 @@ export function MultiplayerGame({
                 <p className="truncate text-base font-bold text-white">
                   {roundEnd.correct?.title ?? 'Unknown'}
                 </p>
-                <p className="truncate text-xs text-slate-400">
-                  {roundEnd.correct?.artist ?? ''}
-                </p>
+                <p className="truncate text-xs text-slate-400">{roundEnd.correct?.artist ?? ''}</p>
               </div>
             </div>
 
@@ -134,7 +137,9 @@ export function MultiplayerGame({
               >
                 {lastGuess?.correct ? (
                   <>
-                    <p className="text-lg font-bold text-emerald-400">Locked in! +{lastGuess.points}</p>
+                    <p className="text-lg font-bold text-emerald-400">
+                      Locked in! +{lastGuess.points}
+                    </p>
                     <p className="text-xs text-slate-400">
                       Now wait for the reveal — no changing it!
                     </p>
@@ -146,6 +151,14 @@ export function MultiplayerGame({
                   </>
                 )}
               </motion.div>
+            ) : round.options && round.options.length > 0 ? (
+              /* Choice mode: everyone in the room is offered the same three answers, so the
+                 round stays a race on recognition rather than on typing speed. */
+              <MultipleChoiceGuess
+                options={round.options}
+                onGuess={handleGuess}
+                onSkip={() => onSubmitGuess('__pass__')}
+              />
             ) : (
               <GuessInput
                 onGuess={handleGuess}
