@@ -265,6 +265,28 @@ async function fetchAlbumTracks(albumId: number): Promise<DeezerAlbumTrack[]> {
   return tracks;
 }
 
+/**
+ * An artist's top tracks straight from Deezer, bypassing albums entirely.
+ *
+ * Used as a fallback, because `/artist/{id}/albums` is empty for anyone who doesn't release
+ * under their own name — composers and producers above all. Pritam has ~95 playable top tracks
+ * and *zero* albums, since his work sits on film soundtracks and singers' releases, so the
+ * album crawl produced nothing and Artist Mode refused to build a challenge for him.
+ */
+async function fetchArtistTopChart(artistId: number): Promise<DeezerAlbumTrack[]> {
+  const tracks: DeezerAlbumTrack[] = [];
+  let url: string | null = `https://api.deezer.com/artist/${artistId}/top?limit=100`;
+
+  while (url) {
+    const body: DeezerAlbumTrackResponse | null = await deezerFetchJson(url, true);
+    if (!body) break;
+    tracks.push(...(body.data ?? []));
+    url = body.next ?? null;
+  }
+
+  return tracks;
+}
+
 const topTracksCache = new Map<string, CacheEntry<ArtistTrack[]>>();
 
 /**
@@ -316,6 +338,68 @@ export async function getArtistTopTracks(
   return pending;
 }
 
+/** A challenge needs ten tracks; below this the album crawl is treated as having failed and
+ *  the top-tracks fallback kicks in. Kept local to avoid importing from the challenge service,
+ *  which already imports this module. */
+const MIN_CATALOG_TRACKS = 10;
+
+/**
+ * Turns raw Deezer tracks into the playable catalog: drops unplayable and alternate-version
+ * entries, applies the feature filter, and collapses duplicates onto one entry per song.
+ *
+ * Extracted so the album crawl and the top-tracks fallback go through exactly the same rules —
+ * a fallback that filtered differently would quietly produce a different kind of catalog.
+ */
+function buildCatalog(
+  rawTracks: (DeezerAlbumTrack & { albumId?: number })[],
+  includeFeatures: boolean,
+  albumCovers: Map<number, string | null>,
+): ArtistTrack[] {
+  const eligible = rawTracks.filter(
+    (t) =>
+      t.preview && !isUnwantedVersion(t.title) && (includeFeatures || !mentionsFeature(t.title)),
+  );
+
+  // Titles this artist releases with no trailing qualifier at all. Anything that reduces to one
+  // of these once its qualifier is removed is an alternate cut of that song, whatever the
+  // qualifier happens to be called — which is how ZAYN's "EYES CLOSED (BARE)" and
+  // "EYES CLOSED (UNVEILED)" collapse onto "EYES CLOSED" without either word being known to
+  // the filter. Keyword matching alone left all three in the pool as separate "songs".
+  const plainTitles = new Set(
+    eligible
+      .filter((t) => stripAnyTrailingQualifier(t.title) === t.title.trim())
+      .map((t) => normalizeTitle(t.title)),
+  );
+
+  const bestByBase = new Map<string, ArtistTrack>();
+
+  for (const t of eligible) {
+    const candidate: ArtistTrack = {
+      deezerTrackId: String(t.id),
+      title: t.title,
+      artist: t.artist?.name ?? 'Unknown',
+      albumArtUrl:
+        t.album?.cover_medium ?? (t.albumId != null ? (albumCovers.get(t.albumId) ?? null) : null),
+      durationSeconds: t.duration,
+    };
+
+    const strippedBare = normalizeTitle(stripAnyTrailingQualifier(t.title));
+    const base = plainTitles.has(strippedBare)
+      ? strippedBare
+      : normalizeTitle(stripVersionSuffix(t.title));
+
+    const existing = bestByBase.get(base);
+    if (!existing || isPlainerTitle(base, existing.title, candidate.title)) {
+      bestByBase.set(base, candidate);
+    }
+  }
+
+  // Sort by track id before returning. Callers feed this list straight into `seededShuffle` to
+  // pick "these 10 tracks for this artist on this date", which is only reproducible if the
+  // input order is too — and map insertion order follows whichever worker finished first.
+  return [...bestByBase.values()].sort((a, b) => a.deezerTrackId.localeCompare(b.deezerTrackId));
+}
+
 async function fetchArtistTopTracks(
   artistId: number,
   includeFeatures: boolean,
@@ -356,56 +440,21 @@ async function fetchArtistTopTracks(
 
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, albums.length) }, () => worker()));
 
-  // Deduplicate alternate versions by their base title: the same song can appear on
-  // multiple albums and with several version suffixes (e.g. "Eyes Closed" vs
-  // "Eyes Closed (2x Speed)"). Keep one representative per base title, preferring the
-  // plain title so only the main recording of a song is ever picked.
-  const bestByBase = new Map<string, ArtistTrack>();
+  let tracks = buildCatalog(allRawTracks, includeFeatures, albumCovers);
 
-  const eligible = allRawTracks.filter(
-    (t) =>
-      t.preview && !isUnwantedVersion(t.title) && (includeFeatures || !mentionsFeature(t.title)),
-  );
-
-  // Titles this artist releases with no trailing qualifier at all. Anything that reduces to one
-  // of these once its qualifier is removed is an alternate cut of that song, whatever the
-  // qualifier happens to be called — which is how ZAYN's "EYES CLOSED (BARE)" and
-  // "EYES CLOSED (UNVEILED)" collapse onto "EYES CLOSED" without either word being known to
-  // the filter. Keyword matching alone left all three in the pool as separate "songs".
-  const plainTitles = new Set(
-    eligible
-      .filter((t) => stripAnyTrailingQualifier(t.title) === t.title.trim())
-      .map((t) => normalizeTitle(t.title)),
-  );
-
-  for (const t of eligible) {
-    const candidate: ArtistTrack = {
-      deezerTrackId: String(t.id),
-      title: t.title,
-      artist: t.artist?.name ?? 'Unknown',
-      albumArtUrl:
-        t.album?.cover_medium ?? (t.albumId != null ? (albumCovers.get(t.albumId) ?? null) : null),
-      durationSeconds: t.duration,
-    };
-
-    const strippedBare = normalizeTitle(stripAnyTrailingQualifier(t.title));
-    const base = plainTitles.has(strippedBare)
-      ? strippedBare
-      : normalizeTitle(stripVersionSuffix(t.title));
-
-    const existing = bestByBase.get(base);
-    if (!existing || isPlainerTitle(base, existing.title, candidate.title)) {
-      bestByBase.set(base, candidate);
-    }
+  // Artists who never release under their own name — composers, producers — have no albums at
+  // all, so the crawl above yields nothing and a challenge cannot be built. Fall back to their
+  // top tracks, which Deezer serves directly. Only on a shortfall: for a normal artist those
+  // tracks are already in the albums, and pulling them in unconditionally would also drag in
+  // records where the artist is merely credited rather than the performer.
+  if (tracks.length < MIN_CATALOG_TRACKS) {
+    logger.info(
+      { artistId, fromAlbums: tracks.length },
+      'Album crawl came up short; falling back to top tracks',
+    );
+    const topChart = await fetchArtistTopChart(artistId);
+    tracks = buildCatalog([...allRawTracks, ...topChart], includeFeatures, albumCovers);
   }
-
-  // Sort by track id before returning. Callers feed this list straight into `seededShuffle`
-  // to pick "these 10 tracks for this artist on this date", which is only reproducible if the
-  // input order is too — and map insertion order here follows whichever worker happened to
-  // finish first. Sorting pins it so the same seed always yields the same challenge.
-  const tracks = [...bestByBase.values()].sort((a, b) =>
-    a.deezerTrackId.localeCompare(b.deezerTrackId),
-  );
 
   logger.info(
     `Discography for artist ${artistId}: ${allRawTracks.length} raw → ${tracks.length} after filtering`,

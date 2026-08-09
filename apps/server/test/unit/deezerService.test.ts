@@ -389,8 +389,15 @@ describe('getArtistTopTracks', () => {
   });
 
   it('caches separately per includeFeatures setting', async () => {
+    // A full album's worth of tracks, so the top-tracks fallback (which triggers below ten)
+    // stays out of the way — this test is about caching, not about the fallback.
     const fetchMock = mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: undefined }], {
-      1: [{ id: 1, title: 'Song', duration: 200, preview: 'a.mp3' }],
+      1: Array.from({ length: 12 }, (_, i) => ({
+        id: i + 1,
+        title: `Song ${i}`,
+        duration: 200,
+        preview: `${i}.mp3`,
+      })),
     });
 
     await getArtistTopTracks(412, false);
@@ -434,5 +441,82 @@ describe('Deezer quota handling', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     expect(await getFreshPreviewUrl('456')).toBeNull();
+  });
+});
+
+describe('artists with no albums of their own', () => {
+  function mockNoAlbumsButTopTracks(topTracks: Record<string, unknown>[]) {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/albums?')) {
+        // Composers and producers release nothing under their own name, so Deezer reports no
+        // albums for them at all — which is what left Artist Mode unable to build a challenge.
+        return { ok: true, json: async () => ({ data: [], total: 0 }) };
+      }
+      if (url.includes('/top?')) {
+        return { ok: true, json: async () => ({ data: topTracks, next: null }) };
+      }
+      return { ok: false };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  function topTrack(id: number, title: string) {
+    return {
+      id,
+      title,
+      duration: 200,
+      preview: `https://example.test/${id}.mp3`,
+      artist: { name: 'Pritam' },
+      album: { cover_medium: `https://example.test/${id}.jpg` },
+    };
+  }
+
+  it('falls back to top tracks when the artist has no albums', async () => {
+    mockNoAlbumsButTopTracks([topTrack(1, 'Gerua'), topTrack(2, 'Janam Janam')]);
+
+    const tracks = await getArtistTopTracks(290619);
+
+    expect(tracks.map((t) => t.title).sort()).toEqual(['Gerua', 'Janam Janam']);
+    expect(tracks[0]?.albumArtUrl).toEqual(expect.any(String));
+  });
+
+  it('applies the same filtering to fallback tracks as to album tracks', async () => {
+    mockNoAlbumsButTopTracks([
+      topTrack(1, 'Gerua'),
+      topTrack(2, 'Gerua (Acoustic)'), // alternate version
+      { ...topTrack(3, 'No Preview'), preview: undefined }, // unplayable
+    ]);
+
+    const tracks = await getArtistTopTracks(290619);
+
+    expect(tracks.map((t) => t.title)).toEqual(['Gerua']);
+  });
+
+  it('does not reach for top tracks when the albums already yield enough', async () => {
+    const albumTracks = Array.from({ length: 12 }, (_, i) => ({
+      id: 100 + i,
+      title: `Album Song ${i}`,
+      duration: 200,
+      preview: `https://example.test/${i}.mp3`,
+      artist: { name: 'Queen' },
+    }));
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/albums?')) {
+        return { ok: true, json: async () => ({ data: [{ id: 1, title: 'Album' }] }) };
+      }
+      if (url.includes('/album/1/tracks')) {
+        return { ok: true, json: async () => ({ data: albumTracks }) };
+      }
+      return { ok: false };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const tracks = await getArtistTopTracks(412);
+
+    expect(tracks).toHaveLength(12);
+    // Pulling /top in unconditionally would drag in records where the artist is only credited.
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/top?'))).toBe(false);
   });
 });
