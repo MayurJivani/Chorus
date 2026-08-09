@@ -50,7 +50,7 @@ export function RootLayout() {
 
           {/* Desktop nav */}
           <div className="hidden items-center gap-7 sm:flex">
-            <NavLink to="/play">Play</NavLink>
+            <NavLink to="/play">Daily Challenge</NavLink>
             <NavLink to="/artist">Artist Mode</NavLink>
             <NavLink to="/multiplayer">Multiplayer</NavLink>
             <NavLink to="/leaderboard">Leaderboard</NavLink>
@@ -113,7 +113,7 @@ export function RootLayout() {
               {(
                 [
                   ['/', 'Home'],
-                  ['/play', 'Play'],
+                  ['/play', 'Daily Challenge'],
                   ['/artist', 'Artist Mode'],
                   ['/multiplayer', 'Multiplayer'],
                   ['/leaderboard', 'Leaderboard'],

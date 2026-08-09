@@ -66,7 +66,7 @@ export function PlayPage() {
           without the page scrolling. */}
       <div className="glass w-full rounded-2xl p-4 sm:p-6 flex flex-col items-center gap-3 sm:gap-6">
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold text-white">Daily Puzzle</h1>
+          <h1 className="text-2xl font-bold text-white">Daily Challenge</h1>
           <p className="text-xs text-slate-500 font-mono">{puzzle.puzzleDate}</p>
         </div>
 
