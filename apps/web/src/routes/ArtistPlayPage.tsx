@@ -158,7 +158,7 @@ export function ArtistPlayPage() {
                     lastCorrect ? 'text-emerald-400' : 'text-red-400'
                   }`}
                 >
-                  {lastCorrect ? '✓ Correct!' : '✗ Not this time — it was:'}
+                  {lastCorrect ? '✓ Correct!' : '✗ Not this time, it was:'}
                 </p>
               );
             })()}
@@ -299,7 +299,7 @@ function ChallengeLoading() {
 
         <p className="text-sm text-slate-400 text-center">
           {showSlowHint
-            ? 'Digging through this artist’s discography — this only takes a moment the first time.'
+            ? 'Digging through this artist’s discography. This only takes a moment the first time.'
             : 'Building your challenge…'}
         </p>
       </div>

@@ -125,7 +125,7 @@ export function MultiplayerGame({
               className="btn-ghost w-full max-w-md !rounded-xl"
             >
               {atMaxStage
-                ? 'Full snippet revealed — go on, guess!'
+                ? 'Full snippet revealed. Go on, guess!'
                 : `Reveal more audio → ${nextSeconds}s`}
             </button>
 
@@ -141,7 +141,7 @@ export function MultiplayerGame({
                       Locked in! +{lastGuess.points}
                     </p>
                     <p className="text-xs text-slate-400">
-                      Now wait for the reveal — no changing it!
+                      Now wait for the reveal, no changing it!
                     </p>
                   </>
                 ) : (

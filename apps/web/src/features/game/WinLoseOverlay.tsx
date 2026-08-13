@@ -49,7 +49,7 @@ export function WinLoseOverlay({ won, song, history, puzzleDate }: WinLoseOverla
       className="glass flex w-full max-w-md flex-col items-center gap-5 rounded-2xl p-6 text-center"
     >
       <h2 className={`text-2xl font-extrabold ${won ? 'gradient-text' : 'text-chorus-danger'}`}>
-        {won ? '🎉 You got it!' : '😔 So close — next time!'}
+        {won ? '🎉 You got it!' : '😔 So close, next time!'}
       </h2>
 
       {/* Song card */}

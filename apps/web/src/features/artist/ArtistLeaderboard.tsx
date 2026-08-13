@@ -78,7 +78,7 @@ export function ArtistLeaderboard({ artistId, artistName, challengeId }: ArtistL
 
       {entries.length === 0 ? (
         <p className="text-sm text-slate-400 text-center py-4">
-          No completed runs yet — be the first!
+          No completed runs yet. Be the first!
         </p>
       ) : (
         <ol className="flex flex-col gap-1.5">

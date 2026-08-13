@@ -84,7 +84,7 @@ export function PlayPage() {
 
         {!isOver && lastAttempt?.sameArtist && (
           <p className="text-sm font-semibold text-amber-400" role="status">
-            Right artist — wrong song. Keep going.
+            Right artist, wrong song. Keep going.
           </p>
         )}
 

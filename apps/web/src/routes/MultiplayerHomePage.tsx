@@ -22,7 +22,7 @@ export function MultiplayerHomePage() {
       const { code } = await createMultiplayerRoom(artist.id, guessMode);
       navigate(`/room/${code}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create a room — please try again.');
+      setError(err instanceof Error ? err.message : 'Could not create a room. Please try again.');
       setCreating(false);
     }
   }, [artist, creating, guessMode, navigate]);
@@ -37,7 +37,7 @@ export function MultiplayerHomePage() {
         <h1 className="text-4xl font-extrabold tracking-tight text-white">Multiplayer</h1>
         <p className="max-w-md text-sm leading-relaxed text-slate-400">
           Pick an artist, create a room, and race your friends in real time. Everyone hears the same
-          growing snippet on a shared timer — guess first to lock in the most points.
+          growing snippet on a shared timer. Guess first to lock in the most points.
         </p>
       </motion.div>
 

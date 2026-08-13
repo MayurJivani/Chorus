@@ -80,7 +80,7 @@ export function ArtistSessionSummary({
       {!user && (
         <div className="w-full rounded-2xl border border-chorus-accent/30 bg-chorus-accent/10 p-4">
           <p className="text-sm font-semibold text-white">
-            {songsCorrect}/{totalRounds} — want this on the leaderboard?
+            {songsCorrect}/{totalRounds}. Want this on the leaderboard?
           </p>
           <p className="mt-1 text-xs text-slate-300">
             Guest runs aren&apos;t ranked. Create an account to claim your spot and keep your

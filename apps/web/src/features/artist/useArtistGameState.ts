@@ -139,7 +139,7 @@ export function useArtistGameState(
           setAttemptNumber((n) => n + 1);
         }
       } catch {
-        setErrorMessage('Something went wrong submitting that — please try again.');
+        setErrorMessage('Something went wrong submitting that. Please try again.');
       } finally {
         setSubmitting(false);
       }

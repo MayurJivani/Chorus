@@ -3,7 +3,7 @@ import { formatDuration } from './formatDuration';
 
 describe('formatDuration', () => {
   it('shows a dash when there is no time to show', () => {
-    expect(formatDuration(null)).toBe('—');
+    expect(formatDuration(null)).toBe('-');
   });
 
   it.each([

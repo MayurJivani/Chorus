@@ -27,7 +27,7 @@ export function MultiplayerScoreboard({
       <ul className="flex flex-col gap-1.5">
         {scores.length === 0 && (
           <li className="text-sm text-slate-500">
-            No players yet — share the room code to invite friends!
+            No players yet. Share the room code to invite friends!
           </li>
         )}
         {scores.map((player, i) => {
@@ -40,9 +40,7 @@ export function MultiplayerScoreboard({
               }`}
             >
               <span className="w-6 text-center text-sm">
-                {MEDALS[i] ?? (
-                  <span className="font-mono text-xs text-slate-600">{i + 1}</span>
-                )}
+                {MEDALS[i] ?? <span className="font-mono text-xs text-slate-600">{i + 1}</span>}
               </span>
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-100">
                 {player.displayName}

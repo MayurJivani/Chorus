@@ -37,13 +37,45 @@ export function RootLayout() {
       {/* Sticky dark header */}
       <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-chorus-bg/90 backdrop-blur-md">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
-          {/* Logo with vinyl icon inspired by reference image */}
+          {/* Logo with vinyl disc */}
           <Link
             to="/"
             className="flex items-center gap-2.5 font-bold text-white text-xl tracking-tight group"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white border border-white/20 text-sm shadow-inner group-hover:rotate-45 transition-transform duration-300">
-              💿
+            <span
+              className="relative flex h-8 w-8 items-center justify-center rounded-full group-hover:animate-spin-slow transition-all duration-300"
+              style={{
+                boxShadow: '0 0 12px rgba(139, 92, 246, 0.4), 0 0 24px rgba(139, 92, 246, 0.15)',
+              }}
+            >
+              {/* Vinyl disc SVG */}
+              <svg viewBox="0 0 32 32" className="h-8 w-8" aria-hidden="true">
+                {/* Outer disc */}
+                <circle cx="16" cy="16" r="15.5" fill="#1a1a1a" stroke="#333" strokeWidth="0.5" />
+                {/* Grooves */}
+                <circle cx="16" cy="16" r="13" fill="none" stroke="#222" strokeWidth="0.3" />
+                <circle cx="16" cy="16" r="11.5" fill="none" stroke="#252525" strokeWidth="0.3" />
+                <circle cx="16" cy="16" r="10" fill="none" stroke="#222" strokeWidth="0.3" />
+                <circle cx="16" cy="16" r="8.5" fill="none" stroke="#252525" strokeWidth="0.3" />
+                {/* Sheen highlight */}
+                <path
+                  d="M6 8 Q16 4 26 8 Q28 16 26 24"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.04)"
+                  strokeWidth="3"
+                />
+                {/* Purple gradient center label */}
+                <defs>
+                  <radialGradient id="logo-center-grad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#a78bfa" />
+                    <stop offset="100%" stopColor="#7c3aed" />
+                  </radialGradient>
+                </defs>
+                <circle cx="16" cy="16" r="5.5" fill="url(#logo-center-grad)" />
+                <circle cx="16" cy="16" r="5.5" fill="none" stroke="#1a1a1a" strokeWidth="0.5" />
+                {/* Spindle hole */}
+                <circle cx="16" cy="16" r="1.2" fill="#0a0a0a" stroke="#333" strokeWidth="0.3" />
+              </svg>
             </span>
             <span>Chorus</span>
           </Link>

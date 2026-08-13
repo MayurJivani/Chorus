@@ -64,6 +64,10 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(16px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'spin-slow': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
       },
       animation: {
         shake: 'shake 0.4s ease-in-out',
@@ -75,6 +79,7 @@ export default {
         glow: 'glow 2s ease-in-out infinite',
         float: 'float 3s ease-in-out infinite',
         'fade-up': 'fade-up 0.4s ease-out forwards',
+        'spin-slow': 'spin-slow 3s linear infinite',
       },
     },
   },

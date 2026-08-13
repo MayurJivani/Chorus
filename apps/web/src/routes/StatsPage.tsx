@@ -65,7 +65,7 @@ export function StatsPage() {
           </Link>
           {!user && (
             <p className="text-xs text-slate-500">
-              Playing as a guest —{' '}
+              Playing as a guest.{' '}
               <Link to="/register" className="underline hover:text-slate-300">
                 create an account
               </Link>{' '}
@@ -134,7 +134,7 @@ export function StatsPage() {
       >
         <Stat
           label="Avg guesses"
-          value={stats.averageGuessesPerWin != null ? stats.averageGuessesPerWin : '—'}
+          value={stats.averageGuessesPerWin != null ? stats.averageGuessesPerWin : '-'}
         />
         <Stat label="Avg snippet" value={formatDuration(stats.averageSnippetSeconds)} />
         <Stat label="Time played" value={formatDuration(stats.totalPlaySeconds || null)} />

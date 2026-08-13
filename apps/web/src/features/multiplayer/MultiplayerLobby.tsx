@@ -90,7 +90,7 @@ export function MultiplayerLobby({ room, selfId, onStart, onLeave }: Multiplayer
         )}
 
         {!isHost && room.players.length === 1 && (
-          <p className="text-xs text-slate-500">You&apos;re first in — the host will start.</p>
+          <p className="text-xs text-slate-500">You&apos;re first in. The host will start.</p>
         )}
 
         <button

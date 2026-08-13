@@ -78,7 +78,7 @@ export function HomePage() {
             Guess your <span className="text-purple-400">favourite</span> music!
           </h1>
           <p className="max-w-md text-slate-400 text-lg leading-relaxed mx-auto">
-            Hear a growing snippet — 1 second, then 2, 4, 7… Guess in as few listens as you can. A
+            Hear a growing snippet: 1 second, then 2, 4, 7… Guess in as few listens as you can. A
             fresh puzzle drops every day.
           </p>
         </div>

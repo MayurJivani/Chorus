@@ -7,7 +7,7 @@
  * 4.9s is the interesting part of a "fastest solve".
  */
 export function formatDuration(seconds: number | null): string {
-  if (seconds == null) return '—';
+  if (seconds == null) return '-';
   if (seconds < 60) {
     const rounded = Math.round(seconds * 10) / 10;
     return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}s`;

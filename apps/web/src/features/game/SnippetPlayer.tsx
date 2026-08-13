@@ -291,7 +291,7 @@ export function SnippetPlayer({
           starts from a socket message rather than a tap. */}
       {blocked && (
         <p className="text-center text-xs text-amber-400" role="status">
-          Tap the record to play — your browser blocked audio from starting on its own.
+          Tap the record to play. Your browser blocked audio from starting on its own.
         </p>
       )}
 
