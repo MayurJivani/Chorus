@@ -78,21 +78,23 @@ export function ArtistPlayPage() {
     }
   }, [autoPlaySnippet]);
 
-  // In choice mode, skip just increases playback time locally without spending a guess.
-  // This tracks how many times the user has skipped within the current round.
-  const [localSkipCount, setLocalSkipCount] = useState(0);
+  // Tracks how many times the user has locally extended the snippet within the current round.
+  // Works for both search and choice modes — "Reveal more" extends audio without spending a guess.
+  const [localRevealCount, setLocalRevealCount] = useState(0);
 
-  const choiceSkip = useCallback(() => {
-    setLocalSkipCount((n) => n + 1);
+  const revealMore = useCallback(() => {
+    setLocalRevealCount((n) => n + 1);
     setAutoPlaySnippet(true);
   }, []);
 
-  // Reset localSkipCount when the round changes
+  const canRevealMore = localRevealCount < SNIPPET_SCHEDULE_SECONDS.length - 1;
+
+  // Reset localRevealCount when the round changes
   const prevRound = useRef(challenge?.currentRound);
   useEffect(() => {
     if (!challenge) return;
     if (challenge.currentRound !== prevRound.current) {
-      setLocalSkipCount(0);
+      setLocalRevealCount(0);
     }
     prevRound.current = challenge.currentRound;
   }, [challenge?.currentRound]);
@@ -107,7 +109,7 @@ export function ArtistPlayPage() {
 
   if (status === 'completed') {
     return (
-      <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-8 px-4 py-12">
+      <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-4 sm:gap-6 px-4 py-4 sm:py-8">
         <ArtistSessionSummary
           artistId={artistId}
           artistName={challenge.artistName}
@@ -125,16 +127,16 @@ export function ArtistPlayPage() {
 
   const previewUrl = !challenge.completed ? challenge.previewUrl : null;
 
-  // In choice mode, skip locally increases duration via localSkipCount.
-  // In search mode, duration advances via attemptNumber (server tracks guesses).
-  const choiceStageIndex = guessMode === 'choice' ? localSkipCount : attemptNumber - 1;
+  // The stage index is determined by how many local reveals the user made
+  // OR the server's attempt number (whichever is higher).
+  const stageIndex = Math.max(localRevealCount, attemptNumber - 1);
   const stageSeconds =
-    SNIPPET_SCHEDULE_SECONDS[Math.min(choiceStageIndex, SNIPPET_SCHEDULE_SECONDS.length - 1)] ?? 1;
+    SNIPPET_SCHEDULE_SECONDS[Math.min(stageIndex, SNIPPET_SCHEDULE_SECONDS.length - 1)] ?? 1;
 
   return (
-    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-3 sm:gap-5 px-4 py-3 sm:py-6">
       {/* Glass game card */}
-      <div className="glass w-full rounded-2xl p-6 flex flex-col items-center gap-5">
+      <div className="glass w-full rounded-2xl p-4 sm:p-6 flex flex-col items-center gap-4 sm:gap-5">
         {/* Header */}
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-xl font-bold text-white">{challenge.artistName}</h1>
@@ -210,9 +212,7 @@ export function ArtistPlayPage() {
           </motion.div>
         ) : (
           <>
-            <SnippetProgressBar
-              stageIndex={guessMode === 'choice' ? localSkipCount : attemptNumber - 1}
-            />
+            <SnippetProgressBar stageIndex={stageIndex} />
 
             {previewUrl && (
               <SnippetPlayer
@@ -231,7 +231,9 @@ export function ArtistPlayPage() {
                 <MultipleChoiceGuess
                   options={challenge.options}
                   onGuess={guess}
-                  onSkip={choiceSkip}
+                  onSkip={skip}
+                  onRevealMore={revealMore}
+                  canRevealMore={canRevealMore}
                   disabled={submitting}
                   revealedSong={revealedSong}
                   roundEnded={false}
@@ -241,6 +243,8 @@ export function ArtistPlayPage() {
               <GuessInput
                 onGuess={guess}
                 onSkip={skip}
+                onRevealMore={revealMore}
+                canRevealMore={canRevealMore}
                 disabled={submitting}
                 searchFn={searchThisArtist}
                 guessFeedback={guessFeedback}
@@ -270,7 +274,7 @@ function ChallengeLoading() {
   }, []);
 
   return (
-    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-3 sm:gap-5 px-4 py-3 sm:py-6">
       <div
         className="glass w-full rounded-2xl p-6 flex flex-col items-center gap-5"
         role="status"
@@ -309,7 +313,7 @@ function ChallengeLoading() {
 
 function ChallengeError({ message }: { message: string }) {
   return (
-    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-3 sm:gap-5 px-4 py-3 sm:py-6">
       <div className="glass w-full rounded-2xl p-8 flex flex-col items-center gap-5 text-center">
         <div className="text-3xl" aria-hidden="true">
           🎧

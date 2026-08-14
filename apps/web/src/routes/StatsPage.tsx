@@ -46,7 +46,7 @@ export function StatsPage() {
   // puzzle instead — it is the only useful thing to do from here.
   if (stats.gamesPlayed === 0) {
     return (
-      <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12 text-center">
+      <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-4 sm:gap-6 px-4 py-4 sm:py-8 text-center">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -80,7 +80,7 @@ export function StatsPage() {
   const timed = stats.timedWins > 0;
 
   return (
-    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center gap-6 px-4 py-8">
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center gap-4 sm:gap-6 px-4 py-4 sm:py-8">
       <motion.h1
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}

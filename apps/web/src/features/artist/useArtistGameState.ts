@@ -105,7 +105,7 @@ export function useArtistGameState(
           artistId,
           {
             deezerTrackId: song?.id as string | undefined,
-            guessNumber: attemptNumber,
+            guessNumber: song === null ? 6 : attemptNumber,
             guessMode,
           },
           includeFeatures,

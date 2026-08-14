@@ -34,11 +34,11 @@ export function MultiplayerResults({
   }, [iWon]);
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
+    <div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center gap-4 sm:gap-6 px-4 py-4 sm:py-8">
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass flex w-full flex-col items-center gap-5 rounded-2xl p-6 text-center"
+        className="glass flex w-full flex-col items-center gap-4 rounded-2xl p-4 sm:p-6 text-center"
       >
         <h1 className="text-2xl font-extrabold text-white">🏁 Game over!</h1>
         {gameOver.winner ? (

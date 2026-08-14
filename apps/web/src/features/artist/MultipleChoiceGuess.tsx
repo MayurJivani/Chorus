@@ -9,6 +9,10 @@ interface MultipleChoiceGuessProps {
   revealedSong?: RevealedSong | null;
   roundEnded?: boolean;
   selectedGuessId?: string | null;
+  /** When provided, a separate "Reveal more" button is shown alongside Skip. */
+  onRevealMore?: () => void;
+  /** Whether there is more snippet left to reveal. Hides the reveal button when false. */
+  canRevealMore?: boolean;
 }
 
 export function MultipleChoiceGuess({
@@ -19,6 +23,8 @@ export function MultipleChoiceGuess({
   revealedSong,
   roundEnded,
   selectedGuessId,
+  onRevealMore,
+  canRevealMore = true,
 }: MultipleChoiceGuessProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -94,16 +100,38 @@ export function MultipleChoiceGuess({
         );
       })}
 
-      {!roundEnded && (
-        <button
-          type="button"
-          onClick={onSkip}
-          disabled={disabled}
-          className="btn-ghost mt-1 w-full !rounded-xl !py-2.5 !text-sm"
-        >
-          Skip
-        </button>
-      )}
+      {!roundEnded &&
+        (onRevealMore ? (
+          <div className="mt-1 flex gap-2 w-full">
+            <button
+              type="button"
+              onClick={onSkip}
+              disabled={disabled}
+              className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
+            >
+              Skip
+            </button>
+            {canRevealMore && (
+              <button
+                type="button"
+                onClick={onRevealMore}
+                disabled={disabled}
+                className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
+              >
+                Reveal more
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onSkip}
+            disabled={disabled}
+            className="btn-ghost mt-1 w-full !rounded-xl !py-2.5 !text-sm"
+          >
+            Skip
+          </button>
+        ))}
     </div>
   );
 }

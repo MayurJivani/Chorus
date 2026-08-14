@@ -11,6 +11,10 @@ interface GuessInputProps {
   searchFn?: (query: string) => Promise<SongSearchResult[]>;
   /** Brief visual feedback after a guess: 'correct' = green flash, 'wrong' = red flash. */
   guessFeedback?: 'correct' | 'wrong' | null;
+  /** When provided, a separate "Reveal more" button is shown alongside Skip. */
+  onRevealMore?: () => void;
+  /** Whether there is more snippet left to reveal. Hides the reveal button when false. */
+  canRevealMore?: boolean;
 }
 
 export function GuessInput({
@@ -19,6 +23,8 @@ export function GuessInput({
   disabled,
   searchFn = searchSongs,
   guessFeedback,
+  onRevealMore,
+  canRevealMore = true,
 }: GuessInputProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SongSearchResult[]>([]);
@@ -122,14 +128,37 @@ export function GuessInput({
         </ul>
       )}
 
-      <button
-        type="button"
-        onClick={onSkip}
-        disabled={disabled}
-        className="btn-ghost mt-3 w-full !rounded-xl !py-2.5 !text-sm"
-      >
-        Skip
-      </button>
+      {onRevealMore ? (
+        <div className="mt-3 flex gap-2 w-full">
+          <button
+            type="button"
+            onClick={onSkip}
+            disabled={disabled}
+            className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
+          >
+            Skip
+          </button>
+          {canRevealMore && (
+            <button
+              type="button"
+              onClick={onRevealMore}
+              disabled={disabled}
+              className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
+            >
+              Reveal more
+            </button>
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onSkip}
+          disabled={disabled}
+          className="btn-ghost mt-3 w-full !rounded-xl !py-2.5 !text-sm"
+        >
+          Skip
+        </button>
+      )}
     </div>
   );
 }

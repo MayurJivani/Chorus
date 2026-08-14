@@ -58,8 +58,8 @@ export function MultiplayerGame({
   const handleGuess = (song: SongSearchResult) => onSubmitGuess(String(song.id));
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center gap-6 px-4 py-12">
-      <div className="glass flex w-full flex-col items-center gap-5 rounded-2xl p-6">
+    <div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center gap-4 sm:gap-6 px-4 py-4 sm:py-8">
+      <div className="glass flex w-full flex-col items-center gap-4 rounded-2xl p-4 sm:p-6">
         {/* Header */}
         <div className="flex w-full flex-col items-center gap-1 text-center">
           <h1 className="text-xl font-bold text-white">{room.artistName}</h1>
