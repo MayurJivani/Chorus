@@ -50,7 +50,7 @@ const sections = [
   {
     icon: '🔒',
     title: 'Your data',
-    body: 'You can play as a guest with no account. Your streak and stats are tied to your browser session. Creating an account lets you keep your stats permanently and across devices. Passwords are hashed with argon2id and never stored in plain text.',
+    body: 'You can play as a guest with no account. Your streak and stats are tied to your browser session. Creating an account lets you keep your stats permanently and across devices.',
   },
 ];
 
