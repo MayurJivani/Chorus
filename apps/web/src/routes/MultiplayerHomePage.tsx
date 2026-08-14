@@ -13,6 +13,7 @@ export function MultiplayerHomePage() {
   const [guessMode, setGuessMode] = useState<MultiplayerGuessMode>('search');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [roomCode, setRoomCode] = useState('');
 
   const createRoom = useCallback(async () => {
     if (!artist || creating) return;
@@ -20,7 +21,7 @@ export function MultiplayerHomePage() {
     setError(null);
     try {
       const { code } = await createMultiplayerRoom(artist.id, guessMode);
-      navigate(`/room/${code}`);
+      navigate(`/room/${code}`, { state: { autoJoin: true } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create a room. Please try again.');
       setCreating(false);
@@ -43,6 +44,46 @@ export function MultiplayerHomePage() {
 
       <ArtistSearchInput onSelect={setArtist} />
 
+      {!artist && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="glass w-full rounded-2xl p-6 flex flex-col gap-4"
+        >
+          <div>
+            <h2 className="text-lg font-bold text-white">Join with Room Code</h2>
+            <p className="text-xs text-slate-400">
+              Have a code from a friend? Enter it below to join their lobby.
+            </p>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (roomCode.trim()) {
+                navigate(`/room/${roomCode.trim().toUpperCase()}`);
+              }
+            }}
+            className="flex gap-2"
+          >
+            <input
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+              maxLength={12}
+              placeholder="ROOM CODE"
+              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-center font-mono text-lg font-black tracking-widest text-chorus-accent2 outline-none focus:border-chorus-accent2 uppercase placeholder:font-sans placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-600"
+            />
+            <button
+              type="submit"
+              disabled={!roomCode.trim()}
+              className="btn-primary !py-2.5 !px-6 !text-sm whitespace-nowrap"
+            >
+              Join Room
+            </button>
+          </form>
+        </motion.div>
+      )}
+
       {artist && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -63,7 +104,7 @@ export function MultiplayerHomePage() {
             )}
             <div>
               <h2 className="text-lg font-bold text-white">{artist.name}</h2>
-              <p className="text-xs text-slate-400">5-song real-time race</p>
+              <p className="text-xs text-slate-400">10-song real-time race</p>
             </div>
           </div>
 

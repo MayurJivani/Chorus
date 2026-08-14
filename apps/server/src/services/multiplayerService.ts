@@ -300,16 +300,48 @@ export async function startGame(playerId: string): Promise<void> {
     }
 
     const seed = `${room.code}:${Date.now()}:${randomUUID()}`;
-    const chosen = seededShuffle(pool, seed).slice(0, MP_ROUNDS);
+    const shuffled = seededShuffle(pool, seed);
 
-    const previews = await Promise.all(chosen.map((t) => getFreshPreviewUrl(t.deezerTrackId)));
-    const available = chosen.filter((_, i) => previews[i] != null);
-    if (available.length < MP_ROUNDS) {
-      return sendError(playerId, 'Some tracks are temporarily unavailable — please try again.');
+    // Check candidate tracks in parallel to obtain at least MP_ROUNDS with playable audio
+    const candidateTracks = shuffled.slice(0, MP_ROUNDS * 2);
+    const candidatePreviews = await Promise.all(
+      candidateTracks.map((t) => getFreshPreviewUrl(t.deezerTrackId)),
+    );
+
+    const chosen: typeof pool = [];
+    const previews: string[] = [];
+
+    for (let i = 0; i < candidateTracks.length; i++) {
+      if (chosen.length >= MP_ROUNDS) break;
+      const p = candidatePreviews[i];
+      const track = candidateTracks[i];
+      if (p != null && track != null) {
+        chosen.push(track);
+        previews.push(p.previewUrl);
+      }
+    }
+
+    if (chosen.length < MP_ROUNDS) {
+      const remainingTracks = shuffled.slice(MP_ROUNDS * 2);
+      for (const track of remainingTracks) {
+        if (chosen.length >= MP_ROUNDS) break;
+        const p = await getFreshPreviewUrl(track.deezerTrackId);
+        if (p != null) {
+          chosen.push(track);
+          previews.push(p.previewUrl);
+        }
+      }
+    }
+
+    if (chosen.length < MP_ROUNDS) {
+      return sendError(
+        playerId,
+        `Not enough tracks with playable audio available for ${room.artistName}.`,
+      );
     }
 
     room.tracks = chosen;
-    room.previewUrls = previews.map((p) => p!.previewUrl);
+    room.previewUrls = previews;
     // Decoys are drawn once, here, rather than per player: everyone must be shown the same
     // three answers or the round is not a fair race.
     room.roundOptions =

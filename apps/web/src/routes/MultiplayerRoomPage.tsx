@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { searchArtistTracks } from '../api/artists';
 import { useMultiplayerGame } from '../features/multiplayer/useMultiplayerGame';
 import { MultiplayerLobby } from '../features/multiplayer/MultiplayerLobby';
@@ -10,9 +10,11 @@ export function MultiplayerRoomPage() {
   const { code: codeParam } = useParams<{ code: string }>();
   const code = (codeParam ?? '').toUpperCase();
   const navigate = useNavigate();
+  const location = useLocation();
+  const autoJoin = location.state?.autoJoin === true;
   const [name, setName] = useState('');
   // `null` = not joined yet (the pre-join screen asks for a name); a string = join with it.
-  const [nickname, setNickname] = useState<string | null>(null);
+  const [nickname, setNickname] = useState<string | null>(autoJoin ? '' : null);
 
   const {
     connectionStatus,
@@ -34,7 +36,8 @@ export function MultiplayerRoomPage() {
 
   const artistId = room?.artistId;
   const searchThisArtist = useCallback(
-    (query: string) => (artistId ? searchArtistTracks(artistId, query, false) : Promise.resolve([])),
+    (query: string) =>
+      artistId ? searchArtistTracks(artistId, query, false) : Promise.resolve([]),
     [artistId],
   );
 
@@ -86,8 +89,8 @@ export function MultiplayerRoomPage() {
           <p className="text-2xl">📡</p>
           <h1 className="text-lg font-bold text-white">Lost connection</h1>
           <p className="text-sm text-slate-400">
-            The game was already in progress, so the server couldn&apos;t put you back in the
-            room. Spectate-free for now.
+            The game was already in progress, so the server couldn&apos;t put you back in the room.
+            Spectate-free for now.
           </p>
           <Link to="/multiplayer" className="btn-primary w-full !rounded-xl">
             Back to multiplayer
@@ -129,7 +132,9 @@ export function MultiplayerRoomPage() {
   }
 
   if (room && connectionStatus !== 'closed') {
-    return <MultiplayerLobby room={room} selfId={selfId} onStart={startGame} onLeave={handleLeave} />;
+    return (
+      <MultiplayerLobby room={room} selfId={selfId} onStart={startGame} onLeave={handleLeave} />
+    );
   }
 
   if (error) {
@@ -158,7 +163,5 @@ export function MultiplayerRoomPage() {
 }
 
 function Centered({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-full items-center justify-center px-4">{children}</div>
-  );
+  return <div className="flex min-h-full items-center justify-center px-4">{children}</div>;
 }
