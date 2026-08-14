@@ -46,5 +46,8 @@
   },
   "dependencies": {
     "ws": "^8.21.2"
+  },
+  "overrides": {
+    "esbuild": "^0.25.0"
   }
 }
