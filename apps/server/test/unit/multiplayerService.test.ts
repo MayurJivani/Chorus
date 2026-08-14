@@ -332,7 +332,7 @@ describe('multiplayerService round flow', () => {
     expect(__getRoomPhase(code)).toBe('round-reveal');
   });
 
-  it('runs the full 5-round game and reports a winner', async () => {
+  it(`runs the full ${MP_ROUNDS}-round game and reports a winner`, async () => {
     const { code } = createRoom(412, 'Queen');
     register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbbb');

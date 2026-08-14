@@ -16,7 +16,7 @@ export const MP_REVEAL_SCHEDULE = [1, 2, 4, 7, 11, 16] as const;
 export const MP_REVEAL_POINTS = [6, 5, 4, 3, 2, 1] as const;
 /** Cap on how long a round can run; it ends earlier once everyone has answered. */
 export const MP_ROUND_DURATION_MS = 60 * 1000;
-export const MP_ROUNDS = 5;
+export const MP_ROUNDS = 10;
 export const MP_REVEAL_DURATION_MS = 5000;
 export const MP_MAX_PLAYERS = 8;
 export const MP_EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;

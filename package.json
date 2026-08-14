@@ -19,6 +19,7 @@
     "test": "npm run test --workspaces --if-present",
     "curate:songs": "npm run curate:songs -w apps/server",
     "reverify:songs": "npm run reverify:songs -w apps/server",
+    "change-daily-puzzle": "npm run change-daily-puzzle -w apps/server",
     "prepare": "husky || true"
   },
   "devDependencies": {

@@ -14,6 +14,7 @@
     "db:migrate-sqlite": "tsx ../../scripts/migrate-sqlite-to-postgres.ts",
     "curate:songs": "tsx ../../scripts/curate-songs.ts",
     "reverify:songs": "tsx ../../scripts/reverify-songs.ts",
+    "change-daily-puzzle": "tsx ../../scripts/change-daily-puzzle.ts",
     "export:pool": "tsx src/db/exportPool.ts"
   },
   "dependencies": {
