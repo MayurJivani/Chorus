@@ -43,39 +43,57 @@ export function RootLayout() {
             className="flex items-center gap-2.5 font-bold text-white text-xl tracking-tight group"
           >
             <span
-              className="relative flex h-8 w-8 items-center justify-center rounded-full group-hover:animate-spin-slow transition-all duration-300"
+              className="relative flex h-8 w-8 items-center justify-center rounded-full overflow-hidden"
               style={{
                 boxShadow: '0 0 12px rgba(139, 92, 246, 0.4), 0 0 24px rgba(139, 92, 246, 0.15)',
               }}
             >
-              {/* Vinyl disc SVG */}
-              <svg viewBox="0 0 32 32" className="h-8 w-8" aria-hidden="true">
-                {/* Outer disc */}
-                <circle cx="16" cy="16" r="15.5" fill="#1a1a1a" stroke="#333" strokeWidth="0.5" />
-                {/* Grooves */}
-                <circle cx="16" cy="16" r="13" fill="none" stroke="#222" strokeWidth="0.3" />
-                <circle cx="16" cy="16" r="11.5" fill="none" stroke="#252525" strokeWidth="0.3" />
-                <circle cx="16" cy="16" r="10" fill="none" stroke="#222" strokeWidth="0.3" />
-                <circle cx="16" cy="16" r="8.5" fill="none" stroke="#252525" strokeWidth="0.3" />
-                {/* Sheen highlight */}
-                <path
-                  d="M6 8 Q16 4 26 8 Q28 16 26 24"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.04)"
-                  strokeWidth="3"
-                />
-                {/* Purple gradient center label */}
-                <defs>
-                  <radialGradient id="logo-center-grad" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#a78bfa" />
-                    <stop offset="100%" stopColor="#7c3aed" />
-                  </radialGradient>
-                </defs>
-                <circle cx="16" cy="16" r="5.5" fill="url(#logo-center-grad)" />
-                <circle cx="16" cy="16" r="5.5" fill="none" stroke="#1a1a1a" strokeWidth="0.5" />
-                {/* Spindle hole */}
-                <circle cx="16" cy="16" r="1.2" fill="#0a0a0a" stroke="#333" strokeWidth="0.3" />
-              </svg>
+              {/* Rotating Vinyl Disc */}
+              <span className="w-full h-full rounded-full group-hover:animate-spin-slow transition-transform duration-300">
+                <svg viewBox="0 0 32 32" className="h-full w-full" aria-hidden="true">
+                  {/* Outer disc */}
+                  <circle
+                    cx="16"
+                    cy="16"
+                    r="15.5"
+                    fill="#151515"
+                    stroke="#252525"
+                    strokeWidth="0.5"
+                  />
+                  {/* Grooves */}
+                  <circle cx="16" cy="16" r="13" fill="none" stroke="#222" strokeWidth="0.3" />
+                  <circle cx="16" cy="16" r="11.5" fill="none" stroke="#1c1c1c" strokeWidth="0.3" />
+                  <circle cx="16" cy="16" r="10" fill="none" stroke="#222" strokeWidth="0.3" />
+                  <circle cx="16" cy="16" r="8.5" fill="none" stroke="#1c1c1c" strokeWidth="0.3" />
+                  {/* Purple gradient center label */}
+                  <defs>
+                    <radialGradient id="logo-center-grad" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="#a78bfa" />
+                      <stop offset="100%" stopColor="#7c3aed" />
+                    </radialGradient>
+                  </defs>
+                  <circle cx="16" cy="16" r="5.5" fill="url(#logo-center-grad)" />
+                  <circle cx="16" cy="16" r="5.5" fill="none" stroke="#111" strokeWidth="0.5" />
+                  {/* Spindle hole */}
+                  <circle cx="16" cy="16" r="1.2" fill="#000" />
+                </svg>
+              </span>
+
+              {/* Stationary Sheen / Gloss Overlay */}
+              <span className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+                <svg viewBox="0 0 32 32" className="h-full w-full" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="sheen-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="rgba(255, 255, 255, 0.15)" />
+                      <stop offset="35%" stopColor="rgba(255, 255, 255, 0)" />
+                      <stop offset="50%" stopColor="rgba(255, 255, 255, 0.05)" />
+                      <stop offset="65%" stopColor="rgba(255, 255, 255, 0)" />
+                      <stop offset="100%" stopColor="rgba(255, 255, 255, 0.15)" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="16" cy="16" r="15.5" fill="url(#sheen-grad)" />
+                </svg>
+              </span>
             </span>
             <span>Chorus</span>
           </Link>
