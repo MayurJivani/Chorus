@@ -1,5 +1,6 @@
 import { beforeAll } from 'vitest';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { sql } from 'drizzle-orm';
 import { db } from '../src/db/client';
 import { env } from '../src/env';
 
@@ -19,7 +20,33 @@ function assertTestDatabase(): void {
   }
 }
 
+/**
+ * Every table the suite writes to, cleared between files.
+ *
+ * Each test file already resets what it cares about, but only what it cares about — so a file
+ * that finishes with rows in `artist_session_results` used to break the *next* file's
+ * `delete from users`, which fails on the foreign key. Which files collide depended on the
+ * order vitest happened to run them in, making the failures look random. One CASCADE truncate
+ * per file removes the coupling entirely. Files run serially (`fileParallelism: false`), so
+ * this can never wipe another file's data mid-run.
+ */
+const TABLES = [
+  'artist_round_guesses',
+  'artist_session_results',
+  'artist_challenge_tracks',
+  'artist_challenges',
+  'artist_track_pools',
+  'daily_puzzle_starts',
+  'game_results',
+  'daily_puzzles',
+  'user_stats',
+  'sessions',
+  'users',
+  'songs',
+];
+
 beforeAll(async () => {
   assertTestDatabase();
   await migrate(db, { migrationsFolder: `${__dirname}/../src/db/migrations` });
+  await db.execute(sql.raw(`TRUNCATE TABLE ${TABLES.join(', ')} RESTART IDENTITY CASCADE`));
 });

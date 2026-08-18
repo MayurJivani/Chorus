@@ -25,8 +25,15 @@ const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
-function toPublicUser(user: { id: string; email: string; displayName: string }) {
-  return { id: user.id, email: user.email, displayName: user.displayName };
+function toPublicUser(user: { id: string; email: string; displayName: string; isAdmin?: boolean }) {
+  // `isAdmin` only controls whether the client bothers to show the admin link — every admin
+  // route re-checks the flag against the database itself, so a tampered client gains nothing.
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    isAdmin: user.isAdmin ?? false,
+  };
 }
 
 authRouter.post('/register', authRateLimiter, validate(registerSchema), async (req, res) => {

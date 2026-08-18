@@ -22,7 +22,7 @@ function AnimatedWaveform({ isPlaying = true }: { isPlaying?: boolean }) {
   );
 }
 
-/** The three game modes, kept as data so the grid below stays a single declarative block. */
+/** The game modes, kept as data so the grid below stays a single declarative block. */
 const MODES = [
   {
     to: '/play',
@@ -37,6 +37,13 @@ const MODES = [
     title: 'Artist Mode',
     description: 'Pick any artist and guess 10 songs from their discography.',
     cta: 'Choose an artist',
+  },
+  {
+    to: '/categories',
+    icon: '📻',
+    title: 'Categories',
+    description: 'Top hits by year, chart or genre — every song a different artist.',
+    cta: 'Browse categories',
   },
   {
     to: '/multiplayer',
@@ -114,9 +121,9 @@ export function HomePage() {
         </motion.div>
       </motion.div>
 
-      {/* The three modes. These used to be two cards with Multiplayer spanning the row beneath,
-          which read as one headline mode plus extras rather than a choice between three. An
-          equal three-up grid under its own heading makes the choice the point. */}
+      {/* The modes. These used to be two cards with Multiplayer spanning the row beneath, which
+          read as one headline mode plus extras rather than a choice between several. An equal
+          grid under its own heading makes the choice the point. */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -125,12 +132,12 @@ export function HomePage() {
       >
         <div className="flex flex-col items-center gap-2">
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-purple-400">
-            Three ways to play
+            Four ways to play
           </h2>
           <div className="h-px w-16 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {MODES.map((mode, index) => (
             <Link
               key={mode.to}

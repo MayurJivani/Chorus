@@ -9,6 +9,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import type { Identity } from '../auth/identity';
+import type { ChallengeSourceType } from './challengeSource';
 
 export interface GlobalLeaderboardEntry {
   rank: number;
@@ -57,6 +58,10 @@ const ARTIST_CHALLENGE_SIZE = 10;
 export async function getGlobalLeaderboard(
   identity: Identity,
   limit = 50,
+  /** Which mode's standings. Artist and category runs are ranked separately because they are
+   *  different games — naming ten deep cuts by one artist is not the same skill as naming ten
+   *  chart hits — so pooling them would let one board's specialists dominate the other's. */
+  sourceType: ChallengeSourceType = 'artist',
 ): Promise<GlobalLeaderboardEntry[]> {
   const rows = (await db.execute(sql`
     SELECT
@@ -69,8 +74,9 @@ export async function getGlobalLeaderboard(
       AVG(r.time_taken_seconds)                       AS "avgTime",
       MIN(r.time_taken_seconds)::int                  AS "fastestRun"
     FROM artist_session_results r
+    JOIN artist_challenges c ON c.id = r.challenge_id
     JOIN users u ON u.id = r.user_id
-    WHERE r.completed = true AND r.user_id IS NOT NULL
+    WHERE r.completed = true AND r.user_id IS NOT NULL AND c.source_type = ${sourceType}
     GROUP BY u.id, u.display_name
     ORDER BY
       "songsCorrect" DESC,
@@ -102,7 +108,10 @@ export async function getGlobalLeaderboard(
  * Counted across everyone including guests — this measures what the game is used for, not who
  * is winning, and excluding guests would badly understate it since most play is anonymous.
  */
-export async function getMostPlayedArtists(limit = 10): Promise<MostPlayedArtist[]> {
+export async function getMostPlayedArtists(
+  limit = 10,
+  sourceType: ChallengeSourceType = 'artist',
+): Promise<MostPlayedArtist[]> {
   const rows = (await db.execute(sql`
     SELECT
       c.deezer_artist_id                                        AS "deezerArtistId",
@@ -112,7 +121,7 @@ export async function getMostPlayedArtists(limit = 10): Promise<MostPlayedArtist
       AVG(r.songs_correct)                                      AS "avgScore"
     FROM artist_session_results r
     JOIN artist_challenges c ON c.id = r.challenge_id
-    WHERE r.completed = true
+    WHERE r.completed = true AND c.source_type = ${sourceType}
     GROUP BY c.deezer_artist_id
     ORDER BY "runs" DESC, "players" DESC
     LIMIT ${limit}
@@ -131,4 +140,17 @@ export async function getMostPlayedArtists(limit = 10): Promise<MostPlayedArtist
     players: row.players,
     averageScore: row.avgScore == null ? 0 : Math.round(Number(row.avgScore) * 10) / 10,
   }));
+}
+
+/** Category standings and the most-played categories, ranked exactly like the artist boards but
+ *  from category runs only. */
+export function getCategoryLeaderboard(
+  identity: Identity,
+  limit = 50,
+): Promise<GlobalLeaderboardEntry[]> {
+  return getGlobalLeaderboard(identity, limit, 'category');
+}
+
+export function getMostPlayedCategories(limit = 10): Promise<MostPlayedArtist[]> {
+  return getMostPlayedArtists(limit, 'category');
 }

@@ -102,6 +102,7 @@ export function RootLayout() {
           <div className="hidden items-center gap-7 sm:flex">
             <NavLink to="/play">Daily Challenge</NavLink>
             <NavLink to="/artist">Artist Mode</NavLink>
+            <NavLink to="/categories">Categories</NavLink>
             <NavLink to="/multiplayer">Multiplayer</NavLink>
             <NavLink to="/leaderboard">Leaderboard</NavLink>
             <NavLink to="/stats">Stats</NavLink>
@@ -111,6 +112,7 @@ export function RootLayout() {
               <div className="flex items-center gap-3 pl-3 border-l border-white/10">
                 {user ? (
                   <>
+                    {user.isAdmin && <NavLink to="/admin">Admin</NavLink>}
                     <span className="text-sm text-slate-300 font-medium">{user.displayName}</span>
                     <button
                       type="button"
@@ -165,6 +167,7 @@ export function RootLayout() {
                   ['/', 'Home'],
                   ['/play', 'Daily Challenge'],
                   ['/artist', 'Artist Mode'],
+                  ['/categories', 'Categories'],
                   ['/multiplayer', 'Multiplayer'],
                   ['/leaderboard', 'Leaderboard'],
                   ['/stats', 'Stats'],
@@ -184,6 +187,15 @@ export function RootLayout() {
               {!loading &&
                 (user ? (
                   <>
+                    {user.isAdmin && (
+                      <Link
+                        to="/admin"
+                        className="text-sm font-medium text-slate-300 hover:text-white"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Admin
+                      </Link>
+                    )}
                     <span className="text-sm text-slate-400">{user.displayName}</span>
                     <button
                       type="button"

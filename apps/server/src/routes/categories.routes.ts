@@ -1,0 +1,278 @@
+/**
+ * Category Mode — the same ten-round game as Artist Mode, drawn from an editorial playlist
+ * ("Top Hits 2024") instead of one artist's discography.
+ *
+ * These routes mirror `artists.routes.ts` deliberately: everything below the route layer is the
+ * shared challenge machinery, and the only real difference is that a category is identified by
+ * a slug the server already knows, so there is nothing to search and nothing to validate beyond
+ * "is this one of ours".
+ */
+import { Router } from 'express';
+import { z } from 'zod';
+import { CATEGORIES } from '../services/categories';
+import { resolveCategorySource } from '../services/challengeSource';
+import {
+  recordArtistRoundResult,
+  buildRoundOptions,
+  getSourceLeaderboard,
+  getSourceGuessDistribution,
+  getChallengeLeaderboard,
+  getActiveSessionForSource,
+  getSessionOrStartNew,
+  loadChallengeTracks,
+  resolvePlayableRoundForSource,
+  ARTIST_CHALLENGE_SIZE,
+} from '../services/artistChallengeService';
+import { isFinalAttempt } from '../services/guessService';
+import { SNIPPET_SCHEDULE_SECONDS, MAX_GUESSES } from '../services/puzzleService';
+import { getIdentity } from '../auth/identity';
+import { validate } from '../middleware/validate';
+import { searchRateLimiter, guessRateLimiter } from '../middleware/rateLimiters';
+import { asyncHandler } from '../middleware/asyncHandler';
+import { HttpError } from '../middleware/errorHandler';
+
+export const categoriesRouter = Router();
+
+const categoryIdParamsSchema = z.object({ categoryId: z.string().min(1).max(64) });
+const challengeQuerySchema = z.object({
+  playAgain: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
+  mode: z.enum(['search', 'choice']).optional(),
+  challengeId: z.coerce.number().int().positive().optional(),
+});
+const searchQuerySchema = z.object({ q: z.string().trim().min(1).max(80) });
+
+/** The catalog itself is a compile-time constant, so this needs no Deezer call and no cache. */
+categoriesRouter.get('/', (_req, res) => {
+  res.json({
+    categories: CATEGORIES.map((c) => ({
+      id: c.id,
+      label: c.label,
+      group: c.group,
+      blurb: c.blurb,
+    })),
+  });
+});
+
+/** Resolves the slug, turning an unknown one into a 404 rather than a 500. */
+function sourceFor(categoryId: string) {
+  try {
+    return resolveCategorySource(categoryId);
+  } catch {
+    throw new HttpError(404, 'Unknown category');
+  }
+}
+
+categoriesRouter.get(
+  '/:categoryId/challenge/today',
+  validate(categoryIdParamsSchema, 'params'),
+  validate(challengeQuerySchema, 'query'),
+  asyncHandler(async (req, res) => {
+    const { categoryId } = req.params as unknown as z.infer<typeof categoryIdParamsSchema>;
+    const { playAgain, mode, challengeId } = req.query as unknown as z.infer<
+      typeof challengeQuerySchema
+    >;
+
+    const source = sourceFor(categoryId);
+    const identity = getIdentity(req);
+
+    let session, challenge, tracks;
+    try {
+      const result = await getSessionOrStartNew(source, identity, playAgain, challengeId);
+      session = result.session;
+      challenge = result.challenge;
+      tracks = result.tracks;
+    } catch (err) {
+      throw new HttpError(
+        404,
+        err instanceof Error ? err.message : 'Could not build a challenge for this category',
+      );
+    }
+
+    const base = {
+      challengeId: challenge.id,
+      artistName: challenge.artistName,
+      artistPictureUrl: null,
+      totalRounds: ARTIST_CHALLENGE_SIZE,
+      currentRound: session.currentRound,
+      songsCorrect: session.songsCorrect,
+      totalGuessesUsed: session.totalGuessesUsed,
+      completed: session.completed,
+    };
+
+    if (session.completed) {
+      res.json(base);
+      return;
+    }
+
+    const storedTrack = tracks[session.currentRound];
+    if (!storedTrack) {
+      throw new HttpError(500, 'Challenge round is out of range');
+    }
+
+    const playable = await resolvePlayableRoundForSource(
+      storedTrack,
+      source,
+      tracks.map((t) => t.deezerTrackId),
+    );
+    if (!playable) {
+      throw new HttpError(503, 'This song is temporarily unavailable — please try again shortly');
+    }
+    const currentTrack = playable.track;
+
+    const options =
+      mode === 'choice' ? buildRoundOptions(currentTrack, await source.loadCatalog()) : undefined;
+
+    res.json({
+      ...base,
+      previewUrl: playable.previewUrl,
+      snippetSchedule: SNIPPET_SCHEDULE_SECONDS,
+      maxGuesses: MAX_GUESSES,
+      ...(options !== undefined ? { options } : {}),
+    });
+  }),
+);
+
+categoriesRouter.get(
+  '/:categoryId/tracks/search',
+  searchRateLimiter,
+  validate(categoryIdParamsSchema, 'params'),
+  validate(searchQuerySchema, 'query'),
+  asyncHandler(async (req, res) => {
+    const { categoryId } = req.params as unknown as z.infer<typeof categoryIdParamsSchema>;
+    const { q } = req.query as unknown as z.infer<typeof searchQuerySchema>;
+
+    // Searches the whole category pool rather than today's ten tracks — narrowing suggestions
+    // to the answer set would make guessing trivial. Artist is matched as well as title here
+    // because in a category the artist is a genuine (and useful) way to find a song.
+    const pool = await sourceFor(categoryId).loadCatalog();
+    const needle = q.toLowerCase();
+    const results = pool
+      .filter(
+        (t) => t.title.toLowerCase().includes(needle) || t.artist.toLowerCase().includes(needle),
+      )
+      .slice(0, 8)
+      .map((t) => ({
+        deezerTrackId: t.deezerTrackId,
+        title: t.title,
+        artist: t.artist,
+        albumArtUrl: t.albumArtUrl,
+      }));
+
+    res.json({ results });
+  }),
+);
+
+const guessSchema = z.object({
+  // Omitted entirely for a "skip" — the attempt is spent without guessing a specific track.
+  deezerTrackId: z.string().min(1).optional(),
+  guessNumber: z.number().int().min(1).max(MAX_GUESSES),
+  guessMode: z.enum(['search', 'choice']).optional(),
+});
+
+categoriesRouter.post(
+  '/:categoryId/challenge/today/guess',
+  guessRateLimiter,
+  validate(categoryIdParamsSchema, 'params'),
+  validate(guessSchema),
+  asyncHandler(async (req, res) => {
+    const { categoryId } = req.params as unknown as z.infer<typeof categoryIdParamsSchema>;
+    const { deezerTrackId, guessNumber, guessMode } = req.body as z.infer<typeof guessSchema>;
+
+    const identity = getIdentity(req);
+    const active = await getActiveSessionForSource(sourceFor(categoryId), identity);
+
+    if (!active) {
+      res.status(409).json({ error: 'No active session found for this category challenge' });
+      return;
+    }
+
+    const { session, challenge } = active;
+    const tracks = await loadChallengeTracks(challenge.id);
+
+    const currentTrack = tracks[session.currentRound];
+    if (!currentTrack) {
+      throw new HttpError(500, 'Challenge round is out of range');
+    }
+
+    const correct = deezerTrackId !== undefined && deezerTrackId === currentTrack.deezerTrackId;
+
+    // For multiple choice, there's only one chance to guess correctly per round.
+    const final = guessMode === 'choice' ? true : isFinalAttempt(guessNumber, correct);
+
+    if (!final) {
+      res.json({ correct, isFinal: false });
+      return;
+    }
+
+    const snippetStageSeconds =
+      SNIPPET_SCHEDULE_SECONDS[Math.min(guessNumber, SNIPPET_SCHEDULE_SECONDS.length) - 1] ?? 16;
+
+    const { sessionComplete, songsCorrect, totalGuessesUsed, timeTakenSeconds } =
+      await recordArtistRoundResult(session.id, correct, guessNumber, snippetStageSeconds);
+
+    res.json({
+      correct,
+      isFinal: true,
+      song: {
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        albumArtUrl: currentTrack.albumArtUrl,
+      },
+      songsCorrect,
+      currentRound: session.currentRound,
+      sessionComplete,
+      timeTakenSeconds,
+      ...(sessionComplete
+        ? {
+            finalScore: {
+              songsCorrect,
+              totalGuessesUsed,
+              timeTakenSeconds,
+              totalRounds: ARTIST_CHALLENGE_SIZE,
+            },
+          }
+        : {}),
+    });
+  }),
+);
+
+categoriesRouter.get(
+  '/:categoryId/challenge/:challengeId/leaderboard',
+  validate(
+    categoryIdParamsSchema.extend({ challengeId: z.coerce.number().int().positive() }),
+    'params',
+  ),
+  asyncHandler(async (req, res) => {
+    const { challengeId } = req.params as unknown as { challengeId: number };
+    res.json(await getChallengeLeaderboard(challengeId, getIdentity(req)));
+  }),
+);
+
+categoriesRouter.get(
+  '/:categoryId/leaderboard',
+  validate(categoryIdParamsSchema, 'params'),
+  asyncHandler(async (req, res) => {
+    const { categoryId } = req.params as unknown as z.infer<typeof categoryIdParamsSchema>;
+    res.json(
+      await getSourceLeaderboard('category', sourceFor(categoryId).sourceId, getIdentity(req)),
+    );
+  }),
+);
+
+categoriesRouter.get(
+  '/:categoryId/stats/guess-distribution',
+  validate(categoryIdParamsSchema, 'params'),
+  asyncHandler(async (req, res) => {
+    const { categoryId } = req.params as unknown as z.infer<typeof categoryIdParamsSchema>;
+    res.json(
+      await getSourceGuessDistribution(
+        'category',
+        sourceFor(categoryId).sourceId,
+        getIdentity(req),
+      ),
+    );
+  }),
+);

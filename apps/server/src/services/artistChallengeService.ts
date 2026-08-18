@@ -8,8 +8,13 @@ import {
   artistRoundGuesses,
 } from '../db/schema';
 import type { ArtistChallenge, ArtistChallengeTrack, ArtistSessionResult } from '../db/schema';
-import { getArtistById, getFreshPreviewUrl, type ArtistTrack } from './deezerService';
+import { getFreshPreviewUrl, type ArtistTrack } from './deezerService';
 import { getArtistCatalog } from './artistCatalogService';
+import {
+  resolveArtistSource,
+  type ChallengeSource,
+  type ChallengeSourceType,
+} from './challengeSource';
 import { seededShuffle } from '../utils/deterministic';
 import { normalizeTitle } from '../utils/trackFilters';
 import type { Identity } from '../auth/identity';
@@ -30,17 +35,13 @@ export async function loadChallengeTracks(challengeId: number): Promise<ArtistCh
     .orderBy(asc(artistChallengeTracks.position));
 }
 
-async function findChallenge(
-  deezerArtistId: string,
-  challengeDate: string,
-  includeFeatures: boolean,
-) {
+async function findChallenge(sourceId: string, challengeDate: string, includeFeatures: boolean) {
   const rows = await db
     .select()
     .from(artistChallenges)
     .where(
       and(
-        eq(artistChallenges.deezerArtistId, deezerArtistId),
+        eq(artistChallenges.deezerArtistId, sourceId),
         eq(artistChallenges.challengeDate, challengeDate),
         eq(artistChallenges.includeFeatures, includeFeatures),
       ),
@@ -49,45 +50,46 @@ async function findChallenge(
   return rows[0];
 }
 
-export async function getOrCreateArtistChallenge(
-  artistId: number,
+/** Builds (or returns) the ten-round challenge for a source on a given date. */
+export async function getOrCreateChallenge(
+  source: ChallengeSource,
   challengeDate: string,
-  includeFeatures = false,
 ): Promise<ArtistChallengeWithTracks> {
-  const deezerArtistId = String(artistId);
-  const existing = await findChallenge(deezerArtistId, challengeDate, includeFeatures);
+  const { sourceId, includeFeatures } = source;
+  const existing = await findChallenge(sourceId, challengeDate, includeFeatures);
   if (existing) {
     return { challenge: existing, tracks: await loadChallengeTracks(existing.id) };
   }
 
-  const artist = await getArtistById(artistId);
-  if (!artist) {
-    throw new Error('Artist not found');
+  const pool = await source.loadCatalog();
+  if (pool.length < ARTIST_CHALLENGE_SIZE) {
+    throw new Error(`Not enough playable tracks for ${source.label} to build a challenge`);
   }
 
-  const topTracks = await getArtistCatalog(artistId, includeFeatures);
-  if (topTracks.length < ARTIST_CHALLENGE_SIZE) {
-    throw new Error(`Not enough playable tracks for ${artist.name} to build a challenge`);
-  }
-
-  const chosen = seededShuffle(
-    topTracks,
-    `${deezerArtistId}:${challengeDate}:${includeFeatures}`,
-  ).slice(0, ARTIST_CHALLENGE_SIZE);
+  const chosen = seededShuffle(pool, `${sourceId}:${challengeDate}:${includeFeatures}`).slice(
+    0,
+    ARTIST_CHALLENGE_SIZE,
+  );
 
   let challenge: ArtistChallenge;
   try {
     const insertedRows = await db
       .insert(artistChallenges)
-      .values({ deezerArtistId, artistName: artist.name, challengeDate, includeFeatures })
+      .values({
+        deezerArtistId: sourceId,
+        artistName: source.label,
+        challengeDate,
+        includeFeatures,
+        sourceType: source.sourceType,
+      })
       .returning();
     const inserted = insertedRows[0];
     if (!inserted) throw new Error('Failed to create the artist challenge');
     challenge = inserted;
   } catch {
-    // Lost a race with a concurrent request creating the same (artist, date, includeFeatures)
+    // Lost a race with a concurrent request creating the same (source, date, includeFeatures)
     // challenge — the row now exists, so just read it back instead of failing the request.
-    const raced = await findChallenge(deezerArtistId, challengeDate, includeFeatures);
+    const raced = await findChallenge(sourceId, challengeDate, includeFeatures);
     if (!raced) throw new Error('Failed to create or find the artist challenge');
     return { challenge: raced, tracks: await loadChallengeTracks(raced.id) };
   }
@@ -105,6 +107,14 @@ export async function getOrCreateArtistChallenge(
   );
 
   return { challenge, tracks: await loadChallengeTracks(challenge.id) };
+}
+
+export async function getOrCreateArtistChallenge(
+  artistId: number,
+  challengeDate: string,
+  includeFeatures = false,
+): Promise<ArtistChallengeWithTracks> {
+  return getOrCreateChallenge(await resolveArtistSource(artistId, includeFeatures), challengeDate);
 }
 
 async function findSessionResult(challengeId: number, identity: Identity) {
@@ -154,12 +164,29 @@ export async function getOrCreateSessionProgress(
   return session;
 }
 
-export async function getActiveSession(
-  artistId: number,
-  includeFeatures: boolean,
+/**
+ * An artist source that never touches Deezer.
+ *
+ * `resolveArtistSource` fetches the artist to get their name and picture, which the paths below
+ * don't use — and making them depend on that would mean an in-progress game breaks whenever
+ * Deezer is rate-limiting us. The catalog is still lazy, so the one caller that does need it
+ * (substituting a dead track) pays for it only when that actually happens.
+ */
+function artistSourceLite(artistId: number, includeFeatures: boolean): ChallengeSource {
+  return {
+    sourceType: 'artist',
+    sourceId: String(artistId),
+    label: '',
+    pictureUrl: null,
+    includeFeatures,
+    loadCatalog: () => getArtistCatalog(artistId, includeFeatures),
+  };
+}
+
+export async function getActiveSessionForSource(
+  source: ChallengeSource,
   identity: Identity,
 ): Promise<{ session: ArtistSessionResult; challenge: ArtistChallenge } | null> {
-  const deezerArtistId = String(artistId);
   const rows = await db
     .select({
       session: artistSessionResults,
@@ -169,8 +196,8 @@ export async function getActiveSession(
     .innerJoin(artistChallenges, eq(artistChallenges.id, artistSessionResults.challengeId))
     .where(
       and(
-        eq(artistChallenges.deezerArtistId, deezerArtistId),
-        eq(artistChallenges.includeFeatures, includeFeatures),
+        eq(artistChallenges.deezerArtistId, source.sourceId),
+        eq(artistChallenges.includeFeatures, source.includeFeatures),
         eq(artistSessionResults.completed, false),
         identity.userId
           ? eq(artistSessionResults.userId, identity.userId)
@@ -183,15 +210,22 @@ export async function getActiveSession(
   return rows[0] ?? null;
 }
 
+export async function getActiveSession(
+  artistId: number,
+  includeFeatures: boolean,
+  identity: Identity,
+): Promise<{ session: ArtistSessionResult; challenge: ArtistChallenge } | null> {
+  return getActiveSessionForSource(artistSourceLite(artistId, includeFeatures), identity);
+}
+
 export interface ActiveSessionWithChallengeAndTracks {
   session: ArtistSessionResult;
   challenge: ArtistChallenge;
   tracks: ArtistChallengeTrack[];
 }
 
-export async function getActiveSessionOrStartNew(
-  artistId: number,
-  includeFeatures: boolean,
+export async function getSessionOrStartNew(
+  source: ChallengeSource,
   identity: Identity,
   playAgain = false,
   /** If set, load this specific challenge (shared link flow) rather than the player's most recent one. */
@@ -205,7 +239,16 @@ export async function getActiveSessionOrStartNew(
       .where(eq(artistChallenges.id, sharedChallengeId))
       .limit(1);
     const sharedChallenge = sharedRows[0];
-    if (!sharedChallenge) throw new Error('Shared challenge not found');
+    // The id has to belong to *this* source, not merely exist. Without both checks, a shared
+    // link could be pointed at any challenge in the database, letting a player load a category
+    // run through an artist URL (and land its score on the wrong board).
+    if (
+      !sharedChallenge ||
+      sharedChallenge.deezerArtistId !== source.sourceId ||
+      sharedChallenge.sourceType !== source.sourceType
+    ) {
+      throw new Error('Shared challenge not found');
+    }
     const session = await getOrCreateSessionProgress(sharedChallenge.id, identity);
     const tracks = await loadChallengeTracks(sharedChallenge.id);
     return { session, challenge: sharedChallenge, tracks };
@@ -222,8 +265,8 @@ export async function getActiveSessionOrStartNew(
       .innerJoin(artistChallenges, eq(artistChallenges.id, artistSessionResults.challengeId))
       .where(
         and(
-          eq(artistChallenges.deezerArtistId, String(artistId)),
-          eq(artistChallenges.includeFeatures, includeFeatures),
+          eq(artistChallenges.deezerArtistId, source.sourceId),
+          eq(artistChallenges.includeFeatures, source.includeFeatures),
           identity.userId
             ? eq(artistSessionResults.userId, identity.userId)
             : eq(artistSessionResults.guestId, identity.guestId ?? ''),
@@ -245,11 +288,7 @@ export async function getActiveSessionOrStartNew(
 
   // Generate a unique challengeDate using Date + randomUUID so it's a completely new, randomized challenge every time.
   const challengeDate = `${new Date().toISOString().split('T')[0]}_${crypto.randomUUID()}`;
-  const { challenge, tracks } = await getOrCreateArtistChallenge(
-    artistId,
-    challengeDate,
-    includeFeatures,
-  );
+  const { challenge, tracks } = await getOrCreateChallenge(source, challengeDate);
   const session = await getOrCreateSessionProgress(challenge.id, identity);
 
   return {
@@ -257,6 +296,21 @@ export async function getActiveSessionOrStartNew(
     challenge,
     tracks,
   };
+}
+
+export async function getActiveSessionOrStartNew(
+  artistId: number,
+  includeFeatures: boolean,
+  identity: Identity,
+  playAgain = false,
+  sharedChallengeId?: number,
+): Promise<ActiveSessionWithChallengeAndTracks> {
+  return getSessionOrStartNew(
+    await resolveArtistSource(artistId, includeFeatures),
+    identity,
+    playAgain,
+    sharedChallengeId,
+  );
 }
 
 export interface RoundResultUpdate {
@@ -410,10 +464,9 @@ const SUBSTITUTION_ATTEMPTS = 5;
  * catalog that isn't already in the challenge, so the player keeps a full ten rounds and the
  * fix persists for everyone else playing the same shared challenge.
  */
-export async function resolvePlayableRound(
+export async function resolvePlayableRoundForSource(
   track: ArtistChallengeTrack,
-  artistId: number,
-  includeFeatures: boolean,
+  source: ChallengeSource,
   usedTrackIds: readonly string[],
 ): Promise<{ track: ArtistChallengeTrack; previewUrl: string } | null> {
   const direct = await getFreshPreviewUrl(track.deezerTrackId);
@@ -424,7 +477,7 @@ export async function resolvePlayableRound(
     'Challenge track has no playable preview; substituting',
   );
 
-  const pool = await getArtistCatalog(artistId, includeFeatures);
+  const pool = await source.loadCatalog();
   const excluded = new Set(usedTrackIds);
   const candidates = shuffle(pool.filter((t) => !excluded.has(t.deezerTrackId)));
 
@@ -449,6 +502,19 @@ export async function resolvePlayableRound(
   }
 
   return null;
+}
+
+export async function resolvePlayableRound(
+  track: ArtistChallengeTrack,
+  artistId: number,
+  includeFeatures: boolean,
+  usedTrackIds: readonly string[],
+): Promise<{ track: ArtistChallengeTrack; previewUrl: string } | null> {
+  return resolvePlayableRoundForSource(
+    track,
+    artistSourceLite(artistId, includeFeatures),
+    usedTrackIds,
+  );
 }
 
 export interface RoundOption {
@@ -521,21 +587,28 @@ function buildLeaderboardEntries(rows: LeaderboardRow[], myKey: string): ArtistL
   }));
 }
 
-/** Global per-artist leaderboard — best run per player across all challenges for this artist. */
-export async function getArtistLeaderboard(
-  artistId: number,
-  identity: Identity,
-  limit = 20,
-): Promise<{
+export interface SourceLeaderboard {
   entries: ArtistLeaderboardEntry[];
   myBest: {
     songsCorrect: number;
     totalGuessesUsed: number;
     timeTakenSeconds: number | null;
   } | null;
-}> {
-  const deezerArtistId = String(artistId);
+}
 
+/**
+ * Best run per player for one artist or category, across every challenge built from it.
+ *
+ * Scoped by `source_type` as well as id. Slugs and numeric artist ids cannot collide today, but
+ * relying on that would make the board silently wrong the first time a category is ever named
+ * with digits — and the intent (one board per mode) is worth stating in the query.
+ */
+export async function getSourceLeaderboard(
+  sourceType: ChallengeSourceType,
+  sourceId: string,
+  identity: Identity,
+  limit = 20,
+): Promise<SourceLeaderboard> {
   const rows = (await db.execute(sql`
     SELECT owner_key as "ownerKey", display_name as "displayName", songs_correct as "songsCorrect",
            total_guesses_used as "totalGuessesUsed", time_taken_seconds as "timeTakenSeconds"
@@ -553,7 +626,8 @@ export async function getArtistLeaderboard(
       FROM artist_session_results r
       JOIN artist_challenges c ON c.id = r.challenge_id
       JOIN users u ON u.id = r.user_id
-      WHERE c.deezer_artist_id = ${deezerArtistId}
+      WHERE c.deezer_artist_id = ${sourceId}
+        AND c.source_type = ${sourceType}
         AND r.completed = true
         AND r.user_id IS NOT NULL
     ) ranked
@@ -575,7 +649,8 @@ export async function getArtistLeaderboard(
     .innerJoin(artistChallenges, eq(artistChallenges.id, artistSessionResults.challengeId))
     .where(
       and(
-        eq(artistChallenges.deezerArtistId, deezerArtistId),
+        eq(artistChallenges.deezerArtistId, sourceId),
+        eq(artistChallenges.sourceType, sourceType),
         eq(artistSessionResults.completed, true),
         identity.userId
           ? eq(artistSessionResults.userId, identity.userId)
@@ -587,6 +662,15 @@ export async function getArtistLeaderboard(
   const myBestRow = myBestRows[0];
 
   return { entries, myBest: myBestRow ?? null };
+}
+
+/** Global per-artist leaderboard — best run per player across all challenges for this artist. */
+export async function getArtistLeaderboard(
+  artistId: number,
+  identity: Identity,
+  limit = 20,
+): Promise<SourceLeaderboard> {
+  return getSourceLeaderboard('artist', String(artistId), identity, limit);
 }
 
 /** Per-challenge leaderboard — everyone who played a specific shared challenge. */
@@ -622,12 +706,11 @@ export interface GuessDistributionBucket {
   myGuesses: number;
 }
 
-export async function getArtistGuessDistribution(
-  artistId: number,
+export async function getSourceGuessDistribution(
+  sourceType: ChallengeSourceType,
+  sourceId: string,
   identity: Identity,
 ): Promise<GuessDistributionBucket[]> {
-  const deezerArtistId = String(artistId);
-
   // The `::int` casts are load-bearing. Postgres COUNT(*) is bigint, which postgres-js returns
   // as a *string* to avoid precision loss, and the row type assertion below cannot catch that.
   // The client then summed the buckets with `+`, concatenating instead of adding — the legend
@@ -638,7 +721,8 @@ export async function getArtistGuessDistribution(
     FROM artist_round_guesses g
     JOIN artist_session_results s ON s.id = g.session_id
     JOIN artist_challenges c ON c.id = s.challenge_id
-    WHERE c.deezer_artist_id = ${deezerArtistId}
+    WHERE c.deezer_artist_id = ${sourceId}
+      AND c.source_type = ${sourceType}
       AND s.completed = true
       AND g.correct = true
     GROUP BY g.snippet_stage_seconds
@@ -649,7 +733,8 @@ export async function getArtistGuessDistribution(
     FROM artist_round_guesses g
     JOIN artist_session_results s ON s.id = g.session_id
     JOIN artist_challenges c ON c.id = s.challenge_id
-    WHERE c.deezer_artist_id = ${deezerArtistId}
+    WHERE c.deezer_artist_id = ${sourceId}
+      AND c.source_type = ${sourceType}
       AND s.completed = true
       AND g.correct = true
       AND COALESCE(s.user_id, s.guest_id) = ${identity.userId ?? identity.guestId ?? ''}
@@ -666,4 +751,11 @@ export async function getArtistGuessDistribution(
     allPlayers: allMap.get(s) ?? 0,
     myGuesses: myMap.get(s) ?? 0,
   }));
+}
+
+export async function getArtistGuessDistribution(
+  artistId: number,
+  identity: Identity,
+): Promise<GuessDistributionBucket[]> {
+  return getSourceGuessDistribution('artist', String(artistId), identity);
 }

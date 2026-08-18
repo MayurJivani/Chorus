@@ -2,20 +2,33 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { ArtistLeaderboard } from './ArtistLeaderboard';
-import { ArtistGuessDistribution } from './ArtistGuessDistribution';
+import { ChallengeLeaderboard } from './ChallengeLeaderboard';
+import { ChallengeGuessDistribution } from './ChallengeGuessDistribution';
 import { useSession } from '../../hooks/useSession';
+import type { ArtistLeaderboardEntry, GuessDistributionBucket } from '../../types/api';
 
-interface ArtistSessionSummaryProps {
-  artistId: number;
-  artistName: string;
+interface ChallengeSummaryProps {
+  /** The artist's name or the category's label. */
+  subjectName: string;
   songsCorrect: number;
   totalGuessesUsed: number;
   totalRounds: number;
   timeTakenSeconds?: number | null;
-  challengeId?: number;
-  guessMode?: 'search' | 'choice';
+  /** Absolute URL that re-opens this exact challenge. Omitted when there's nothing to share. */
+  shareUrl?: string;
+  loadLeaderboard: () => Promise<{
+    entries: ArtistLeaderboardEntry[];
+    myBest: {
+      songsCorrect: number;
+      totalGuessesUsed: number;
+      timeTakenSeconds: number | null;
+    } | null;
+  }>;
+  loadChallengeLeaderboard?: (() => Promise<{ entries: ArtistLeaderboardEntry[] }>) | null;
+  loadDistribution: () => Promise<GuessDistributionBucket[]>;
   onPlayAgain: () => void;
+  /** Back to the picker for this mode. */
+  browse: { to: string; label: string };
 }
 
 function formatTime(seconds: number | null | undefined): string {
@@ -25,17 +38,19 @@ function formatTime(seconds: number | null | undefined): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-export function ArtistSessionSummary({
-  artistId,
-  artistName,
+export function ChallengeSummary({
+  subjectName,
   songsCorrect,
   totalGuessesUsed,
   totalRounds,
   timeTakenSeconds,
-  challengeId,
-  guessMode = 'search',
+  shareUrl,
+  loadLeaderboard,
+  loadChallengeLeaderboard,
+  loadDistribution,
   onPlayAgain,
-}: ArtistSessionSummaryProps) {
+  browse,
+}: ChallengeSummaryProps) {
   const [copied, setCopied] = useState(false);
   const { user } = useSession();
 
@@ -46,8 +61,7 @@ export function ArtistSessionSummary({
   }, [songsCorrect, totalRounds]);
 
   const handleShare = () => {
-    if (!challengeId) return;
-    const shareUrl = `${window.location.origin}/artist/${artistId}/play?challengeId=${challengeId}&guessMode=${guessMode}`;
+    if (!shareUrl) return;
     navigator.clipboard
       .writeText(shareUrl)
       .then(() => {
@@ -97,12 +111,16 @@ export function ArtistSessionSummary({
         </div>
       )}
 
-      <ArtistLeaderboard artistId={artistId} artistName={artistName} challengeId={challengeId} />
+      <ChallengeLeaderboard
+        loadOverall={loadLeaderboard}
+        loadForChallenge={loadChallengeLeaderboard}
+        subjectName={subjectName}
+      />
 
-      <ArtistGuessDistribution artistId={artistId} />
+      <ChallengeGuessDistribution load={loadDistribution} />
 
       <div className="flex w-full flex-col gap-3">
-        {challengeId && (
+        {shareUrl && (
           <button
             type="button"
             onClick={handleShare}
@@ -114,8 +132,8 @@ export function ArtistSessionSummary({
         <button type="button" onClick={onPlayAgain} className="btn-secondary w-full">
           Play New Challenge
         </button>
-        <Link to="/artist" className="btn-ghost w-full text-center">
-          Play Another Artist
+        <Link to={browse.to} className="btn-ghost w-full text-center">
+          {browse.label}
         </Link>
       </div>
     </motion.div>

@@ -1,27 +1,33 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { getArtistGuessDistribution } from '../../api/artists';
 import type { GuessDistributionBucket } from '../../types/api';
 
-interface ArtistGuessDistributionProps {
-  artistId: number;
+interface ChallengeGuessDistributionProps {
+  /** Fetches the buckets. Passed in so artist and category runs can share this chart. */
+  load: () => Promise<GuessDistributionBucket[]>;
 }
 
-export function ArtistGuessDistribution({ artistId }: ArtistGuessDistributionProps) {
+export function ChallengeGuessDistribution({ load }: ChallengeGuessDistributionProps) {
   const [buckets, setBuckets] = useState<GuessDistributionBucket[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getArtistGuessDistribution(artistId)
+    let cancelled = false;
+    load()
       .then((res) => {
+        if (cancelled) return;
         setBuckets(res);
         setLoading(false);
       })
       .catch(() => {
+        if (cancelled) return;
         setBuckets([]);
         setLoading(false);
       });
-  }, [artistId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
 
   if (loading) {
     return <p className="text-sm text-slate-400 text-center py-2">Loading stats...</p>;

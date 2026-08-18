@@ -1,0 +1,276 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import request from 'supertest';
+import { eq } from 'drizzle-orm';
+import { createApp } from '../../src/app';
+import { db } from '../../src/db/client';
+import {
+  artistChallenges,
+  artistChallengeTracks,
+  artistRoundGuesses,
+  artistSessionResults,
+  dailyPuzzles,
+  dailyPuzzleStarts,
+  gameResults,
+  sessions,
+  songs,
+  users,
+} from '../../src/db/schema';
+import { getUtcDateString } from '../../src/services/puzzleService';
+
+const app = createApp();
+
+function dateOffsetDays(days: number): string {
+  return getUtcDateString(new Date(Date.now() + days * 24 * 60 * 60 * 1000));
+}
+
+async function getCsrfToken(agent: ReturnType<typeof request.agent>): Promise<string> {
+  const res = await agent.get('/api/csrf-token');
+  return res.body.csrfToken as string;
+}
+
+async function seedSong(id: number, title: string, curated = true, active = true) {
+  await db.insert(songs).values({
+    id,
+    title,
+    artist: 'Test Artist',
+    deezerTrackId: `admin-dz-${id}`,
+    previewUrl: 'https://example.test/p.mp3',
+    durationSeconds: 200,
+    active,
+    manualOverride: curated,
+  });
+}
+
+/** Registers an account through the API (so the password hash is real) and optionally promotes
+ *  it — the admin flag is only ever set directly in the database, never by a route. */
+async function signIn(email: string, admin: boolean) {
+  const agent = request.agent(app);
+  const csrf = await getCsrfToken(agent);
+  const res = await agent
+    .post('/api/auth/register')
+    .set('X-CSRF-Token', csrf)
+    .send({ email, password: 'password123', displayName: email.split('@')[0] });
+
+  if (admin) {
+    await db.update(users).set({ isAdmin: true }).where(eq(users.email, email));
+  }
+  return { agent, userId: res.body.user.id as string, csrf: await getCsrfToken(agent) };
+}
+
+beforeEach(async () => {
+  await db.delete(gameResults);
+  await db.delete(dailyPuzzleStarts);
+  await db.delete(dailyPuzzles);
+  await db.delete(songs);
+  await db.delete(sessions);
+  // Artist/category runs from earlier test files reference `users`, so they have to go first or
+  // the delete below trips their foreign key.
+  await db.delete(artistRoundGuesses);
+  await db.delete(artistSessionResults);
+  await db.delete(artistChallengeTracks);
+  await db.delete(artistChallenges);
+  await db.delete(users);
+});
+
+describe('admin route access', () => {
+  it('hides the routes from anonymous visitors', async () => {
+    const res = await request(app).get('/api/admin/daily-puzzles');
+    expect(res.status).toBe(404);
+  });
+
+  it('hides the routes from ordinary logged-in users', async () => {
+    const { agent } = await signIn('plain@example.test', false);
+    const res = await agent.get('/api/admin/daily-puzzles');
+    // 404 rather than 403 on purpose: a 403 would confirm the endpoint exists.
+    expect(res.status).toBe(404);
+  });
+
+  it('lets an admin through', async () => {
+    const { agent } = await signIn('boss@example.test', true);
+    const res = await agent.get('/api/admin/daily-puzzles');
+    expect(res.status).toBe(200);
+    expect(res.body.puzzles).toEqual([]);
+  });
+
+  it('stops reporting isAdmin once the flag is revoked', async () => {
+    const { agent } = await signIn('boss@example.test', true);
+    expect(await agent.get('/api/admin/overview').then((r) => r.status)).toBe(200);
+
+    await db.update(users).set({ isAdmin: false }).where(eq(users.email, 'boss@example.test'));
+
+    // Same session, no re-login — the flag is read per request, not cached in the session.
+    expect(await agent.get('/api/admin/overview').then((r) => r.status)).toBe(404);
+  });
+});
+
+describe('GET /api/admin/daily-puzzles', () => {
+  it('lists the schedule with each puzzle’s play count', async () => {
+    const { agent, userId } = await signIn('boss@example.test', true);
+    await seedSong(1, 'Scheduled Song');
+    const inserted = await db
+      .insert(dailyPuzzles)
+      .values({ puzzleDate: dateOffsetDays(1), songId: 1 })
+      .returning();
+    await db.insert(gameResults).values({
+      userId,
+      puzzleId: inserted[0]!.id,
+      won: true,
+      guessesUsed: 2,
+      snippetStageReached: 2,
+    });
+
+    const res = await agent.get('/api/admin/daily-puzzles');
+
+    expect(res.status).toBe(200);
+    expect(res.body.today).toBe(getUtcDateString());
+    expect(res.body.puzzles).toHaveLength(1);
+    expect(res.body.puzzles[0]).toMatchObject({
+      title: 'Scheduled Song',
+      songId: 1,
+      plays: 1,
+    });
+    // COUNT(*) comes back as a string from postgres-js unless it is cast, and the UI does
+    // arithmetic on this.
+    expect(typeof res.body.puzzles[0].plays).toBe('number');
+  });
+});
+
+describe('PUT /api/admin/daily-puzzles/:date', () => {
+  it('schedules a future date', async () => {
+    const { agent, csrf } = await signIn('boss@example.test', true);
+    await seedSong(1, 'Tomorrow’s Song');
+    const date = dateOffsetDays(3);
+
+    const res = await agent
+      .put(`/api/admin/daily-puzzles/${date}`)
+      .set('X-CSRF-Token', csrf)
+      .send({ songId: 1 });
+
+    expect(res.status).toBe(200);
+    const rows = await db.select().from(dailyPuzzles).where(eq(dailyPuzzles.puzzleDate, date));
+    expect(rows[0]?.songId).toBe(1);
+  });
+
+  it('replaces the song on an unplayed future date', async () => {
+    const { agent, csrf } = await signIn('boss@example.test', true);
+    await seedSong(1, 'First');
+    await seedSong(2, 'Second');
+    const date = dateOffsetDays(3);
+    await db.insert(dailyPuzzles).values({ puzzleDate: date, songId: 1 });
+
+    const res = await agent
+      .put(`/api/admin/daily-puzzles/${date}`)
+      .set('X-CSRF-Token', csrf)
+      .send({ songId: 2 });
+
+    expect(res.status).toBe(200);
+    const rows = await db.select().from(dailyPuzzles).where(eq(dailyPuzzles.puzzleDate, date));
+    expect(rows[0]?.songId).toBe(2);
+  });
+
+  it('refuses to rewrite a puzzle people have already played', async () => {
+    const { agent, csrf, userId } = await signIn('boss@example.test', true);
+    await seedSong(1, 'Played');
+    await seedSong(2, 'Replacement');
+    const date = dateOffsetDays(1);
+    const inserted = await db
+      .insert(dailyPuzzles)
+      .values({ puzzleDate: date, songId: 1 })
+      .returning();
+    await db.insert(gameResults).values({
+      userId,
+      puzzleId: inserted[0]!.id,
+      won: true,
+      guessesUsed: 1,
+      snippetStageReached: 1,
+    });
+
+    const res = await agent
+      .put(`/api/admin/daily-puzzles/${date}`)
+      .set('X-CSRF-Token', csrf)
+      .send({ songId: 2 });
+
+    expect(res.status).toBe(409);
+    const rows = await db.select().from(dailyPuzzles).where(eq(dailyPuzzles.puzzleDate, date));
+    expect(rows[0]?.songId).toBe(1);
+  });
+
+  it('refuses to touch a past date', async () => {
+    const { agent, csrf } = await signIn('boss@example.test', true);
+    await seedSong(1, 'Yesterday');
+
+    const res = await agent
+      .put(`/api/admin/daily-puzzles/${dateOffsetDays(-1)}`)
+      .set('X-CSRF-Token', csrf)
+      .send({ songId: 1 });
+
+    expect(res.status).toBe(409);
+  });
+
+  it('refuses to schedule an inactive song', async () => {
+    const { agent, csrf } = await signIn('boss@example.test', true);
+    await seedSong(1, 'Withdrawn', true, false);
+
+    const res = await agent
+      .put(`/api/admin/daily-puzzles/${dateOffsetDays(2)}`)
+      .set('X-CSRF-Token', csrf)
+      .send({ songId: 1 });
+
+    expect(res.status).toBe(409);
+  });
+});
+
+describe('DELETE /api/admin/daily-puzzles/:date', () => {
+  it('unschedules an unplayed future date', async () => {
+    const { agent, csrf } = await signIn('boss@example.test', true);
+    await seedSong(1, 'Doomed');
+    const date = dateOffsetDays(2);
+    await db.insert(dailyPuzzles).values({ puzzleDate: date, songId: 1 });
+
+    const res = await agent.delete(`/api/admin/daily-puzzles/${date}`).set('X-CSRF-Token', csrf);
+
+    expect(res.status).toBe(200);
+    expect(await db.select().from(dailyPuzzles).where(eq(dailyPuzzles.puzzleDate, date))).toEqual(
+      [],
+    );
+  });
+
+  it('refuses to delete a played puzzle, which would orphan its results', async () => {
+    const { agent, csrf, userId } = await signIn('boss@example.test', true);
+    await seedSong(1, 'Played');
+    const date = dateOffsetDays(1);
+    const inserted = await db
+      .insert(dailyPuzzles)
+      .values({ puzzleDate: date, songId: 1 })
+      .returning();
+    await db.insert(gameResults).values({
+      userId,
+      puzzleId: inserted[0]!.id,
+      won: false,
+      guessesUsed: 6,
+      snippetStageReached: 6,
+    });
+
+    const res = await agent.delete(`/api/admin/daily-puzzles/${date}`).set('X-CSRF-Token', csrf);
+
+    expect(res.status).toBe(409);
+    expect(
+      await db.select().from(dailyPuzzles).where(eq(dailyPuzzles.puzzleDate, date)),
+    ).toHaveLength(1);
+  });
+});
+
+describe('PATCH /api/admin/songs/:songId', () => {
+  it('moves a song into the curated pool', async () => {
+    const { agent, csrf } = await signIn('boss@example.test', true);
+    await seedSong(1, 'Chart Entry', false);
+
+    const res = await agent
+      .patch('/api/admin/songs/1')
+      .set('X-CSRF-Token', csrf)
+      .send({ manualOverride: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.song.manualOverride).toBe(true);
+  });
+});

@@ -1,11 +1,21 @@
 import { useEffect, useState } from 'react';
-import { getArtistLeaderboard, getChallengeLeaderboard } from '../../api/artists';
 import type { ArtistLeaderboardEntry } from '../../types/api';
 
-interface ArtistLeaderboardProps {
-  artistId: number;
-  artistName?: string;
-  challengeId?: number;
+interface ChallengeLeaderboardProps {
+  /** Standings across every run of this artist/category, plus the caller's own best. */
+  loadOverall: () => Promise<{
+    entries: ArtistLeaderboardEntry[];
+    myBest: {
+      songsCorrect: number;
+      totalGuessesUsed: number;
+      timeTakenSeconds: number | null;
+    } | null;
+  }>;
+  /** Standings for one shared challenge. When given, it replaces the overall board — the
+   *  people who played this exact link are the interesting comparison. */
+  loadForChallenge?: (() => Promise<{ entries: ArtistLeaderboardEntry[] }>) | null;
+  /** e.g. "Queen" or "Top Hits 2024". */
+  subjectName?: string;
 }
 
 function formatTime(seconds: number | null | undefined): string {
@@ -15,7 +25,11 @@ function formatTime(seconds: number | null | undefined): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-export function ArtistLeaderboard({ artistId, artistName, challengeId }: ArtistLeaderboardProps) {
+export function ChallengeLeaderboard({
+  loadOverall,
+  loadForChallenge,
+  subjectName,
+}: ChallengeLeaderboardProps) {
   const [entries, setEntries] = useState<ArtistLeaderboardEntry[]>([]);
   const [myBest, setMyBest] = useState<{
     songsCorrect: number;
@@ -25,43 +39,40 @@ export function ArtistLeaderboard({ artistId, artistName, challengeId }: ArtistL
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    if (challengeId != null) {
-      getChallengeLeaderboard(artistId, challengeId)
-        .then((res) => {
-          setEntries(res.entries);
-          setMyBest(null);
-          setLoading(false);
-        })
-        .catch(() => {
-          setEntries([]);
-          setLoading(false);
-        });
-    } else {
-      getArtistLeaderboard(artistId)
-        .then((res) => {
-          setEntries(res.entries);
-          setMyBest(res.myBest);
-          setLoading(false);
-        })
-        .catch(() => {
-          setEntries([]);
-          setMyBest(null);
-          setLoading(false);
-        });
-    }
-  }, [artistId, challengeId]);
+    const request = loadForChallenge
+      ? loadForChallenge().then((res) => ({ entries: res.entries, myBest: null }))
+      : loadOverall();
+
+    request
+      .then((res) => {
+        if (cancelled) return;
+        setEntries(res.entries);
+        setMyBest(res.myBest);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setEntries([]);
+        setMyBest(null);
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadOverall, loadForChallenge]);
 
   if (loading) {
     return <p className="text-sm text-slate-400 text-center py-2">Loading leaderboard...</p>;
   }
 
-  const titleText =
-    challengeId != null
-      ? 'Challenge Leaderboard'
-      : artistName
-        ? `${artistName} Leaderboard`
-        : 'Global Leaderboard';
+  const titleText = loadForChallenge
+    ? 'Challenge Leaderboard'
+    : subjectName
+      ? `${subjectName} Leaderboard`
+      : 'Global Leaderboard';
 
   return (
     <div className="flex w-full max-w-md flex-col gap-3">
@@ -69,7 +80,7 @@ export function ArtistLeaderboard({ artistId, artistName, challengeId }: ArtistL
         <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">
           {titleText}
         </h3>
-        {challengeId != null && (
+        {loadForChallenge != null && (
           <span className="text-xs text-purple-400 font-semibold px-2 py-0.5 rounded-full bg-purple-950/40 border border-purple-500/20">
             Multiplayer Match
           </span>

@@ -104,7 +104,10 @@ beforeEach(() => {
   __resetForTests();
   vi.useFakeTimers();
   vi.clearAllMocks();
-  catalogMocks.getArtistCatalog.mockResolvedValue(mockTracks(5));
+  // At least MP_ROUNDS * 2, because startGame draws that many candidates and needs MP_ROUNDS
+  // of them to have a playable preview. When the round count went from 5 to 10 this pool was
+  // left at 5, so every start failed with "not enough playable tracks" and nine tests broke.
+  catalogMocks.getArtistCatalog.mockResolvedValue(mockTracks(MP_ROUNDS * 2));
   deezerMocks.getFreshPreviewUrl.mockImplementation(async (id: string) => ({
     previewUrl: `https://preview.test/${id}.mp3`,
     durationSeconds: 30,

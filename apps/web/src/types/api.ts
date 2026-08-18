@@ -2,6 +2,8 @@ export interface PublicUser {
   id: string;
   email: string;
   displayName: string;
+  /** Only decides whether the admin link is rendered — every admin route re-checks server-side. */
+  isAdmin?: boolean;
 }
 
 export interface MeResponse {
@@ -242,6 +244,56 @@ export interface MostPlayedArtist {
 export interface LeaderboardResponse {
   players: GlobalLeaderboardEntry[];
   mostPlayedArtists: MostPlayedArtist[];
+  /** Category runs are ranked separately — a different game, so a different board. */
+  categoryPlayers: GlobalLeaderboardEntry[];
+  mostPlayedCategories: MostPlayedArtist[];
   /** False for guests, who cannot appear on the board until they have an account. */
   isRegistered: boolean;
+}
+
+// --- Category Mode -------------------------------------------------------------------------
+
+export type CategoryGroup = 'now' | 'year' | 'genre';
+
+export interface Category {
+  id: string;
+  label: string;
+  group: CategoryGroup;
+  blurb: string;
+}
+
+// --- Admin ---------------------------------------------------------------------------------
+
+export interface AdminSong {
+  id: number;
+  title: string;
+  artist: string;
+  albumArtUrl: string | null;
+  active: boolean;
+  manualOverride: boolean;
+}
+
+export interface AdminDailyPuzzle {
+  /** The puzzle row's id; the song it points at is `songId`. */
+  id: number;
+  puzzleDate: string;
+  songId: number;
+  title: string;
+  artist: string;
+  albumArtUrl: string | null;
+  active: boolean;
+  manualOverride: boolean;
+  /** Completed plays. Non-zero means the row is history and the server will refuse edits. */
+  plays: number;
+}
+
+export interface AdminDailyPuzzleList {
+  today: string;
+  puzzles: AdminDailyPuzzle[];
+}
+
+export interface AdminOverview {
+  songs: { total: number; active: number; curated: number };
+  scheduledFromToday: number;
+  today: string;
 }

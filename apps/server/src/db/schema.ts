@@ -42,6 +42,10 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   displayName: text('display_name').notNull(),
+  // Grants access to the admin tools (editing the daily puzzle schedule). Off by default and
+  // only ever set directly in the database — there is deliberately no route that grants it,
+  // so a bug in the admin API can never escalate someone into an admin.
+  isAdmin: boolean('is_admin').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
 });
@@ -138,9 +142,16 @@ export const artistChallenges = pgTable(
   'artist_challenges',
   {
     id: serial('id').primaryKey(),
+    // Holds a Deezer artist id for an artist run, or a category slug for a category run —
+    // which of the two is decided by `sourceType`, never by parsing this value.
     deezerArtistId: text('deezer_artist_id').notNull(),
     artistName: text('artist_name').notNull(),
     challengeDate: text('challenge_date').notNull(), // UTC 'YYYY-MM-DD' (+ optional UUID suffix for randomized challenges)
+    // Category runs reuse this table because the game itself is identical — ten rounds, the
+    // same guesses, the same sessions. They are tagged rather than split out so none of that
+    // machinery has to be duplicated, and so the artist leaderboard can exclude them: guessing
+    // ten songs from Top Hits 1985 is a different skill from an artist's deep cuts.
+    sourceType: text('source_type').notNull().default('artist'),
     // Part of the challenge's identity, not just a display preference: including
     // featured/collaboration tracks changes which songs are eligible, so "with features" and
     // "without" are two distinct (still each shared/deterministic) daily challenges.

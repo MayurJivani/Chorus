@@ -10,6 +10,9 @@ import { RegisterPage } from './routes/RegisterPage';
 import { AboutPage } from './routes/AboutPage';
 import { ArtistSearchPage } from './routes/ArtistSearchPage';
 import { ArtistPlayPage } from './routes/ArtistPlayPage';
+import { CategoryPickerPage } from './routes/CategoryPickerPage';
+import { CategoryPlayPage } from './routes/CategoryPlayPage';
+import { AdminPage } from './routes/AdminPage';
 import { MultiplayerHomePage } from './routes/MultiplayerHomePage';
 import { MultiplayerRoomPage } from './routes/MultiplayerRoomPage';
 
@@ -26,6 +29,9 @@ const router = createBrowserRouter([
       { path: '/about', element: <AboutPage /> },
       { path: '/artist', element: <ArtistSearchPage /> },
       { path: '/artist/:artistId/play', element: <ArtistPlayPage /> },
+      { path: '/categories', element: <CategoryPickerPage /> },
+      { path: '/category/:categoryId/play', element: <CategoryPlayPage /> },
+      { path: '/admin', element: <AdminPage /> },
       { path: '/multiplayer', element: <MultiplayerHomePage /> },
       { path: '/room/:code', element: <MultiplayerRoomPage /> },
     ],
