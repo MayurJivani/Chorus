@@ -13,6 +13,7 @@ import { ArtistPlayPage } from './routes/ArtistPlayPage';
 import { CategoryPickerPage } from './routes/CategoryPickerPage';
 import { CategoryPlayPage } from './routes/CategoryPlayPage';
 import { AdminPage } from './routes/AdminPage';
+import { NotFoundPage } from './routes/NotFoundPage';
 import { MultiplayerHomePage } from './routes/MultiplayerHomePage';
 import { MultiplayerRoomPage } from './routes/MultiplayerRoomPage';
 
@@ -34,6 +35,9 @@ const router = createBrowserRouter([
       { path: '/admin', element: <AdminPage /> },
       { path: '/multiplayer', element: <MultiplayerHomePage /> },
       { path: '/room/:code', element: <MultiplayerRoomPage /> },
+      // Catch-all. Inside RootLayout so a mistyped URL still gets the nav and a way back,
+      // rather than react-router's bare default error screen.
+      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ]);
