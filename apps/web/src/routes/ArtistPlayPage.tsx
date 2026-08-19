@@ -1,7 +1,8 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useArtistGameState } from '../features/artist/useArtistGameState';
 import { ChallengeRunner } from '../features/challenge/ChallengeRunner';
+import { getChallengeSummary } from '../api/challenges';
 import { ChallengeSummary } from '../features/challenge/ChallengeSummary';
 import {
   searchArtistTracks,
@@ -9,6 +10,45 @@ import {
   getChallengeLeaderboard,
   getArtistGuessDistribution,
 } from '../api/artists';
+
+/**
+ * The sender's score on a shared challenge, so the run can show what it is chasing.
+ *
+ * Only fetched for a shared link: a self-started run has no opponent, and asking would be a
+ * request per run for an answer that is always null.
+ */
+function useDuel(challengeId: number | undefined) {
+  const [duel, setDuel] = useState<{
+    displayName: string;
+    songsCorrect: number;
+    totalRounds: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (challengeId == null) {
+      setDuel(null);
+      return;
+    }
+    let cancelled = false;
+    getChallengeSummary(challengeId)
+      .then((summary) => {
+        if (cancelled || !summary.challenger) return;
+        setDuel({
+          displayName: summary.challenger.displayName,
+          songsCorrect: summary.challenger.songsCorrect,
+          totalRounds: summary.totalRounds,
+        });
+      })
+      .catch(() => {
+        // The banner is a nicety; a failed lookup just means the run plays without it.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [challengeId]);
+
+  return duel;
+}
 
 export function ArtistPlayPage() {
   const { artistId: artistIdParam } = useParams<{ artistId: string }>();
@@ -20,6 +60,7 @@ export function ArtistPlayPage() {
     ? Number(searchParams.get('challengeId'))
     : undefined;
 
+  const duel = useDuel(urlChallengeId);
   const game = useArtistGameState(artistId, includeFeatures, guessMode, urlChallengeId);
   const { challenge, finalScore } = game;
   const challengeId = challenge?.challengeId;
@@ -42,6 +83,7 @@ export function ArtistPlayPage() {
       guessMode={guessMode}
       searchFn={searchThisArtist}
       slowLoadHint="Digging through this artist’s discography. This only takes a moment the first time."
+      duel={duel}
       fallback={{ to: '/artist', label: 'Pick another artist' }}
       summary={
         challenge ? (

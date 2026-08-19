@@ -15,6 +15,7 @@ import { CategoryPickerPage } from './routes/CategoryPickerPage';
 import { CategoryPlayPage } from './routes/CategoryPlayPage';
 import { SurvivalPage } from './routes/SurvivalPage';
 import { EraPlayPage } from './routes/EraPlayPage';
+import { DuelsPage } from './routes/DuelsPage';
 import { AdminPage } from './routes/AdminPage';
 import { NotFoundPage } from './routes/NotFoundPage';
 import { MultiplayerHomePage } from './routes/MultiplayerHomePage';
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
       { path: '/category/:categoryId/play', element: <CategoryPlayPage /> },
       { path: '/survival', element: <SurvivalPage /> },
       { path: '/era', element: <EraPlayPage /> },
+      { path: '/duels', element: <DuelsPage /> },
       { path: '/admin', element: <AdminPage /> },
       { path: '/multiplayer', element: <MultiplayerHomePage /> },
       { path: '/room/:code', element: <MultiplayerRoomPage /> },

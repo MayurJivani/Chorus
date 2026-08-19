@@ -854,3 +854,60 @@ export async function getArtistGuessDistribution(
 ): Promise<GuessDistributionBucket[]> {
   return getSourceGuessDistribution('artist', String(artistId), identity);
 }
+
+export interface ChallengeSummary {
+  challengeId: number;
+  sourceType: ChallengeSourceType;
+  label: string;
+  totalRounds: number;
+  /**
+   * The score to beat: the first person to finish this challenge, which for a shared link is
+   * whoever sent it. Null when nobody has completed it yet, including when the sender shared
+   * the link before finishing their own run.
+   */
+  challenger: {
+    displayName: string;
+    songsCorrect: number;
+    totalGuessesUsed: number;
+    timeTakenSeconds: number | null;
+  } | null;
+}
+
+/**
+ * Who set the mark on a shared challenge.
+ *
+ * Ordered by completion, not by score: a duel is against the person who sent you the link, and
+ * showing whoever happens to be leading would quietly change the opponent underneath you.
+ * Guests are eligible here, unlike the leaderboards — the sender is identified by the link they
+ * gave you, so there is nothing to attribute or rank.
+ */
+export async function getChallengeSummary(challengeId: number): Promise<ChallengeSummary | null> {
+  const rows = await db
+    .select()
+    .from(artistChallenges)
+    .where(eq(artistChallenges.id, challengeId))
+    .limit(1);
+  const challenge = rows[0];
+  if (!challenge) return null;
+
+  const firstFinisher = (await db.execute(sql`
+    SELECT
+      COALESCE(u.display_name, 'A friend') AS "displayName",
+      r.songs_correct                      AS "songsCorrect",
+      r.total_guesses_used                 AS "totalGuessesUsed",
+      r.time_taken_seconds                 AS "timeTakenSeconds"
+    FROM artist_session_results r
+    LEFT JOIN users u ON u.id = r.user_id
+    WHERE r.challenge_id = ${challengeId} AND r.completed = true
+    ORDER BY r.updated_at ASC
+    LIMIT 1
+  `)) as unknown as ChallengeSummary['challenger'][];
+
+  return {
+    challengeId: challenge.id,
+    sourceType: challenge.sourceType as ChallengeSourceType,
+    label: challenge.artistName,
+    totalRounds: challenge.totalRounds,
+    challenger: firstFinisher[0] ?? null,
+  };
+}

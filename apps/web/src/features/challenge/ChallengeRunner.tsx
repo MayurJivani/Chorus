@@ -22,6 +22,8 @@ interface ChallengeRunnerProps {
   slowLoadHint: string;
   /** Where "pick something else" goes when a run can't be built at all. */
   fallback: { to: string; label: string };
+  /** Set when this run came from a shared link and the sender has already finished it. */
+  duel?: { displayName: string; songsCorrect: number; totalRounds: number } | null;
 }
 
 /**
@@ -38,6 +40,7 @@ export function ChallengeRunner({
   summary,
   slowLoadHint,
   fallback,
+  duel,
 }: ChallengeRunnerProps) {
   const { snippetSchedule } = useGameConfig();
   const {
@@ -134,6 +137,19 @@ export function ChallengeRunner({
 
   return (
     <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-3 sm:gap-5 px-4 py-3 sm:py-6">
+      {/* The mark to beat, kept in view for the whole run: a duel where you only learn the
+          target at the end is just a solo run with a scoreboard afterwards. */}
+      {duel && (
+        <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-chorus-accent/30 bg-chorus-accent/10 px-4 py-2 text-sm">
+          <span className="font-semibold text-white">{duel.displayName}</span>
+          <span className="text-slate-400">scored</span>
+          <span className="font-mono font-bold text-chorus-accent">
+            {duel.songsCorrect}/{duel.totalRounds}
+          </span>
+          <span className="text-slate-400">on this challenge</span>
+        </div>
+      )}
+
       {/* Glass game card */}
       <div className="glass w-full rounded-2xl p-4 sm:p-6 flex flex-col items-center gap-4 sm:gap-5">
         {/* Header */}

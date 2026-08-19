@@ -20,6 +20,8 @@ import { leaderboardRouter } from './routes/leaderboard.routes';
 import { categoriesRouter } from './routes/categories.routes';
 import { survivalRouter } from './routes/survival.routes';
 import { eraRouter } from './routes/era.routes';
+import { challengesRouter } from './routes/challenges.routes';
+import { duelsRouter } from './routes/duels.routes';
 import { adminRouter } from './routes/admin.routes';
 
 export function createApp(): Express {
@@ -61,6 +63,8 @@ export function createApp(): Express {
   app.use('/api/categories', categoriesRouter);
   app.use('/api/survival', survivalRouter);
   app.use('/api/era', eraRouter);
+  app.use('/api/challenges', challengesRouter);
+  app.use('/api/duels', duelsRouter);
   app.use('/api/admin', adminRouter);
 
   // Serve the built Vite frontend in production.

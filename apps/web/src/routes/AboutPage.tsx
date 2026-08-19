@@ -1,38 +1,50 @@
 import { motion } from 'framer-motion';
 
+/** Spelled out to match the home page's heading. */
+const NUMBER_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
+
+/** Every mode, in the same order the home page lists them. */
+const MODES: [string, string][] = [
+  ['Daily Challenge', 'one shared song per day, the same for everyone. Keep your streak alive.'],
+  ['Artist Mode', 'pick any artist and name ten songs from their discography.'],
+  ['Categories', 'ten songs from one chart, year or genre, every track by a different artist.'],
+  ['Survival', 'endless songs, one wrong answer ends the run. How far can you get?'],
+  ['Guess the Year', 'hear a song and place it in time. Harder than it sounds.'],
+  ['Multiplayer', 'race friends in real time on a shared snippet timer.'],
+  ['Duels', 'rated 1v1 over the same ten songs. Win and your rating climbs.'],
+];
+
 const sections = [
   {
     icon: '🎵',
     title: 'How it works',
-    body: "Every day there's one new song to guess. You start with a one-second snippet. If you don't know it, skip or guess wrong and the snippet grows: 1, 2, 4, 7, 11, then 16 seconds. Guess correctly in as few listens as possible to keep your streak alive.",
+    body: "You start with a one-second snippet of a song. If you don't know it, guess wrong or skip and the snippet grows: one second, then two, four, seven, and so on. Name it in as few listens as you can.",
   },
   {
     icon: '🎤',
-    title: 'Three ways to play',
+    title: `${NUMBER_WORDS[MODES.length] ?? MODES.length} ways to play`,
     body: null,
     jsx: (
-      <ul className="flex flex-col gap-1.5 text-slate-400 text-sm leading-relaxed">
-        <li>
-          <span className="font-medium text-slate-200">Daily Challenge</span>: one shared song per
-          day, keep your streak alive.
-        </li>
-        <li>
-          <span className="font-medium text-slate-200">Artist Mode</span>: pick any artist and guess
-          10 songs from their discography.
-        </li>
-        <li>
-          <span className="font-medium text-slate-200">Multiplayer</span>: race friends in real time
-          on a shared snippet timer.
-        </li>
+      <ul className="flex flex-col gap-1.5 text-sm leading-relaxed text-slate-400">
+        {MODES.map(([name, blurb]) => (
+          <li key={name}>
+            <span className="font-medium text-slate-200">{name}</span>: {blurb}
+          </li>
+        ))}
       </ul>
     ),
+  },
+  {
+    icon: '🏆',
+    title: 'Leaderboards',
+    body: 'Artist and Category runs are ranked on everything you have played, not one lucky run, so playing more counts as well as scoring well. Survival ranks your longest streak. Only registered accounts appear: a guest is a browser cookie, which is neither stable nor attributable enough to rank.',
   },
   {
     icon: '🎧',
     title: 'Music credit',
     body: null,
     jsx: (
-      <p className="text-slate-400 leading-relaxed">
+      <p className="leading-relaxed text-slate-400">
         Song previews are provided by{' '}
         <a
           href="https://www.deezer.com"
@@ -50,7 +62,7 @@ const sections = [
   {
     icon: '🔒',
     title: 'Your data',
-    body: 'You can play as a guest with no account. Your streak and stats are tied to your browser session. Creating an account lets you keep your stats permanently and across devices.',
+    body: 'You can play as a guest with no account. Your streak and stats are tied to your browser session. Creating an account lets you keep your stats permanently and across devices, and puts you on the leaderboards.',
   },
 ];
 

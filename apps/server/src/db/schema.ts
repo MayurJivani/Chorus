@@ -46,6 +46,13 @@ export const users = pgTable('users', {
   // only ever set directly in the database — there is deliberately no route that grants it,
   // so a bug in the admin API can never escalate someone into an admin.
   isAdmin: boolean('is_admin').notNull().default(false),
+  /**
+   * Elo rating for 1v1 duels. Everyone starts level; the number only means anything relative to
+   * the people you have actually played, which is why `ratedDuels` travels with it — a 1400 from
+   * two games and a 1400 from fifty are not the same claim.
+   */
+  rating: integer('rating').notNull().default(1200),
+  ratedDuels: integer('rated_duels').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
 });
@@ -295,6 +302,47 @@ export const survivalRuns = pgTable(
   ],
 );
 
+/**
+ * A rated 1v1 over one shared challenge.
+ *
+ * Both players answer the same ten songs, which is what makes the comparison fair and is why a
+ * duel is pinned to a `challenge_id` rather than to a mode: whatever built the challenge, the
+ * two runs are like for like.
+ *
+ * Results are not copied here. They live in `artist_session_results` where every other run's do,
+ * and settlement reads them; duplicating the scores would create two places that could disagree
+ * about what someone got.
+ */
+export const duels = pgTable(
+  'duels',
+  {
+    id: serial('id').primaryKey(),
+    challengeId: integer('challenge_id')
+      .notNull()
+      .references(() => artistChallenges.id, { onDelete: 'cascade' }),
+    challengerId: text('challenger_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Null until somebody opens the link and accepts. */
+    opponentId: text('opponent_id').references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('open'),
+    /** Ratings as they stood at settlement, kept so a duel's history stays readable later. */
+    challengerRatingBefore: integer('challenger_rating_before'),
+    opponentRatingBefore: integer('opponent_rating_before'),
+    challengerRatingAfter: integer('challenger_rating_after'),
+    opponentRatingAfter: integer('opponent_rating_after'),
+    /** Null on a draw, which is a real outcome here: equal songs, guesses and time. */
+    winnerId: text('winner_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    settledAt: timestamp('settled_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('duels_challenge_idx').on(table.challengeId),
+    index('duels_challenger_idx').on(table.challengerId),
+    index('duels_opponent_idx').on(table.opponentId),
+  ],
+);
+
 export const artistSessionResults = pgTable(
   'artist_session_results',
   {
@@ -337,3 +385,4 @@ export type ArtistTrackPool = typeof artistTrackPools.$inferSelect;
 export type DailyPuzzleStart = typeof dailyPuzzleStarts.$inferSelect;
 export type AppSetting = typeof appSettings.$inferSelect;
 export type SurvivalRun = typeof survivalRuns.$inferSelect;
+export type Duel = typeof duels.$inferSelect;

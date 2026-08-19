@@ -1,6 +1,7 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ChallengeRunner } from '../features/challenge/ChallengeRunner';
+import { getChallengeSummary } from '../api/challenges';
 import { ChallengeSummary } from '../features/challenge/ChallengeSummary';
 import { useChallengeGameState } from '../features/challenge/useChallengeGameState';
 import {
@@ -11,6 +12,45 @@ import {
   searchCategoryTracks,
   submitCategoryGuess,
 } from '../api/categories';
+
+/**
+ * The sender's score on a shared challenge, so the run can show what it is chasing.
+ *
+ * Only fetched for a shared link: a self-started run has no opponent, and asking would be a
+ * request per run for an answer that is always null.
+ */
+function useDuel(challengeId: number | undefined) {
+  const [duel, setDuel] = useState<{
+    displayName: string;
+    songsCorrect: number;
+    totalRounds: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (challengeId == null) {
+      setDuel(null);
+      return;
+    }
+    let cancelled = false;
+    getChallengeSummary(challengeId)
+      .then((summary) => {
+        if (cancelled || !summary.challenger) return;
+        setDuel({
+          displayName: summary.challenger.displayName,
+          songsCorrect: summary.challenger.songsCorrect,
+          totalRounds: summary.totalRounds,
+        });
+      })
+      .catch(() => {
+        // The banner is a nicety; a failed lookup just means the run plays without it.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [challengeId]);
+
+  return duel;
+}
 
 export function CategoryPlayPage() {
   const { categoryId = '' } = useParams<{ categoryId: string }>();
@@ -35,6 +75,7 @@ export function CategoryPlayPage() {
     [categoryId],
   );
 
+  const duel = useDuel(urlChallengeId);
   const game = useChallengeGameState(endpoints, guessMode, urlChallengeId);
   const { challenge, finalScore } = game;
   const challengeId = challenge?.challengeId;
@@ -61,6 +102,7 @@ export function CategoryPlayPage() {
       guessMode={guessMode}
       searchFn={searchThisCategory}
       slowLoadHint="Pulling together this playlist. This only takes a moment the first time."
+      duel={duel}
       fallback={{ to: '/categories', label: 'Pick another category' }}
       summary={
         challenge ? (

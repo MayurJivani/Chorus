@@ -27,6 +27,7 @@ import {
   buildRoundOptions,
   getArtistLeaderboard,
   getArtistGuessDistribution,
+  getChallengeSummary,
   evictAbandonedChallenges,
   resolvePlayableRound,
   loadChallengeTracks,
@@ -254,14 +255,14 @@ describe('buildRoundOptions', () => {
   });
 });
 
-describe('getArtistLeaderboard', () => {
-  /** The board only lists registered accounts, so ranking fixtures need real users. */
-  async function seedUser(id: string, displayName: string) {
-    await db
-      .insert(users)
-      .values({ id, email: `${id}@example.test`, passwordHash: 'x', displayName });
-  }
+/** Fixtures that need a real account, since boards only list registered users. */
+async function seedUser(id: string, displayName: string) {
+  await db
+    .insert(users)
+    .values({ id, email: `${id}@example.test`, passwordHash: 'x', displayName });
+}
 
+describe('getArtistLeaderboard', () => {
   /** Plays a whole run to completion for one player, at a fixed guess cost per round. */
   async function playRun(
     challengeId: number,
@@ -628,5 +629,59 @@ describe('configurable run length', () => {
     expect(result.sessionComplete).toBe(true);
     expect(result.totalRounds).toBe(4);
     expect(result.songsCorrect).toBe(4);
+  });
+});
+
+describe('getChallengeSummary', () => {
+  it('reports the first finisher as the score to beat', async () => {
+    const { challenge } = await getOrCreateArtistChallenge(412, 'duel-1');
+    await seedUser('first', 'Ada');
+    await seedUser('second', 'Grace');
+
+    const ada = await getOrCreateSessionProgress(challenge.id, { userId: 'first', guestId: null });
+    for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1) {
+      await recordArtistRoundResult(ada.id, i < 7, 1, 1);
+    }
+
+    // Grace finishes later with a better score; the opponent must stay whoever sent the link.
+    const grace = await getOrCreateSessionProgress(challenge.id, {
+      userId: 'second',
+      guestId: null,
+    });
+    for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1) {
+      await recordArtistRoundResult(grace.id, true, 1, 1);
+    }
+
+    const summary = await getChallengeSummary(challenge.id);
+
+    expect(summary?.challenger).toMatchObject({ displayName: 'Ada', songsCorrect: 7 });
+    expect(summary?.totalRounds).toBe(ARTIST_CHALLENGE_SIZE);
+    expect(summary?.label).toBe('Queen');
+  });
+
+  it('has no challenger until somebody finishes', async () => {
+    const { challenge } = await getOrCreateArtistChallenge(412, 'duel-2');
+    await getOrCreateSessionProgress(challenge.id, { userId: null, guestId: 'halfway' });
+
+    const summary = await getChallengeSummary(challenge.id);
+    expect(summary?.challenger).toBeNull();
+  });
+
+  it('counts a guest sender, who is identified by the link rather than an account', async () => {
+    const { challenge } = await getOrCreateArtistChallenge(412, 'duel-3');
+    const session = await getOrCreateSessionProgress(challenge.id, {
+      userId: null,
+      guestId: 'sender',
+    });
+    for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1) {
+      await recordArtistRoundResult(session.id, i < 4, 1, 1);
+    }
+
+    const summary = await getChallengeSummary(challenge.id);
+    expect(summary?.challenger).toMatchObject({ displayName: 'A friend', songsCorrect: 4 });
+  });
+
+  it('is null for a challenge that does not exist', async () => {
+    expect(await getChallengeSummary(999999)).toBeNull();
   });
 });

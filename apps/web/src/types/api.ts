@@ -279,6 +279,64 @@ export interface Category {
   blurb: string;
 }
 
+/** A shared challenge and the score its sender set, if they have finished it. */
+export interface ChallengeSummary {
+  challengeId: number;
+  sourceType: 'artist' | 'category' | 'era';
+  label: string;
+  totalRounds: number;
+  challenger: {
+    displayName: string;
+    songsCorrect: number;
+    totalGuessesUsed: number;
+    timeTakenSeconds: number | null;
+  } | null;
+}
+
+// --- Duels -------------------------------------------------------------------------------
+
+export interface DuelRun {
+  songsCorrect: number;
+  totalGuessesUsed: number;
+  timeTakenSeconds: number | null;
+}
+
+export interface DuelPlayer {
+  userId: string;
+  displayName: string;
+  rating: number;
+  /** Null until they finish. A duel in progress does not reveal a partial score. */
+  result: DuelRun | null;
+}
+
+export interface DuelView {
+  id: number;
+  challengeId: number;
+  status: 'open' | 'complete';
+  label: string;
+  sourceType: string;
+  sourceId: string;
+  totalRounds: number;
+  challenger: DuelPlayer;
+  opponent: DuelPlayer | null;
+  /** Null on a draw as well as before settlement; check `status` to tell them apart. */
+  winnerId: string | null;
+  ratingChange: { challenger: number; opponent: number } | null;
+}
+
+export interface RatingStanding {
+  rank: number;
+  displayName: string;
+  rating: number;
+  ratedDuels: number;
+  isYou: boolean;
+}
+
+export interface RatingLeaderboard {
+  entries: RatingStanding[];
+  isRegistered: boolean;
+}
+
 // --- Era Mode -----------------------------------------------------------------------------
 
 export interface EraRound {

@@ -63,7 +63,16 @@ const MODES: { to: string; icon: string; title: string; blurb: string }[] = [
     title: 'Multiplayer',
     blurb: 'Race friends in real time.',
   },
+  {
+    to: '/duels',
+    icon: '⚔️',
+    title: 'Duels',
+    blurb: 'Rated 1v1. Same ten songs, best score wins.',
+  },
 ];
+
+/** Spelled out rather than a digit, and derived so the heading can't drift from the grid. */
+const NUMBER_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
 
 export function HomePage() {
   const countdown = useCountdownToNextPuzzle();
@@ -115,33 +124,43 @@ export function HomePage() {
         </div>
       </motion.div>
 
-      <motion.div
+      <motion.section
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        className="flex w-full flex-col gap-4"
       >
-        {MODES.map((mode) => (
-          <Link
-            key={mode.to}
-            to={mode.to}
-            className="glass group flex flex-col gap-3 rounded-2xl border border-white/10 p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25"
-          >
-            <span
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-xl"
-              aria-hidden="true"
+        <div className="flex items-center gap-3">
+          <span className="h-px flex-1 bg-gradient-to-r from-transparent to-white/15" />
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-purple-400">
+            {NUMBER_WORDS[MODES.length + 1] ?? MODES.length + 1} ways to play
+          </h2>
+          <span className="h-px flex-1 bg-gradient-to-l from-transparent to-white/15" />
+        </div>
+
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {MODES.map((mode) => (
+            <Link
+              key={mode.to}
+              to={mode.to}
+              className="glass group flex flex-col gap-3 rounded-2xl border border-white/10 p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25"
             >
-              {mode.icon}
-            </span>
-            <span>
-              <span className="block font-bold text-white">{mode.title}</span>
-              <span className="mt-1 block text-sm leading-relaxed text-slate-400">
-                {mode.blurb}
+              <span
+                className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-xl"
+                aria-hidden="true"
+              >
+                {mode.icon}
               </span>
-            </span>
-          </Link>
-        ))}
-      </motion.div>
+              <span>
+                <span className="block font-bold text-white">{mode.title}</span>
+                <span className="mt-1 block text-sm leading-relaxed text-slate-400">
+                  {mode.blurb}
+                </span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </motion.section>
     </div>
   );
 }
