@@ -2,6 +2,7 @@ import { apiRequest } from './client';
 import type {
   ArtistChallengeResponse,
   ArtistGuessResult,
+  ArtistLeaderboardEntry,
   ArtistLeaderboardResponse,
   Category,
   GuessDistributionResponse,
@@ -64,7 +65,7 @@ export function getCategoryLeaderboard(categoryId: string): Promise<ArtistLeader
 export function getCategoryChallengeLeaderboard(
   categoryId: string,
   challengeId: number,
-): Promise<{ entries: ArtistLeaderboardResponse['entries'] }> {
+): Promise<{ entries: ArtistLeaderboardEntry[] }> {
   return apiRequest(
     `/categories/${encodeURIComponent(categoryId)}/challenge/${challengeId}/leaderboard`,
   );

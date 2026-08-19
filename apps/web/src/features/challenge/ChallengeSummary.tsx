@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { ChallengeLeaderboard } from './ChallengeLeaderboard';
+import { SourceStandings, ChallengeStandings } from './ChallengeLeaderboard';
 import { ChallengeGuessDistribution } from './ChallengeGuessDistribution';
 import { useSession } from '../../hooks/useSession';
-import type { ArtistLeaderboardEntry, GuessDistributionBucket } from '../../types/api';
+import type {
+  ArtistLeaderboardEntry,
+  GuessDistributionBucket,
+  SourceStanding,
+} from '../../types/api';
 
 interface ChallengeSummaryProps {
   /** The artist's name or the category's label. */
@@ -17,13 +21,8 @@ interface ChallengeSummaryProps {
   /** Absolute URL that re-opens this exact challenge. Omitted when there's nothing to share. */
   shareUrl?: string;
   loadLeaderboard: () => Promise<{
-    entries: ArtistLeaderboardEntry[];
-    myBest: {
-      songsCorrect: number;
-      totalRounds: number;
-      totalGuessesUsed: number;
-      timeTakenSeconds: number | null;
-    } | null;
+    entries: SourceStanding[];
+    mine: Omit<SourceStanding, 'rank' | 'displayName' | 'isYou'> | null;
   }>;
   loadChallengeLeaderboard?: (() => Promise<{ entries: ArtistLeaderboardEntry[] }>) | null;
   loadDistribution: () => Promise<GuessDistributionBucket[]>;
@@ -112,11 +111,13 @@ export function ChallengeSummary({
         </div>
       )}
 
-      <ChallengeLeaderboard
-        loadOverall={loadLeaderboard}
-        loadForChallenge={loadChallengeLeaderboard}
-        subjectName={subjectName}
-      />
+      {/* A shared link's own board replaces the artist board: the people who played this exact
+          challenge are the comparison that matters, and they all played the same songs. */}
+      {loadChallengeLeaderboard ? (
+        <ChallengeStandings load={loadChallengeLeaderboard} />
+      ) : (
+        <SourceStandings load={loadLeaderboard} subjectName={subjectName} />
+      )}
 
       <ChallengeGuessDistribution load={loadDistribution} />
 

@@ -262,53 +262,146 @@ describe('getArtistLeaderboard', () => {
       .values({ id, email: `${id}@example.test`, passwordHash: 'x', displayName });
   }
 
-  it('ranks by songs correct desc, then fewer guesses, and flags the caller', async () => {
-    const { challenge } = await getOrCreateArtistChallenge(412, '2026-01-01');
+  /** Plays a whole run to completion for one player, at a fixed guess cost per round. */
+  async function playRun(
+    challengeId: number,
+    identity: { userId: string | null; guestId: string | null },
+    opts: { correctRounds: number; guessesPerRound: number; timeTakenSeconds: number },
+  ) {
+    const session = await getOrCreateSessionProgress(challengeId, identity);
+    for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1) {
+      await recordArtistRoundResult(
+        session.id,
+        i < opts.correctRounds,
+        opts.guessesPerRound,
+        opts.guessesPerRound,
+      );
+    }
+    // Wall-clock timing is not deterministic enough to order fixtures by, so pin it.
+    await db
+      .update(artistSessionResults)
+      .set({ timeTakenSeconds: opts.timeTakenSeconds })
+      .where(eq(artistSessionResults.id, session.id));
+    return session;
+  }
+
+  it('ranks by total songs correct, so playing more counts', async () => {
     await seedUser('user-a', 'Ada');
     await seedUser('user-b', 'Grace');
 
-    const playerA = await getOrCreateSessionProgress(challenge.id, {
-      userId: 'user-a',
-      guestId: null,
-    });
-    const playerB = await getOrCreateSessionProgress(challenge.id, {
-      userId: 'user-b',
-      guestId: null,
+    // Grace has the single best run (10/10) but only one of them.
+    const first = await getOrCreateArtistChallenge(412, 'lb-1');
+    await playRun(
+      first.challenge.id,
+      { userId: 'user-b', guestId: null },
+      {
+        correctRounds: 10,
+        guessesPerRound: 1,
+        timeTakenSeconds: 10,
+      },
+    );
+
+    // Ada never matches it, but two solid runs total more songs named.
+    for (const date of ['lb-2', 'lb-3']) {
+      const { challenge } = await getOrCreateArtistChallenge(412, date);
+      await playRun(
+        challenge.id,
+        { userId: 'user-a', guestId: null },
+        {
+          correctRounds: 7,
+          guessesPerRound: 2,
+          timeTakenSeconds: 30,
+        },
+      );
+    }
+
+    const { entries } = await getArtistLeaderboard(412, { userId: 'user-a', guestId: null });
+
+    // The regression this guards: best-of ranking put Grace first for one lucky draw, which is
+    // exactly what made replaying until you drew an easy set the winning strategy.
+    expect(entries[0]?.displayName).toBe('Ada');
+    expect(entries[0]).toMatchObject({ songsCorrect: 14, runs: 2, bestRun: 7, isYou: true });
+    expect(entries[1]).toMatchObject({ displayName: 'Grace', songsCorrect: 10, runs: 1 });
+  });
+
+  it('reports accuracy against the rounds actually played', async () => {
+    await seedUser('user-a', 'Ada');
+    const { challenge } = await getOrCreateArtistChallenge(412, 'lb-acc');
+    await playRun(
+      challenge.id,
+      { userId: 'user-a', guestId: null },
+      {
+        correctRounds: 6,
+        guessesPerRound: 1,
+        timeTakenSeconds: 40,
+      },
+    );
+
+    const { entries } = await getArtistLeaderboard(412, { userId: 'user-a', guestId: null });
+    expect(entries[0]).toMatchObject({ songsCorrect: 6, songsPossible: 10, accuracy: 60 });
+  });
+
+  it('breaks ties on total guesses, then average time', async () => {
+    await seedUser('user-a', 'Ada');
+    await seedUser('user-b', 'Grace');
+
+    const a = await getOrCreateArtistChallenge(412, 'tie-a');
+    await playRun(
+      a.challenge.id,
+      { userId: 'user-a', guestId: null },
+      {
+        correctRounds: 10,
+        guessesPerRound: 2,
+        timeTakenSeconds: 20,
+      },
+    );
+    const b = await getOrCreateArtistChallenge(412, 'tie-b');
+    await playRun(
+      b.challenge.id,
+      { userId: 'user-b', guestId: null },
+      {
+        correctRounds: 10,
+        guessesPerRound: 1,
+        timeTakenSeconds: 90,
+      },
+    );
+
+    const { entries } = await getArtistLeaderboard(412, { userId: null, guestId: 'nobody' });
+    // Same total correct; Grace used fewer guesses, which outranks her slower time.
+    expect(entries.map((e) => e.displayName)).toEqual(['Grace', 'Ada']);
+  });
+
+  it('gives a guest their own totals even though they are never ranked', async () => {
+    const { challenge } = await getOrCreateArtistChallenge(412, 'lb-guest');
+    await playRun(
+      challenge.id,
+      { userId: null, guestId: 'guest-solo' },
+      {
+        correctRounds: 8,
+        guessesPerRound: 1,
+        timeTakenSeconds: 45,
+      },
+    );
+
+    const { entries, mine } = await getArtistLeaderboard(412, {
+      userId: null,
+      guestId: 'guest-solo',
     });
 
-    for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1)
-      await recordArtistRoundResult(playerA.id, true, 2, 2); // 10/10, 20 guesses
-    for (let i = 0; i < ARTIST_CHALLENGE_SIZE; i += 1)
-      await recordArtistRoundResult(playerB.id, true, 1, 1); // 10/10, 10 guesses
-
-    // Wall-clock rounding can flip the time comparison, so pin each player's stored time to
-    // keep the expected order (time-then-guesses) deterministic.
-    await db
-      .update(artistSessionResults)
-      .set({ timeTakenSeconds: 20 })
-      .where(eq(artistSessionResults.id, playerA.id));
-    await db
-      .update(artistSessionResults)
-      .set({ timeTakenSeconds: 10 })
-      .where(eq(artistSessionResults.id, playerB.id));
-
-    const { entries, myBest } = await getArtistLeaderboard(412, {
-      userId: 'user-b',
-      guestId: null,
+    expect(entries).toHaveLength(0);
+    expect(mine).toMatchObject({
+      runs: 1,
+      songsCorrect: 8,
+      songsPossible: 10,
+      accuracy: 80,
+      bestRun: 8,
+      fastestRunSeconds: 45,
     });
+  });
 
-    expect(entries[0]?.displayName).toBe('Grace');
-    expect(entries[0]?.totalGuessesUsed).toBe(10); // Grace (fewer guesses) ranks first
-    expect(entries[0]?.isYou).toBe(true);
-    expect(entries[1]?.displayName).toBe('Ada');
-    expect(entries[1]?.isYou).toBe(false);
-    expect(myBest).toEqual({
-      songsCorrect: 10,
-      // Carried so a score can be read without assuming ten rounds — run length is a setting.
-      totalRounds: 10,
-      totalGuessesUsed: 10,
-      timeTakenSeconds: 10,
-    });
+  it('returns no totals for someone who has never finished a run', async () => {
+    const { mine } = await getArtistLeaderboard(412, { userId: null, guestId: 'never-played' });
+    expect(mine).toBeNull();
   });
 
   it('only counts completed sessions', async () => {

@@ -150,14 +150,24 @@ export interface ArtistLeaderboardEntry {
   isYou: boolean;
 }
 
+/** One player's cumulative record for a single artist or category. */
+export interface SourceStanding {
+  rank: number;
+  displayName: string;
+  runs: number;
+  songsCorrect: number;
+  songsPossible: number;
+  accuracy: number;
+  bestRun: number;
+  averageTimeSeconds: number | null;
+  fastestRunSeconds: number | null;
+  isYou: boolean;
+}
+
 export interface ArtistLeaderboardResponse {
-  entries: ArtistLeaderboardEntry[];
-  myBest: {
-    songsCorrect: number;
-    totalRounds: number;
-    totalGuessesUsed: number;
-    timeTakenSeconds: number | null;
-  } | null;
+  entries: SourceStanding[];
+  /** The caller's own totals — present for guests too, who are never ranked. */
+  mine: Omit<SourceStanding, 'rank' | 'displayName' | 'isYou'> | null;
 }
 
 export interface ChallengeLeaderboardResponse {

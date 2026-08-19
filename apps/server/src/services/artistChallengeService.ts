@@ -619,18 +619,75 @@ function buildLeaderboardEntries(rows: LeaderboardRow[], myKey: string): ArtistL
   }));
 }
 
-export interface SourceLeaderboard {
-  entries: ArtistLeaderboardEntry[];
-  myBest: {
-    songsCorrect: number;
-    totalRounds: number;
-    totalGuessesUsed: number;
-    timeTakenSeconds: number | null;
-  } | null;
+export interface SourceStanding {
+  rank: number;
+  displayName: string;
+  /** Completed runs for this artist/category. */
+  runs: number;
+  songsCorrect: number;
+  songsPossible: number;
+  accuracy: number;
+  bestRun: number;
+  averageTimeSeconds: number | null;
+  fastestRunSeconds: number | null;
+  isYou: boolean;
 }
 
+export interface SourceLeaderboard {
+  entries: SourceStanding[];
+  /** The caller's own totals, shown even when they are a guest and therefore unranked. */
+  mine: Omit<SourceStanding, 'rank' | 'displayName' | 'isYou'> | null;
+}
+
+interface StandingRow {
+  ownerKey: string;
+  displayName: string | null;
+  runs: number;
+  songsCorrect: number;
+  songsPossible: number;
+  bestRun: number;
+  avgTime: string | null;
+  fastestRun: number | null;
+}
+
+function toStanding(row: StandingRow, index: number, myKey: string): SourceStanding {
+  return {
+    rank: index + 1,
+    displayName: row.displayName ?? 'Player',
+    runs: row.runs,
+    songsCorrect: row.songsCorrect,
+    songsPossible: row.songsPossible,
+    accuracy: row.songsPossible > 0 ? Math.round((row.songsCorrect / row.songsPossible) * 100) : 0,
+    bestRun: row.bestRun,
+    // AVG returns numeric, which postgres-js hands back as a string — parse rather than trust
+    // the row type, which is only an assertion.
+    averageTimeSeconds: row.avgTime == null ? null : Math.round(Number(row.avgTime)),
+    fastestRunSeconds: row.fastestRun,
+    isYou: row.ownerKey === myKey,
+  };
+}
+
+/** The aggregate columns, shared by the ranked board and the caller's own row so the two can
+ *  never disagree about what "your total" means. */
+const STANDING_COLUMNS = sql`
+  COUNT(*)::int                              AS "runs",
+  COALESCE(SUM(r.songs_correct), 0)::int     AS "songsCorrect",
+  COALESCE(SUM(c.total_rounds), 0)::int      AS "songsPossible",
+  COALESCE(MAX(r.songs_correct), 0)::int     AS "bestRun",
+  AVG(r.time_taken_seconds)                  AS "avgTime",
+  MIN(r.time_taken_seconds)::int             AS "fastestRun"
+`;
+
 /**
- * Best run per player for one artist or category, across every challenge built from it.
+ * Standings for one artist or category, ranked by cumulative play rather than a single best run.
+ *
+ * Best-of ranking rewarded whoever replayed most: every visit builds a freshly randomized
+ * challenge, so a player could keep rolling until they drew ten singles instead of ten deep cuts
+ * and bank that one lucky run forever. Totals remove the incentive — there is no draw worth
+ * fishing for when every run counts — and they are also fair across *different* draws in a way
+ * single-run comparison never was, because variance averages out over a player's history.
+ *
+ * Ties break toward the player who needed fewer guesses, then the faster one.
  *
  * Scoped by `source_type` as well as id. Slugs and numeric artist ids cannot collide today, but
  * relying on that would make the board silently wrong the first time a category is ever named
@@ -643,64 +700,63 @@ export async function getSourceLeaderboard(
   limit = 20,
 ): Promise<SourceLeaderboard> {
   const rows = (await db.execute(sql`
-    SELECT owner_key as "ownerKey", display_name as "displayName", songs_correct as "songsCorrect",
-           total_rounds as "totalRounds", total_guesses_used as "totalGuessesUsed",
-           time_taken_seconds as "timeTakenSeconds"
-    FROM (
-      SELECT
-        COALESCE(r.user_id, r.guest_id) as owner_key,
-        u.display_name,
-        r.songs_correct,
-        c.total_rounds,
-        r.total_guesses_used,
-        r.time_taken_seconds,
-        ROW_NUMBER() OVER (
-          PARTITION BY COALESCE(r.user_id, r.guest_id)
-          ORDER BY r.songs_correct DESC, r.time_taken_seconds ASC NULLS LAST, r.total_guesses_used ASC
-        ) as rn
-      FROM artist_session_results r
-      JOIN artist_challenges c ON c.id = r.challenge_id
-      JOIN users u ON u.id = r.user_id
-      WHERE c.deezer_artist_id = ${sourceId}
-        AND c.source_type = ${sourceType}
-        AND r.completed = true
-        AND r.user_id IS NOT NULL
-    ) ranked
-    WHERE rn = 1
-    ORDER BY "songsCorrect" DESC, "timeTakenSeconds" ASC NULLS LAST, "totalGuessesUsed" ASC
+    SELECT
+      COALESCE(r.user_id, r.guest_id) AS "ownerKey",
+      u.display_name                  AS "displayName",
+      ${STANDING_COLUMNS}
+    FROM artist_session_results r
+    JOIN artist_challenges c ON c.id = r.challenge_id
+    JOIN users u ON u.id = r.user_id
+    WHERE c.deezer_artist_id = ${sourceId}
+      AND c.source_type = ${sourceType}
+      AND r.completed = true
+      AND r.user_id IS NOT NULL
+    GROUP BY COALESCE(r.user_id, r.guest_id), u.display_name
+    ORDER BY
+      "songsCorrect" DESC,
+      COALESCE(SUM(r.total_guesses_used), 0) ASC,
+      AVG(r.time_taken_seconds) ASC NULLS LAST
     LIMIT ${limit}
-  `)) as unknown as LeaderboardRow[];
+  `)) as unknown as StandingRow[];
 
   const myKey = identity.userId ?? identity.guestId ?? '';
-  const entries = buildLeaderboardEntries(rows, myKey);
+  const entries = rows.map((row, index) => toStanding(row, index, myKey));
 
-  const myBestRows = await db
-    .select({
-      songsCorrect: artistSessionResults.songsCorrect,
-      totalRounds: artistChallenges.totalRounds,
-      totalGuessesUsed: artistSessionResults.totalGuessesUsed,
-      timeTakenSeconds: artistSessionResults.timeTakenSeconds,
-    })
-    .from(artistSessionResults)
-    .innerJoin(artistChallenges, eq(artistChallenges.id, artistSessionResults.challengeId))
-    .where(
-      and(
-        eq(artistChallenges.deezerArtistId, sourceId),
-        eq(artistChallenges.sourceType, sourceType),
-        eq(artistSessionResults.completed, true),
-        identity.userId
-          ? eq(artistSessionResults.userId, identity.userId)
-          : eq(artistSessionResults.guestId, identity.guestId ?? ''),
-      ),
-    )
-    .orderBy(desc(artistSessionResults.songsCorrect), asc(artistSessionResults.totalGuessesUsed))
-    .limit(1);
-  const myBestRow = myBestRows[0];
+  // Guests never appear on the board, but they still see their own totals — the result screen
+  // would otherwise show them nothing at all about an artist they have played for weeks.
+  const mineRows = (await db.execute(sql`
+    SELECT ${STANDING_COLUMNS}
+    FROM artist_session_results r
+    JOIN artist_challenges c ON c.id = r.challenge_id
+    WHERE c.deezer_artist_id = ${sourceId}
+      AND c.source_type = ${sourceType}
+      AND r.completed = true
+      AND COALESCE(r.user_id, r.guest_id) = ${myKey}
+  `)) as unknown as Omit<StandingRow, 'ownerKey' | 'displayName'>[];
 
-  return { entries, myBest: myBestRow ?? null };
+  // There is no GROUP BY above, so this aggregate always returns exactly one row — with zero
+  // runs when the player has never finished one, which is not a standing worth showing.
+  const mineRow = mineRows[0];
+  const mine =
+    mineRow && mineRow.runs > 0
+      ? {
+          runs: mineRow.runs,
+          songsCorrect: mineRow.songsCorrect,
+          songsPossible: mineRow.songsPossible,
+          accuracy:
+            mineRow.songsPossible > 0
+              ? Math.round((mineRow.songsCorrect / mineRow.songsPossible) * 100)
+              : 0,
+          bestRun: mineRow.bestRun,
+          averageTimeSeconds: mineRow.avgTime == null ? null : Math.round(Number(mineRow.avgTime)),
+          fastestRunSeconds: mineRow.fastestRun,
+        }
+      : null;
+
+  return { entries, mine };
 }
 
-/** Global per-artist leaderboard — best run per player across all challenges for this artist. */
+/** Global per-artist standings — see `getSourceLeaderboard` for how they are ranked. */
 export async function getArtistLeaderboard(
   artistId: number,
   identity: Identity,

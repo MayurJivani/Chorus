@@ -243,22 +243,21 @@ describe('GET /api/artists/:artistId/leaderboard', () => {
     expect(leaderboard.status).toBe(200);
     // The board lists registered accounts only — a guest identity is just a cookie, so it is
     // neither stable nor attributable enough to rank. Their own score still comes back as
-    // `myBest`, which is what the result screen shows them.
+    // `mine`, which is what the result screen shows them.
     expect(leaderboard.body.entries).toHaveLength(0);
-    expect(leaderboard.body.myBest).toEqual({
+    expect(leaderboard.body.mine).toMatchObject({
+      runs: 1,
       songsCorrect: 10,
-      // Carried so the client can render "10/10" without assuming every run is ten songs —
-      // the run length is an admin setting.
-      totalRounds: 10,
-      totalGuessesUsed: 10,
-      timeTakenSeconds: expect.any(Number),
+      songsPossible: 10,
+      accuracy: 100,
+      bestRun: 10,
     });
   });
 
   it('is empty for an artist nobody has completed yet', async () => {
     const res = await request(app).get('/api/artists/412/leaderboard');
     expect(res.body.entries).toEqual([]);
-    expect(res.body.myBest).toBeNull();
+    expect(res.body.mine).toBeNull();
   });
 });
 

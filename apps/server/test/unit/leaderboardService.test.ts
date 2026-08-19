@@ -263,7 +263,7 @@ describe('per-artist leaderboard', () => {
     expect(entries[0]?.displayName).toBe('Ada');
   });
 
-  it('keeps a guest their own myBest, so they still see their score', async () => {
+  it('keeps a guest their own totals, so they still see their record', async () => {
     await seedRun({
       artistId: '412',
       artistName: 'Queen',
@@ -274,9 +274,9 @@ describe('per-artist leaderboard', () => {
       timeTakenSeconds: 20,
     });
 
-    const { entries, myBest } = await getArtistLeaderboard(412, guestIdentity);
+    const { entries, mine } = await getArtistLeaderboard(412, guestIdentity);
 
     expect(entries).toHaveLength(0);
-    expect(myBest?.songsCorrect).toBe(10);
+    expect(mine?.songsCorrect).toBe(10);
   });
 });
