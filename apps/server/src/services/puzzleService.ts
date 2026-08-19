@@ -2,10 +2,33 @@ import { and, asc, desc, eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { dailyPuzzles, dailyPuzzleStarts, songs } from '../db/schema';
 import { hashString } from '../utils/deterministic';
+import { getSettings } from './settingsService';
 
-/** Seconds of audio revealed at each guess stage — six stages for six guesses, Heardle-style. */
+/**
+ * The default snippet schedule: seconds of audio revealed at each guess stage, Heardle-style.
+ *
+ * Kept as a constant because it is the fallback the settings service returns when nothing is
+ * stored, and because a few places (request validation built at import time) need *some* bound
+ * before any await is possible. The live schedule comes from `getSnippetSchedule()`.
+ */
 export const SNIPPET_SCHEDULE_SECONDS = [1, 2, 4, 7, 11, 16] as const;
 export const MAX_GUESSES = SNIPPET_SCHEDULE_SECONDS.length;
+
+/** The largest guess count any schedule may produce; bounds request validation, which cannot
+ *  await the current setting. Anything above the live schedule length is rejected afterwards. */
+export const MAX_GUESSES_LIMIT = 10;
+
+/** The snippet schedule currently in force. */
+export async function getSnippetSchedule(): Promise<number[]> {
+  return (await getSettings()).snippetScheduleSeconds;
+}
+
+/** Seconds of audio a given (1-based) guess number is allowed to hear. */
+export function snippetSecondsForGuess(guessNumber: number, schedule: readonly number[]): number {
+  return (
+    schedule[Math.min(guessNumber, schedule.length) - 1] ?? schedule[schedule.length - 1] ?? 16
+  );
+}
 
 export function getUtcDateString(date: Date = new Date()): string {
   return date.toISOString().slice(0, 10);
@@ -49,7 +72,8 @@ export async function getOrCreateDailyPuzzle(puzzleDate: string) {
   // would often be something most players have never heard. The chart sync still keeps the
   // bank fresh; it just doesn't decide the daily. If curation hasn't run yet, fall back to
   // every active song so the game degrades instead of failing.
-  const curatedSongs = await selectPool(true);
+  const { dailyCuratedOnly } = await getSettings();
+  const curatedSongs = dailyCuratedOnly ? await selectPool(true) : [];
   const activeSongs = curatedSongs.length > 0 ? curatedSongs : await selectPool(false);
   if (activeSongs.length === 0) {
     throw new Error('No active songs available to build a daily puzzle');

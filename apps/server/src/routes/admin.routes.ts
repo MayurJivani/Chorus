@@ -1,22 +1,32 @@
 /**
- * Admin tools for the daily challenge schedule.
+ * The admin command centre: dashboard metrics, runtime game settings, and the daily schedule.
  *
- * The daily puzzle is normally picked automatically — `getOrCreateDailyPuzzle` hashes the date
- * into the curated song bank — which is fine until a specific day needs a specific song, or a
- * song turns out to be a bad pick. These routes make the schedule visible and editable without
- * anyone having to open a psql prompt.
- *
- * Two rules run through everything here:
+ * Two rules run through the schedule endpoints:
  *  - A puzzle that people have already played is *history*, not schedule. Editing or deleting it
  *    would orphan or silently rewrite their results, so it is refused outright.
  *  - The past is never editable, even if unplayed, because there is nothing to gain from it.
+ *
+ * Settings are validated against the registry in `settingsService`, which is also what the
+ * dashboard renders its controls from — so what the UI offers and what the server accepts come
+ * from one definition and cannot drift.
  */
 import { Router } from 'express';
 import { z } from 'zod';
-import { and, asc, desc, eq, gte, ilike, or, sql } from 'drizzle-orm';
+import { asc, desc, eq, gte, ilike, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { dailyPuzzles, gameResults, songs } from '../db/schema';
+import { dailyPuzzles, gameResults, songs, users } from '../db/schema';
 import { getUtcDateString } from '../services/puzzleService';
+import {
+  describeSettings,
+  resetSetting,
+  updateSettings,
+  SettingsError,
+  SETTING_KEYS,
+  type SettingKey,
+  type SettingUpdate,
+} from '../services/settingsService';
+import { getMostPlayedArtists, getMostPlayedCategories } from '../services/leaderboardService';
+import { activeRoomCount } from '../services/multiplayerService';
 import { requireAdmin } from '../middleware/requireAdmin';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -214,27 +224,126 @@ adminRouter.patch(
   }),
 );
 
-/** Headline counts, so the admin page can show whether curation is in a healthy state. */
-adminRouter.get(
-  '/overview',
-  asyncHandler(async (_req, res) => {
-    const rows = await db
-      .select({
-        total: sql<number>`COUNT(*)::int`,
-        active: sql<number>`COUNT(*) FILTER (WHERE ${songs.active})::int`,
-        curated: sql<number>`COUNT(*) FILTER (WHERE ${songs.active} AND ${songs.manualOverride})::int`,
-      })
-      .from(songs);
+// --- Settings ---------------------------------------------------------------------------
 
-    const scheduled = await db
-      .select({ count: sql<number>`COUNT(*)::int` })
-      .from(dailyPuzzles)
-      .where(and(gte(dailyPuzzles.puzzleDate, getUtcDateString())));
+/** Every tunable, with its current value, its default and how to render its control. */
+adminRouter.get(
+  '/settings',
+  asyncHandler(async (_req, res) => {
+    res.json({ settings: await describeSettings() });
+  }),
+);
+
+const settingsPatchSchema = z.object({
+  // `unknown` here on purpose: each value is validated by its own schema in the settings
+  // registry, which is the only place that knows what shape a given key takes.
+  updates: z
+    .array(z.object({ key: z.string().min(1), value: z.unknown() }))
+    .min(1)
+    .max(SETTING_KEYS.length),
+});
+
+adminRouter.patch(
+  '/settings',
+  validate(settingsPatchSchema),
+  asyncHandler(async (req, res) => {
+    const { updates } = req.body as z.infer<typeof settingsPatchSchema>;
+
+    try {
+      await updateSettings(updates as SettingUpdate[], req.session.userId ?? null);
+    } catch (err) {
+      if (err instanceof SettingsError) throw new HttpError(400, err.message);
+      throw err;
+    }
+
+    res.json({ settings: await describeSettings() });
+  }),
+);
+
+adminRouter.post(
+  '/settings/:key/reset',
+  validate(z.object({ key: z.string().min(1) }), 'params'),
+  asyncHandler(async (req, res) => {
+    const { key } = req.params as { key: string };
+    try {
+      await resetSetting(key as SettingKey);
+    } catch (err) {
+      if (err instanceof SettingsError) throw new HttpError(404, err.message);
+      throw err;
+    }
+    res.json({ settings: await describeSettings() });
+  }),
+);
+
+// --- Dashboard --------------------------------------------------------------------------
+
+/**
+ * The command-centre view: what the game is made of, what people are doing with it, and how the
+ * caches are holding up. One endpoint rather than several so the page renders in one round trip
+ * and every number is from the same instant.
+ */
+adminRouter.get(
+  '/dashboard',
+  asyncHandler(async (_req, res) => {
+    const [content, players, activity, caches, topArtists, topCategories] = await Promise.all([
+      db
+        .select({
+          total: sql<number>`COUNT(*)::int`,
+          active: sql<number>`COUNT(*) FILTER (WHERE ${songs.active})::int`,
+          curated: sql<number>`COUNT(*) FILTER (WHERE ${songs.active} AND ${songs.manualOverride})::int`,
+        })
+        .from(songs),
+
+      db
+        .select({
+          total: sql<number>`COUNT(*)::int`,
+          admins: sql<number>`COUNT(*) FILTER (WHERE ${users.isAdmin})::int`,
+          newThisWeek: sql<number>`COUNT(*) FILTER (WHERE ${users.createdAt} > now() - interval '7 days')::int`,
+          activeThisWeek: sql<number>`COUNT(*) FILTER (WHERE ${users.lastLoginAt} > now() - interval '7 days')::int`,
+        })
+        .from(users),
+
+      db.execute(sql`
+        SELECT
+          (SELECT COUNT(*) FROM game_results WHERE created_at > now() - interval '1 day')::int
+            AS "dailyPlays24h",
+          (SELECT COUNT(*) FROM game_results WHERE created_at > now() - interval '7 days')::int
+            AS "dailyPlays7d",
+          (SELECT COUNT(*) FROM artist_session_results r
+             JOIN artist_challenges c ON c.id = r.challenge_id
+             WHERE r.completed AND c.source_type = 'artist'
+               AND r.updated_at > now() - interval '7 days')::int AS "artistRuns7d",
+          (SELECT COUNT(*) FROM artist_session_results r
+             JOIN artist_challenges c ON c.id = r.challenge_id
+             WHERE r.completed AND c.source_type = 'category'
+               AND r.updated_at > now() - interval '7 days')::int AS "categoryRuns7d",
+          (SELECT COUNT(*) FROM artist_session_results WHERE NOT completed)::int
+            AS "runsInProgress"
+      `),
+
+      db.execute(sql`
+        SELECT
+          COUNT(*)::int                                                   AS "pools",
+          COALESCE(SUM(track_count), 0)::int                              AS "tracks",
+          COUNT(*) FILTER (WHERE deezer_artist_id ~ '^[0-9]+$')::int      AS "artistPools",
+          COUNT(*) FILTER (WHERE deezer_artist_id !~ '^[0-9]+$')::int     AS "categoryPools",
+          EXTRACT(EPOCH FROM (now() - MIN(last_accessed_at)))::int        AS "oldestIdleSeconds"
+        FROM artist_track_pools
+      `),
+
+      getMostPlayedArtists(5),
+      getMostPlayedCategories(5),
+    ]);
 
     res.json({
-      songs: rows[0] ?? { total: 0, active: 0, curated: 0 },
-      scheduledFromToday: scheduled[0]?.count ?? 0,
       today: getUtcDateString(),
+      content: content[0] ?? { total: 0, active: 0, curated: 0 },
+      players: players[0] ?? { total: 0, admins: 0, newThisWeek: 0, activeThisWeek: 0 },
+      activity: (activity as unknown as Record<string, number>[])[0] ?? {},
+      caches: (caches as unknown as Record<string, number>[])[0] ?? {},
+      topArtists,
+      topCategories,
+      liveRooms: activeRoomCount(),
     });
   }),
 );

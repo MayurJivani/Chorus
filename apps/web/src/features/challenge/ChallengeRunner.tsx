@@ -6,7 +6,8 @@ import { SnippetProgressBar } from '../game/SnippetProgressBar';
 import { AttemptPips } from '../game/AttemptPips';
 import { GuessInput } from '../game/GuessInput';
 import { MultipleChoiceGuess } from '../artist/MultipleChoiceGuess';
-import { SNIPPET_SCHEDULE_SECONDS, type SongSearchResult } from '../../types/api';
+import { type SongSearchResult } from '../../types/api';
+import { useGameConfig } from '../../hooks/useGameConfig';
 import type { ChallengeGameState } from './useChallengeGameState';
 
 interface ChallengeRunnerProps {
@@ -38,6 +39,7 @@ export function ChallengeRunner({
   slowLoadHint,
   fallback,
 }: ChallengeRunnerProps) {
+  const { snippetSchedule } = useGameConfig();
   const {
     status,
     challenge,
@@ -93,7 +95,7 @@ export function ChallengeRunner({
     setAutoPlaySnippet(true);
   }, []);
 
-  const canRevealMore = localRevealCount < SNIPPET_SCHEDULE_SECONDS.length - 1;
+  const canRevealMore = localRevealCount < snippetSchedule.length - 1;
 
   // Reset localRevealCount when the round changes
   const prevRound = useRef(challenge?.currentRound);
@@ -126,8 +128,7 @@ export function ChallengeRunner({
   // The stage index is determined by how many local reveals the user made
   // OR the server's attempt number (whichever is higher).
   const stageIndex = Math.max(localRevealCount, attemptNumber - 1);
-  const stageSeconds =
-    SNIPPET_SCHEDULE_SECONDS[Math.min(stageIndex, SNIPPET_SCHEDULE_SECONDS.length - 1)] ?? 1;
+  const stageSeconds = snippetSchedule[Math.min(stageIndex, snippetSchedule.length - 1)] ?? 1;
 
   const lastAttempt = roundHistory[roundHistory.length - 1];
 
@@ -255,6 +256,7 @@ export function ChallengeRunner({
  * skeleton of the game card and, once the wait stops feeling instant, explains *why*.
  */
 function ChallengeLoading({ slowHint }: { slowHint: string }) {
+  const { snippetSchedule } = useGameConfig();
   const [showSlowHint, setShowSlowHint] = useState(false);
 
   useEffect(() => {
@@ -277,7 +279,7 @@ function ChallengeLoading({ slowHint }: { slowHint: string }) {
         </div>
 
         <div className="flex gap-1.5 w-full justify-center" aria-hidden="true">
-          {SNIPPET_SCHEDULE_SECONDS.map((seconds) => (
+          {snippetSchedule.map((seconds) => (
             <div key={seconds} className="h-1.5 flex-1 max-w-12 rounded-full bg-white/5" />
           ))}
         </div>

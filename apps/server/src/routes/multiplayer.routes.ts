@@ -27,7 +27,7 @@ multiplayerRouter.post(
     const { artistId, guessMode } = req.body as z.infer<typeof createRoomSchema>;
     const artist = await getArtistById(artistId);
     if (!artist) throw new HttpError(404, 'Artist not found');
-    const { code } = createRoom(artistId, artist.name, artist.pictureUrl, guessMode);
+    const { code } = await createRoom(artistId, artist.name, artist.pictureUrl, guessMode);
     res.status(201).json({
       code,
       artistId,

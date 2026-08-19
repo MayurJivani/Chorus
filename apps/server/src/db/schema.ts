@@ -152,6 +152,11 @@ export const artistChallenges = pgTable(
     // machinery has to be duplicated, and so the artist leaderboard can exclude them: guessing
     // ten songs from Top Hits 1985 is a different skill from an artist's deep cuts.
     sourceType: text('source_type').notNull().default('artist'),
+    // How many rounds this challenge was built with, fixed at creation. The run length is an
+    // admin setting, and reading the *current* setting to decide when a run ends would break
+    // every challenge already in flight the moment it changed — a 10-track challenge would
+    // wait forever for round 20. The tracks are the source of truth; this records their count.
+    totalRounds: integer('total_rounds').notNull().default(10),
     // Part of the challenge's identity, not just a display preference: including
     // featured/collaboration tracks changes which songs are eligible, so "with features" and
     // "without" are two distinct (still each shared/deterministic) daily challenges.
@@ -166,6 +171,21 @@ export const artistChallenges = pgTable(
     ),
   ],
 );
+
+/**
+ * Runtime-tunable settings, edited from the admin dashboard.
+ *
+ * One row per setting rather than a single blob so two admins editing different settings can't
+ * clobber each other, and so a row that fails validation (after a schema change, say) only
+ * costs that one setting its stored value — `settingsService` falls back to the compiled-in
+ * default per key. Absent rows mean "still at the default", which is why nothing is seeded.
+ */
+export const appSettings = pgTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: text('updated_by').references(() => users.id, { onDelete: 'set null' }),
+});
 
 export const artistChallengeTracks = pgTable(
   'artist_challenge_tracks',
@@ -273,3 +293,4 @@ export type ArtistRoundGuess = typeof artistRoundGuesses.$inferSelect;
 export type NewArtistRoundGuess = typeof artistRoundGuesses.$inferInsert;
 export type ArtistTrackPool = typeof artistTrackPools.$inferSelect;
 export type DailyPuzzleStart = typeof dailyPuzzleStarts.$inferSelect;
+export type AppSetting = typeof appSettings.$inferSelect;

@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { SessionProvider } from './hooks/useSession';
+import { GameConfigProvider } from './hooks/useGameConfig';
 import { RootLayout } from './routes/RootLayout';
 import { HomePage } from './routes/HomePage';
 import { PlayPage } from './routes/PlayPage';
@@ -45,7 +46,9 @@ const router = createBrowserRouter([
 function App() {
   return (
     <SessionProvider>
-      <RouterProvider router={router} />
+      <GameConfigProvider>
+        <RouterProvider router={router} />
+      </GameConfigProvider>
     </SessionProvider>
   );
 }

@@ -142,6 +142,9 @@ export interface ArtistLeaderboardEntry {
   rank: number;
   displayName: string;
   songsCorrect: number;
+  /** The length of the run this score came from. Runs are not all the same length once an
+   *  admin changes the setting, so "8 correct" means nothing without it. */
+  totalRounds: number;
   totalGuessesUsed: number;
   timeTakenSeconds: number | null;
   isYou: boolean;
@@ -151,6 +154,7 @@ export interface ArtistLeaderboardResponse {
   entries: ArtistLeaderboardEntry[];
   myBest: {
     songsCorrect: number;
+    totalRounds: number;
     totalGuessesUsed: number;
     timeTakenSeconds: number | null;
   } | null;
@@ -292,8 +296,52 @@ export interface AdminDailyPuzzleList {
   puzzles: AdminDailyPuzzle[];
 }
 
-export interface AdminOverview {
-  songs: { total: number; active: number; curated: number };
-  scheduledFromToday: number;
+export type SettingGroup = 'challenge' | 'multiplayer' | 'daily' | 'housekeeping';
+
+export type SettingControl =
+  | { kind: 'number'; min: number; max: number; unit?: string }
+  | { kind: 'boolean' }
+  | {
+      kind: 'numberList';
+      minLength: number;
+      maxLength: number;
+      min: number;
+      max: number;
+      unit?: string;
+    };
+
+export interface SettingDescriptor {
+  key: string;
+  group: SettingGroup;
+  label: string;
+  help: string;
+  value: unknown;
+  default: unknown;
+  /** Whether the stored value still matches the compiled-in default, so the UI can offer a
+   *  reset only where there is something to reset. */
+  isDefault: boolean;
+  control: SettingControl;
+}
+
+export interface AdminDashboard {
   today: string;
+  content: { total: number; active: number; curated: number };
+  players: { total: number; admins: number; newThisWeek: number; activeThisWeek: number };
+  activity: {
+    dailyPlays24h: number;
+    dailyPlays7d: number;
+    artistRuns7d: number;
+    categoryRuns7d: number;
+    runsInProgress: number;
+  };
+  caches: {
+    pools: number;
+    tracks: number;
+    artistPools: number;
+    categoryPools: number;
+    oldestIdleSeconds: number | null;
+  };
+  topArtists: MostPlayedArtist[];
+  topCategories: MostPlayedArtist[];
+  liveRooms: { total: number; playing: number };
 }

@@ -7,14 +7,17 @@ import {
   buildRoundOptions,
   getArtistLeaderboard,
   getChallengeLeaderboard,
-  ARTIST_CHALLENGE_SIZE,
   getActiveSession,
   getActiveSessionOrStartNew,
   loadChallengeTracks,
   resolvePlayableRound,
 } from '../services/artistChallengeService';
 import { isFinalAttempt } from '../services/guessService';
-import { SNIPPET_SCHEDULE_SECONDS, MAX_GUESSES } from '../services/puzzleService';
+import {
+  getSnippetSchedule,
+  snippetSecondsForGuess,
+  MAX_GUESSES_LIMIT,
+} from '../services/puzzleService';
 import { getIdentity } from '../auth/identity';
 import { validate } from '../middleware/validate';
 import { searchRateLimiter, guessRateLimiter } from '../middleware/rateLimiters';
@@ -81,11 +84,12 @@ artistsRouter.get(
     }
 
     const artistInfo = await getArtistById(artistId).catch(() => null);
+    const snippetSchedule = await getSnippetSchedule();
     const base = {
       challengeId: challenge.id,
       artistName: challenge.artistName,
       artistPictureUrl: artistInfo?.pictureUrl ?? null,
-      totalRounds: ARTIST_CHALLENGE_SIZE,
+      totalRounds: challenge.totalRounds,
       currentRound: session.currentRound,
       songsCorrect: session.songsCorrect,
       totalGuessesUsed: session.totalGuessesUsed,
@@ -125,8 +129,8 @@ artistsRouter.get(
     res.json({
       ...base,
       previewUrl: playable.previewUrl,
-      snippetSchedule: SNIPPET_SCHEDULE_SECONDS,
-      maxGuesses: MAX_GUESSES,
+      snippetSchedule,
+      maxGuesses: snippetSchedule.length,
       ...(options !== undefined ? { options } : {}),
     });
   }),
@@ -166,7 +170,9 @@ artistsRouter.get(
 const guessSchema = z.object({
   // Omitted entirely for a "skip" — the attempt is spent without guessing a specific track.
   deezerTrackId: z.string().min(1).optional(),
-  guessNumber: z.number().int().min(1).max(MAX_GUESSES),
+  // Bounded by the largest schedule any setting allows, because a zod schema is built at
+  // import time and cannot await the live one; the handler rejects anything over it.
+  guessNumber: z.number().int().min(1).max(MAX_GUESSES_LIMIT),
   guessMode: z.enum(['search', 'choice']).optional(),
 });
 
@@ -197,20 +203,25 @@ artistsRouter.post(
       throw new HttpError(500, 'Challenge round is out of range');
     }
 
+    const snippetSchedule = await getSnippetSchedule();
+    if (guessNumber > snippetSchedule.length) {
+      throw new HttpError(400, 'That guess number is past the end of the snippet schedule');
+    }
+
     const correct = deezerTrackId !== undefined && deezerTrackId === currentTrack.deezerTrackId;
 
     // For multiple choice, there's only one chance to guess correctly per round.
-    const final = guessMode === 'choice' ? true : isFinalAttempt(guessNumber, correct);
+    const final =
+      guessMode === 'choice' ? true : isFinalAttempt(guessNumber, correct, snippetSchedule.length);
 
     if (!final) {
       res.json({ correct, isFinal: false });
       return;
     }
 
-    const snippetStageSeconds =
-      SNIPPET_SCHEDULE_SECONDS[Math.min(guessNumber, SNIPPET_SCHEDULE_SECONDS.length) - 1] ?? 16;
+    const snippetStageSeconds = snippetSecondsForGuess(guessNumber, snippetSchedule);
 
-    const { sessionComplete, songsCorrect, totalGuessesUsed, timeTakenSeconds } =
+    const { sessionComplete, songsCorrect, totalGuessesUsed, timeTakenSeconds, totalRounds } =
       await recordArtistRoundResult(session.id, correct, guessNumber, snippetStageSeconds);
 
     res.json({
@@ -231,7 +242,7 @@ artistsRouter.post(
               songsCorrect,
               totalGuessesUsed,
               timeTakenSeconds,
-              totalRounds: ARTIST_CHALLENGE_SIZE,
+              totalRounds,
             },
           }
         : {}),

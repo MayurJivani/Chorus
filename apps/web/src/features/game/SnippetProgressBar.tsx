@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { SNIPPET_SCHEDULE_SECONDS } from '../../types/api';
+import { useGameConfig } from '../../hooks/useGameConfig';
 
 interface SnippetProgressBarProps {
   /** 1-based attempt number (search mode) or 0-based skip count (choice mode). */
@@ -7,7 +7,8 @@ interface SnippetProgressBarProps {
 }
 
 export function SnippetProgressBar({ stageIndex }: SnippetProgressBarProps) {
-  const totalStages = SNIPPET_SCHEDULE_SECONDS.length;
+  const { snippetSchedule } = useGameConfig();
+  const totalStages = snippetSchedule.length;
   const clampedIndex = Math.min(stageIndex, totalStages - 1);
   const widthPercent = totalStages > 1 ? (clampedIndex / (totalStages - 1)) * 100 : 0;
 
@@ -25,7 +26,7 @@ export function SnippetProgressBar({ stageIndex }: SnippetProgressBarProps) {
 
       {/* Milestone dots + labels */}
       <div className="mt-2.5 flex justify-between">
-        {SNIPPET_SCHEDULE_SECONDS.map((seconds, i) => {
+        {snippetSchedule.map((seconds, i) => {
           const reached = i <= stageIndex;
           return (
             <div key={seconds} className="flex flex-col items-center gap-1">

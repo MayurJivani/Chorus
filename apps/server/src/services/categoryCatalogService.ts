@@ -17,11 +17,19 @@ import {
   stripAnyTrailingQualifier,
 } from '../utils/trackFilters';
 import { findCategory } from './categories';
+import { getSettings } from './settingsService';
 import { logger } from '../logger';
 
-/** A category pool is a fixed editorial playlist, so it changes far more slowly than an
- *  artist's discography — except the live chart, which is why this is only a day. */
-const REFRESH_AFTER_MS = 24 * 60 * 60 * 1000;
+/**
+ * How stale a stored category pool may get before it is refreshed in the background.
+ *
+ * A category is a fixed editorial playlist, so it changes far more slowly than an artist's
+ * discography — except the live worldwide chart, which is why the default is only a day. Admin
+ * configurable, since how fresh "top right now" needs to be is a judgement call.
+ */
+async function refreshAfterMs(): Promise<number> {
+  return (await getSettings()).categoryPoolRefreshHours * 60 * 60 * 1000;
+}
 
 /** Ten rounds need at least ten tracks; below this the category is unplayable. */
 const MIN_CATEGORY_TRACKS = 10;
@@ -112,7 +120,7 @@ export async function getCategoryCatalog(categoryId: string): Promise<ArtistTrac
   }
 
   if (stored && stored.trackCount >= MIN_CATEGORY_TRACKS) {
-    if (Date.now() - stored.fetchedAt.getTime() > REFRESH_AFTER_MS) {
+    if (Date.now() - stored.fetchedAt.getTime() > (await refreshAfterMs())) {
       void refreshInBackground(category.id, category.label, category.playlistId);
     }
     return stored.tracks;

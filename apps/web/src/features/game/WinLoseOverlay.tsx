@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import type { RevealedSong } from '../../types/api';
 import type { GuessAttempt } from './useGameState';
 import { buildShareText } from '../stats/shareText';
+import { useGameConfig } from '../../hooks/useGameConfig';
 
 interface WinLoseOverlayProps {
   won: boolean;
@@ -13,6 +14,7 @@ interface WinLoseOverlayProps {
 }
 
 export function WinLoseOverlay({ won, song, history, puzzleDate }: WinLoseOverlayProps) {
+  const { maxGuesses } = useGameConfig();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -27,7 +29,7 @@ export function WinLoseOverlay({ won, song, history, puzzleDate }: WinLoseOverla
   }, [won]);
 
   const handleShare = async () => {
-    const text = buildShareText(history, won, puzzleDate);
+    const text = buildShareText(history, won, puzzleDate, maxGuesses);
     if (navigator.share) {
       try {
         await navigator.share({ text });

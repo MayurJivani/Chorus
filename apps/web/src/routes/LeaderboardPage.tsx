@@ -165,7 +165,7 @@ function MostPlayed({
                 {subject.runs} {subject.runs === 1 ? 'run' : 'runs'}
               </span>
               <span className="hidden shrink-0 font-mono text-xs text-slate-500 tabular-nums sm:inline">
-                avg {subject.averageScore}/10
+                avg {subject.averageScore}
               </span>
             </Link>
           </li>
@@ -211,7 +211,9 @@ function TopPlayers({
                 <th className="pb-2 font-medium">Player</th>
                 <th className="pb-2 text-right font-medium">Correct</th>
                 <th className="pb-2 text-right font-medium">Acc</th>
-                <th className="pb-2 text-right font-medium">Best</th>
+                <th className="pb-2 text-right font-medium" title="Most songs in a single run">
+                  Best
+                </th>
                 <th className="pb-2 text-right font-medium">Fastest</th>
               </tr>
             </thead>
@@ -240,7 +242,7 @@ function TopPlayers({
                     {player.accuracy}%
                   </td>
                   <td className="py-2 text-right font-mono text-xs text-slate-400 tabular-nums">
-                    {player.bestRun}/10
+                    {player.bestRun}
                   </td>
                   <td className="py-2 text-right font-mono text-xs text-slate-400 tabular-nums">
                     {formatDuration(player.fastestRunSeconds)}

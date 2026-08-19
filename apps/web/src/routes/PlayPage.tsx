@@ -6,7 +6,7 @@ import { AttemptPips } from '../features/game/AttemptPips';
 import { GuessHistory } from '../features/game/GuessHistory';
 import { GuessInput } from '../features/game/GuessInput';
 import { WinLoseOverlay } from '../features/game/WinLoseOverlay';
-import { SNIPPET_SCHEDULE_SECONDS } from '../types/api';
+import { useGameConfig } from '../hooks/useGameConfig';
 
 export function PlayPage() {
   const {
@@ -20,6 +20,7 @@ export function PlayPage() {
     guess,
     skip,
   } = useGameState();
+  const { snippetSchedule } = useGameConfig();
 
   const [guessFeedback, setGuessFeedback] = useState<'correct' | 'wrong' | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,8 +57,7 @@ export function PlayPage() {
   const isOver = status === 'won' || status === 'lost';
   const lastAttempt = history[history.length - 1];
   const previewUrl = puzzle.completed ? null : puzzle.previewUrl;
-  const stageSeconds =
-    SNIPPET_SCHEDULE_SECONDS[Math.min(attemptNumber, SNIPPET_SCHEDULE_SECONDS.length) - 1] ?? 1;
+  const stageSeconds = snippetSchedule[Math.min(attemptNumber, snippetSchedule.length) - 1] ?? 1;
 
   return (
     <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-3 sm:gap-5 px-4 py-3 sm:py-6">

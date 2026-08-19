@@ -20,6 +20,7 @@ interface ChallengeSummaryProps {
     entries: ArtistLeaderboardEntry[];
     myBest: {
       songsCorrect: number;
+      totalRounds: number;
       totalGuessesUsed: number;
       timeTakenSeconds: number | null;
     } | null;

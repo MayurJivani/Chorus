@@ -9,8 +9,8 @@ import {
   getSongById,
   getUtcDateString,
   markPuzzleStarted,
-  SNIPPET_SCHEDULE_SECONDS,
-  MAX_GUESSES,
+  getSnippetSchedule,
+  MAX_GUESSES_LIMIT,
 } from '../services/puzzleService';
 import { isCorrectGuess, isFinalAttempt } from '../services/guessService';
 import { recordGameResult } from '../services/statsService';
@@ -80,7 +80,7 @@ puzzleRouter.get(
         won: completed.won,
         guessesUsed: completed.guessesUsed,
         song: await revealSong(puzzle.songId),
-        snippetSchedule: SNIPPET_SCHEDULE_SECONDS,
+        snippetSchedule: await getSnippetSchedule(),
       });
       return;
     }
@@ -106,8 +106,8 @@ puzzleRouter.get(
       puzzleDate,
       completed: false,
       previewUrl: fresh.previewUrl,
-      snippetSchedule: SNIPPET_SCHEDULE_SECONDS,
-      maxGuesses: MAX_GUESSES,
+      snippetSchedule: await getSnippetSchedule(),
+      maxGuesses: (await getSnippetSchedule()).length,
     });
   }),
 );
@@ -115,7 +115,9 @@ puzzleRouter.get(
 const guessSchema = z.object({
   // Omitted entirely for a "skip" — the attempt is spent without guessing a specific song.
   songId: z.number().int().positive().optional(),
-  guessNumber: z.number().int().min(1).max(MAX_GUESSES),
+  // Bounded by the largest schedule any setting allows, because a zod schema is built at
+  // import time and cannot await the live one; the handler rejects anything over it.
+  guessNumber: z.number().int().min(1).max(MAX_GUESSES_LIMIT),
 });
 
 puzzleRouter.post(
@@ -133,8 +135,13 @@ puzzleRouter.post(
     }
 
     const { songId, guessNumber } = req.body as z.infer<typeof guessSchema>;
+    const snippetSchedule = await getSnippetSchedule();
+    if (guessNumber > snippetSchedule.length) {
+      throw new HttpError(400, 'That guess number is past the end of the snippet schedule');
+    }
+
     const correct = songId !== undefined && isCorrectGuess(songId, puzzle.songId);
-    const final = isFinalAttempt(guessNumber, correct);
+    const final = isFinalAttempt(guessNumber, correct, snippetSchedule.length);
 
     if (final) {
       const { userId, guestId } = getIdentity(req);

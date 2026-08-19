@@ -29,8 +29,16 @@ const catalogMocks = vi.hoisted(() => ({
   getArtistCatalog: vi.fn(),
 }));
 
+// Settings are read from Postgres when a room is created. Same reason as the catalog mock: a
+// real database round trip cannot resolve while these tests hold fake timers, so the room would
+// never finish being created and every test would sit until its timeout.
+const settingsMocks = vi.hoisted(() => ({
+  getSettings: vi.fn(),
+}));
+
 vi.mock('../../src/services/deezerService', () => deezerMocks);
 vi.mock('../../src/services/artistCatalogService', () => catalogMocks);
+vi.mock('../../src/services/settingsService', () => settingsMocks);
 
 interface SentMessage {
   type: string;
@@ -104,6 +112,19 @@ beforeEach(() => {
   __resetForTests();
   vi.useFakeTimers();
   vi.clearAllMocks();
+  // The shipped defaults, so the constants exported alongside them stay the right expectations.
+  settingsMocks.getSettings.mockResolvedValue({
+    challengeRounds: 10,
+    snippetScheduleSeconds: [...MP_REVEAL_SCHEDULE],
+    multiplayerRounds: MP_ROUNDS,
+    multiplayerRoundSeconds: MP_ROUND_DURATION_MS / 1000,
+    multiplayerRevealSeconds: MP_REVEAL_DURATION_MS / 1000,
+    multiplayerMaxPlayers: MP_MAX_PLAYERS,
+    dailyCuratedOnly: true,
+    artistPoolRetentionDays: 30,
+    categoryPoolRefreshHours: 24,
+    abandonedChallengeTtlDays: 7,
+  });
   // At least MP_ROUNDS * 2, because startGame draws that many candidates and needs MP_ROUNDS
   // of them to have a playable preview. When the round count went from 5 to 10 this pool was
   // left at 5, so every start failed with "not enough playable tracks" and nine tests broke.
@@ -120,8 +141,8 @@ afterEach(() => {
 });
 
 describe('multiplayerService lobby', () => {
-  it('creates a room with a short, unambiguous code', () => {
-    const { code } = createRoom(412, 'Queen');
+  it('creates a room with a short, unambiguous code', async () => {
+    const { code } = await createRoom(412, 'Queen');
     expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
     expect(__getRoom(code)).toMatchObject({
       code,
@@ -132,7 +153,7 @@ describe('multiplayerService lobby', () => {
   });
 
   it('joins players into a room and assigns the first joiner as host', async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     const host = register('p1', 'aaaabbbb');
     register('p2', 'ccccdddd');
     await join('p1', code, 'Alex');
@@ -158,7 +179,7 @@ describe('multiplayerService lobby', () => {
   });
 
   it('rejects a join when the room is full', async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     for (let i = 0; i < MP_MAX_PLAYERS; i += 1) {
       register(`p${i}`, `guest${i}`.padEnd(10, '0'));
       await join(`p${i}`, code);
@@ -169,7 +190,7 @@ describe('multiplayerService lobby', () => {
   });
 
   it('rejects a join once the game is in progress', async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     register('host', 'hostaaaa');
     await join('host', code);
     handleClientMessage('host', { type: 'start_game' });
@@ -181,7 +202,7 @@ describe('multiplayerService lobby', () => {
   });
 
   it('reassigns host when the host leaves, and destroys the room when it empties', async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     register('p1', 'aaaabbbb');
     register('p2', 'ccccdddd');
     await join('p1', code);
@@ -205,7 +226,7 @@ describe('multiplayerService lobby', () => {
 
 describe('multiplayerService start_game', () => {
   it('only lets the host start the game', async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbbb');
     await join('host', code);
@@ -221,7 +242,7 @@ describe('multiplayerService start_game', () => {
 
   it('refuses to start when the artist does not have enough playable tracks', async () => {
     catalogMocks.getArtistCatalog.mockResolvedValue([]);
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
     await join('host', code);
 
@@ -234,7 +255,7 @@ describe('multiplayerService start_game', () => {
 
 describe('multiplayerService round flow', () => {
   it('lets each player reveal audio manually and awards points by reveal count', async () => {
-    const { code } = createRoom(412, 'Queen', 'https://art.test/queen.jpg');
+    const { code } = await createRoom(412, 'Queen', 'https://art.test/queen.jpg');
     const host = register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbbb');
     await join('host', code);
@@ -278,7 +299,7 @@ describe('multiplayerService round flow', () => {
   });
 
   it('caps reveals at the end of the snippet schedule', async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
     await join('host', code);
 
@@ -299,7 +320,7 @@ describe('multiplayerService round flow', () => {
   });
 
   it('ends the round when the time limit expires even if nobody answered', async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
     register('guest', 'guestbbbb');
     await join('host', code);
@@ -315,7 +336,7 @@ describe('multiplayerService round flow', () => {
   });
 
   it('scores zero for a wrong guess and only lets players answer once', async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
     register('guest', 'guestbbbb');
     await join('host', code);
@@ -336,7 +357,7 @@ describe('multiplayerService round flow', () => {
   });
 
   it(`runs the full ${MP_ROUNDS}-round game and reports a winner`, async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbbb');
     await join('host', code);
@@ -365,7 +386,7 @@ describe('multiplayerService round flow', () => {
   });
 
   it('cleans up connections on unregister', async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
     await join('host', code);
     unregisterConnection('host');
@@ -376,7 +397,7 @@ describe('multiplayerService round flow', () => {
 
 describe('multiplayerService guess mode', () => {
   it('defaults to search mode and sends no options', async () => {
-    const { code } = createRoom(412, 'Queen');
+    const { code } = await createRoom(412, 'Queen');
     const host = register('host', 'hostaaaa');
     await join('host', code);
 
@@ -390,7 +411,7 @@ describe('multiplayerService guess mode', () => {
   });
 
   it('sends three options per round in choice mode', async () => {
-    const { code } = createRoom(412, 'Queen', null, 'choice');
+    const { code } = await createRoom(412, 'Queen', null, 'choice');
     const host = register('host', 'hostaaaa');
     await join('host', code);
 
@@ -407,7 +428,7 @@ describe('multiplayerService guess mode', () => {
   });
 
   it('gives every player in the room the same three options', async () => {
-    const { code } = createRoom(412, 'Queen', null, 'choice');
+    const { code } = await createRoom(412, 'Queen', null, 'choice');
     const host = register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbb');
     await join('host', code);
@@ -423,7 +444,7 @@ describe('multiplayerService guess mode', () => {
   });
 
   it('carries the mode on the room snapshot so joiners see it in the lobby', async () => {
-    const { code } = createRoom(412, 'Queen', null, 'choice');
+    const { code } = await createRoom(412, 'Queen', null, 'choice');
     const guest = register('guest', 'guestbbb');
     await join('guest', code);
 

@@ -16,6 +16,7 @@ import { and, eq, lt, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { artistTrackPools } from '../db/schema';
 import { getArtistTopTracks, type ArtistTrack } from './deezerService';
+import { getSettings } from './settingsService';
 import { logger } from '../logger';
 
 /** How long a stored pool is considered current. Past this it is still served, but renewed
@@ -160,8 +161,10 @@ export async function getArtistCatalog(
 }
 
 /** Drops pools nobody has opened within the retention window. Returns the number removed. */
-export async function evictStaleArtistPools(retentionMs = POOL_RETENTION_MS): Promise<number> {
-  const cutoff = new Date(Date.now() - retentionMs);
+export async function evictStaleArtistPools(retentionMs?: number): Promise<number> {
+  const effective =
+    retentionMs ?? (await getSettings()).artistPoolRetentionDays * 24 * 60 * 60 * 1000;
+  const cutoff = new Date(Date.now() - effective);
   const removed = await db
     .delete(artistTrackPools)
     .where(lt(artistTrackPools.lastAccessedAt, cutoff))

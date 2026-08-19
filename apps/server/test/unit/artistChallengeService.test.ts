@@ -10,6 +10,8 @@ import {
 } from '../../src/db/schema';
 import * as deezerService from '../../src/services/deezerService';
 import { clearArtistPools } from '../../src/services/artistCatalogService';
+import { appSettings } from '../../src/db/schema';
+import { invalidateSettingsCache, updateSettings } from '../../src/services/settingsService';
 
 vi.mock('../../src/services/deezerService', () => ({
   getArtistById: vi.fn(),
@@ -50,6 +52,10 @@ beforeEach(async () => {
   await db.delete(artistChallengeTracks);
   await db.delete(artistChallenges);
   await db.delete(users);
+  // Run length is a setting, so a value left by one test would silently change the next one's
+  // expected number of rounds.
+  await db.delete(appSettings);
+  invalidateSettingsCache();
   vi.clearAllMocks();
   vi.mocked(deezerService.getArtistById).mockResolvedValue({
     id: 412,
@@ -298,6 +304,8 @@ describe('getArtistLeaderboard', () => {
     expect(entries[1]?.isYou).toBe(false);
     expect(myBest).toEqual({
       songsCorrect: 10,
+      // Carried so a score can be read without assuming ten rounds — run length is a setting.
+      totalRounds: 10,
       totalGuessesUsed: 10,
       timeTakenSeconds: 10,
     });
@@ -478,5 +486,54 @@ describe('evictAbandonedChallenges', () => {
 
     expect(await evictAbandonedChallenges()).toBe(0);
     expect(await db.select().from(artistChallenges)).toHaveLength(1);
+  });
+});
+
+describe('configurable run length', () => {
+  it('builds a challenge with as many rounds as the setting asks for', async () => {
+    await updateSettings([{ key: 'challengeRounds', value: 15 }], null);
+
+    const { challenge, tracks } = await getOrCreateArtistChallenge(412, 'rounds-15');
+
+    expect(challenge.totalRounds).toBe(15);
+    expect(tracks).toHaveLength(15);
+    expect(new Set(tracks.map((t) => t.deezerTrackId)).size).toBe(15);
+  });
+
+  it('rejects an artist whose catalog is smaller than the configured run length', async () => {
+    vi.mocked(deezerService.getArtistTopTracks).mockResolvedValue(mockTracks(12));
+    await updateSettings([{ key: 'challengeRounds', value: 20 }], null);
+
+    await expect(getOrCreateArtistChallenge(412, 'rounds-20')).rejects.toThrow(
+      /Not enough playable tracks/,
+    );
+  });
+
+  /**
+   * The regression this guards: the last round used to be decided by reading the *current*
+   * setting. Shortening a run from 15 to 5 would then declare an in-flight 15-song challenge
+   * finished at round 5 — and lengthening it would leave a 10-song challenge unable to ever
+   * reach a round it has no track for.
+   */
+  it('finishes an in-flight challenge at its own length, not the new setting', async () => {
+    await updateSettings([{ key: 'challengeRounds', value: 4 }], null);
+    const { challenge } = await getOrCreateArtistChallenge(412, 'in-flight');
+    const session = await getOrCreateSessionProgress(challenge.id, {
+      userId: null,
+      guestId: 'guest-rounds',
+    });
+
+    // The admin doubles the run length while this player is mid-run.
+    await updateSettings([{ key: 'challengeRounds', value: 8 }], null);
+
+    let result = await recordArtistRoundResult(session.id, true, 1, 1);
+    for (let round = 1; round < 4; round += 1) {
+      expect(result.sessionComplete).toBe(false);
+      result = await recordArtistRoundResult(session.id, true, 1, 1);
+    }
+
+    expect(result.sessionComplete).toBe(true);
+    expect(result.totalRounds).toBe(4);
+    expect(result.songsCorrect).toBe(4);
   });
 });

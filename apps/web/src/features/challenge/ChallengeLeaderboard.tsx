@@ -7,6 +7,7 @@ interface ChallengeLeaderboardProps {
     entries: ArtistLeaderboardEntry[];
     myBest: {
       songsCorrect: number;
+      totalRounds: number;
       totalGuessesUsed: number;
       timeTakenSeconds: number | null;
     } | null;
@@ -33,6 +34,7 @@ export function ChallengeLeaderboard({
   const [entries, setEntries] = useState<ArtistLeaderboardEntry[]>([]);
   const [myBest, setMyBest] = useState<{
     songsCorrect: number;
+    totalRounds: number;
     totalGuessesUsed: number;
     timeTakenSeconds: number | null;
   } | null>(null);
@@ -108,7 +110,9 @@ export function ChallengeLeaderboard({
                 {entry.isYou ? ' (you)' : ''}
               </span>
               <span className="flex items-center gap-2 shrink-0 font-mono text-xs font-semibold">
-                <span className="text-slate-200">{entry.songsCorrect}/10</span>
+                <span className="text-slate-200">
+                  {entry.songsCorrect}/{entry.totalRounds}
+                </span>
                 <span className="text-slate-500">·</span>
                 <span className="text-slate-400">{entry.totalGuessesUsed}g</span>
                 {entry.timeTakenSeconds != null && (
@@ -125,7 +129,10 @@ export function ChallengeLeaderboard({
 
       {myBest && (
         <p className="text-xs text-slate-500 text-center mt-1">
-          Your best: <span className="font-semibold text-slate-300">{myBest.songsCorrect}/10</span>{' '}
+          Your best:{' '}
+          <span className="font-semibold text-slate-300">
+            {myBest.songsCorrect}/{myBest.totalRounds}
+          </span>{' '}
           in <span className="font-semibold text-slate-300">{myBest.totalGuessesUsed} guesses</span>
           {myBest.timeTakenSeconds != null && (
             <>

@@ -1,5 +1,5 @@
 import type { MultiplayerScoreEntry } from '../../types/api';
-import { MAX_GUESSES } from '../../types/api';
+import { useGameConfig } from '../../hooks/useGameConfig';
 
 interface MultiplayerScoreboardProps {
   scores: MultiplayerScoreEntry[];
@@ -7,6 +7,14 @@ interface MultiplayerScoreboardProps {
   hostId?: string | null;
   /** Shows whether each player has answered (and correctly) for the current round. */
   showRoundState?: boolean;
+  /**
+   * Medals for the top three instead of plain rank numbers.
+   *
+   * Off everywhere except the final standings on purpose: in the lobby nobody has played yet,
+   * and mid-game the order is still moving, so a gold medal beside a name reads as a result
+   * when it is only a snapshot.
+   */
+  showMedals?: boolean;
   title?: string;
 }
 
@@ -17,8 +25,11 @@ export function MultiplayerScoreboard({
   selfId,
   hostId,
   showRoundState = false,
+  showMedals = false,
   title = 'Scoreboard',
 }: MultiplayerScoreboardProps) {
+  const { maxGuesses } = useGameConfig();
+
   return (
     <div className="glass w-full rounded-2xl p-4">
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
@@ -40,7 +51,11 @@ export function MultiplayerScoreboard({
               }`}
             >
               <span className="w-6 text-center text-sm">
-                {MEDALS[i] ?? <span className="font-mono text-xs text-slate-600">{i + 1}</span>}
+                {showMedals && MEDALS[i] ? (
+                  MEDALS[i]
+                ) : (
+                  <span className="font-mono text-xs text-slate-600">{i + 1}</span>
+                )}
               </span>
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-100">
                 {player.displayName}
@@ -65,7 +80,7 @@ export function MultiplayerScoreboard({
                     )
                   ) : (
                     <span className="text-slate-500" title="Reveal stage">
-                      {player.stageIndex + 1}/{MAX_GUESSES}
+                      {player.stageIndex + 1}/{maxGuesses}
                     </span>
                   )}
                 </span>

@@ -7,6 +7,7 @@ import { getFreshPreviewUrl, type ArtistTrack } from './deezerService';
 import { getArtistCatalog } from './artistCatalogService';
 import { buildRoundOptions, type RoundOption } from './artistChallengeService';
 import { seededShuffle } from '../utils/deterministic';
+import { getSettings } from './settingsService';
 import { logger } from '../logger';
 
 /** Seconds of audio revealed at each reveal stage, Heardle-style. Players advance their own
@@ -14,7 +15,11 @@ import { logger } from '../logger';
 export const MP_REVEAL_SCHEDULE = [1, 2, 4, 7, 11, 16] as const;
 /** Points for guessing at each reveal stage — fewer reveals means more points. */
 export const MP_REVEAL_POINTS = [6, 5, 4, 3, 2, 1] as const;
-/** Cap on how long a round can run; it ends earlier once everyone has answered. */
+/**
+ * Defaults for the tunables below. Each room copies the live settings into itself when it is
+ * created, so a change made mid-game never rewrites the rules a room is already playing by —
+ * shortening a game from 10 rounds to 5 must not strand a room on round 8.
+ */
 export const MP_ROUND_DURATION_MS = 30 * 1000;
 export const MP_ROUNDS = 10;
 export const MP_REVEAL_DURATION_MS = 5000;
@@ -70,6 +75,12 @@ interface MpRoom {
   roundStartedAt: number;
   timers: ReturnType<typeof setTimeout>[];
   createdAt: number;
+  /** Settings snapshotted at creation — see the constants above for why. */
+  rounds: number;
+  roundDurationMs: number;
+  revealDurationMs: number;
+  maxPlayers: number;
+  revealSchedule: readonly number[];
 }
 
 export interface MpScoreEntry {
@@ -109,16 +120,18 @@ function generateRoomCode(): string {
   return code;
 }
 
-export function createRoom(
+export async function createRoom(
   artistId: number,
   artistName: string,
   artistPictureUrl: string | null = null,
   guessMode: MpGuessMode = 'search',
-): { code: string } {
+): Promise<{ code: string }> {
   let code = '';
   do {
     code = generateRoomCode();
   } while (rooms.has(code));
+
+  const settings = await getSettings();
 
   rooms.set(code, {
     code,
@@ -136,6 +149,11 @@ export function createRoom(
     roundStartedAt: 0,
     timers: [],
     createdAt: Date.now(),
+    rounds: settings.multiplayerRounds,
+    roundDurationMs: settings.multiplayerRoundSeconds * 1000,
+    revealDurationMs: settings.multiplayerRevealSeconds * 1000,
+    maxPlayers: settings.multiplayerMaxPlayers,
+    revealSchedule: settings.snippetScheduleSeconds,
   });
 
   logger.info({ code, artistId, artistName, guessMode }, 'Multiplayer room created');
@@ -221,7 +239,7 @@ async function joinRoom(playerId: string, code: string, nickname?: string): Prom
   const room = rooms.get(code);
   if (!room) return sendError(playerId, 'Room not found — check the code and try again.');
   if (room.phase !== 'lobby') return sendError(playerId, 'That game is already in progress.');
-  if (room.players.size >= MP_MAX_PLAYERS) return sendError(playerId, 'Room is full.');
+  if (room.players.size >= room.maxPlayers) return sendError(playerId, 'Room is full.');
 
   const identity = identities.get(playerId) ?? { userId: null, guestId: null };
   const isHost = room.players.size === 0;
@@ -292,7 +310,7 @@ export async function startGame(playerId: string): Promise<void> {
 
   try {
     const pool = await getArtistCatalog(room.artistId, false);
-    if (pool.length < MP_ROUNDS) {
+    if (pool.length < room.rounds) {
       return sendError(
         playerId,
         `Not enough playable tracks for ${room.artistName} to build a game.`,
@@ -302,8 +320,8 @@ export async function startGame(playerId: string): Promise<void> {
     const seed = `${room.code}:${Date.now()}:${randomUUID()}`;
     const shuffled = seededShuffle(pool, seed);
 
-    // Check candidate tracks in parallel to obtain at least MP_ROUNDS with playable audio
-    const candidateTracks = shuffled.slice(0, MP_ROUNDS * 2);
+    // Check candidate tracks in parallel to obtain at least `room.rounds` with playable audio
+    const candidateTracks = shuffled.slice(0, room.rounds * 2);
     const candidatePreviews = await Promise.all(
       candidateTracks.map((t) => getFreshPreviewUrl(t.deezerTrackId)),
     );
@@ -312,7 +330,7 @@ export async function startGame(playerId: string): Promise<void> {
     const previews: string[] = [];
 
     for (let i = 0; i < candidateTracks.length; i++) {
-      if (chosen.length >= MP_ROUNDS) break;
+      if (chosen.length >= room.rounds) break;
       const p = candidatePreviews[i];
       const track = candidateTracks[i];
       if (p != null && track != null) {
@@ -321,10 +339,10 @@ export async function startGame(playerId: string): Promise<void> {
       }
     }
 
-    if (chosen.length < MP_ROUNDS) {
-      const remainingTracks = shuffled.slice(MP_ROUNDS * 2);
+    if (chosen.length < room.rounds) {
+      const remainingTracks = shuffled.slice(room.rounds * 2);
       for (const track of remainingTracks) {
-        if (chosen.length >= MP_ROUNDS) break;
+        if (chosen.length >= room.rounds) break;
         const p = await getFreshPreviewUrl(track.deezerTrackId);
         if (p != null) {
           chosen.push(track);
@@ -333,7 +351,7 @@ export async function startGame(playerId: string): Promise<void> {
       }
     }
 
-    if (chosen.length < MP_ROUNDS) {
+    if (chosen.length < room.rounds) {
       return sendError(
         playerId,
         `Not enough tracks with playable audio available for ${room.artistName}.`,
@@ -381,14 +399,14 @@ function startRound(room: MpRoom, roundIndex: number): void {
   broadcast(room, {
     type: 'round_start',
     roundIndex,
-    totalRounds: MP_ROUNDS,
+    totalRounds: room.rounds,
     startedAt: room.roundStartedAt,
-    roundDurationMs: MP_ROUND_DURATION_MS,
-    snippetSchedule: MP_REVEAL_SCHEDULE,
+    roundDurationMs: room.roundDurationMs,
+    snippetSchedule: room.revealSchedule,
     previewUrl: room.previewUrls[roundIndex] ?? null,
     albumArtUrl: track?.albumArtUrl ?? null,
     artistPictureUrl: room.artistPictureUrl,
-    revealDurationMs: MP_REVEAL_DURATION_MS,
+    revealDurationMs: room.revealDurationMs,
     guessMode: room.guessMode,
     ...(room.guessMode === 'choice' ? { options: room.roundOptions[roundIndex] ?? [] } : {}),
   });
@@ -398,7 +416,7 @@ function startRound(room: MpRoom, roundIndex: number): void {
   room.timers.push(
     setTimeout(() => {
       endRound(room);
-    }, MP_ROUND_DURATION_MS),
+    }, room.roundDurationMs),
   );
 }
 
@@ -411,7 +429,7 @@ function revealMore(playerId: string): void {
   if (!player) return;
   if (player.roundAnswered) return sendError(playerId, 'Already answered this round.');
 
-  const maxStage = MP_REVEAL_SCHEDULE.length - 1;
+  const maxStage = room.revealSchedule.length - 1;
   if (player.stageIndex >= maxStage) return;
 
   player.stageIndex += 1;
@@ -462,7 +480,7 @@ function endRound(room: MpRoom): void {
     scores: buildScores(room),
   });
 
-  const isLastRound = room.currentRound >= MP_ROUNDS - 1;
+  const isLastRound = room.currentRound >= room.rounds - 1;
   room.timers.push(
     setTimeout(() => {
       if (room.phase !== 'round-reveal') return;
@@ -471,7 +489,7 @@ function endRound(room: MpRoom): void {
       } else {
         startRound(room, room.currentRound + 1);
       }
-    }, MP_REVEAL_DURATION_MS),
+    }, room.revealDurationMs),
   );
 }
 
@@ -482,7 +500,7 @@ function skipReveal(playerId: string): void {
   if (room.hostId !== playerId) return sendError(playerId, 'Only the host can skip the reveal.');
 
   clearRoomTimers(room);
-  if (room.currentRound >= MP_ROUNDS - 1) {
+  if (room.currentRound >= room.rounds - 1) {
     finishGame(room);
   } else {
     startRound(room, room.currentRound + 1);
@@ -530,7 +548,7 @@ function buildRoomSnapshot(room: MpRoom): MpRoomSnapshot {
     phase: room.phase,
     hostId: room.hostId,
     currentRound: room.currentRound,
-    totalRounds: MP_ROUNDS,
+    totalRounds: room.rounds,
     players: [...room.players.values()].map((p) => ({
       playerId: p.playerId,
       displayName: p.displayName,
@@ -621,6 +639,16 @@ export function __resetForTests(): void {
     clearInterval(gcInterval);
     gcInterval = null;
   }
+}
+
+/** How many rooms exist right now, for the admin dashboard. Rooms are in memory only, so this
+ *  is the only way to see them. */
+export function activeRoomCount(): { total: number; playing: number } {
+  let playing = 0;
+  for (const room of rooms.values()) {
+    if (room.phase === 'playing' || room.phase === 'round-reveal') playing += 1;
+  }
+  return { total: rooms.size, playing };
 }
 
 export function __getRoom(code: string): MpRoomSnapshot | null {

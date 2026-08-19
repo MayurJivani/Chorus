@@ -18,8 +18,14 @@ import {
 import { seededShuffle } from '../utils/deterministic';
 import { normalizeTitle } from '../utils/trackFilters';
 import type { Identity } from '../auth/identity';
+import { getSettings } from './settingsService';
 import { logger } from '../logger';
 
+/**
+ * The default run length. The live value is an admin setting, and every challenge records the
+ * length it was built with in `artist_challenges.total_rounds` — so this constant is only the
+ * fallback for a brand-new challenge, never what decides when an existing run ends.
+ */
 export const ARTIST_CHALLENGE_SIZE = 10;
 
 export interface ArtistChallengeWithTracks {
@@ -61,14 +67,18 @@ export async function getOrCreateChallenge(
     return { challenge: existing, tracks: await loadChallengeTracks(existing.id) };
   }
 
+  const totalRounds = (await getSettings()).challengeRounds;
+
   const pool = await source.loadCatalog();
-  if (pool.length < ARTIST_CHALLENGE_SIZE) {
-    throw new Error(`Not enough playable tracks for ${source.label} to build a challenge`);
+  if (pool.length < totalRounds) {
+    throw new Error(
+      `Not enough playable tracks for ${source.label} to build a ${totalRounds}-song challenge`,
+    );
   }
 
   const chosen = seededShuffle(pool, `${sourceId}:${challengeDate}:${includeFeatures}`).slice(
     0,
-    ARTIST_CHALLENGE_SIZE,
+    totalRounds,
   );
 
   let challenge: ArtistChallenge;
@@ -81,6 +91,7 @@ export async function getOrCreateChallenge(
         challengeDate,
         includeFeatures,
         sourceType: source.sourceType,
+        totalRounds,
       })
       .returning();
     const inserted = insertedRows[0];
@@ -318,6 +329,7 @@ export interface RoundResultUpdate {
   songsCorrect: number;
   totalGuessesUsed: number;
   timeTakenSeconds: number | null;
+  totalRounds: number;
 }
 
 export async function recordArtistRoundResult(
@@ -345,7 +357,16 @@ export async function recordArtistRoundResult(
     snippetStageSeconds,
   });
 
-  const isLastRound = session.currentRound >= ARTIST_CHALLENGE_SIZE - 1;
+  // Read from the challenge, not from the setting: shortening a run from 20 to 10 must not
+  // strand everyone mid-way through a 20-song challenge that can never reach its last round.
+  const challengeRows = await db
+    .select({ totalRounds: artistChallenges.totalRounds })
+    .from(artistChallenges)
+    .where(eq(artistChallenges.id, session.challengeId))
+    .limit(1);
+  const totalRounds = challengeRows[0]?.totalRounds ?? ARTIST_CHALLENGE_SIZE;
+
+  const isLastRound = session.currentRound >= totalRounds - 1;
   const songsCorrect = session.songsCorrect + (correct ? 1 : 0);
   const totalGuessesUsed = session.totalGuessesUsed + guessesUsed;
 
@@ -366,7 +387,13 @@ export async function recordArtistRoundResult(
     })
     .where(eq(artistSessionResults.id, sessionId));
 
-  return { sessionComplete: isLastRound, songsCorrect, totalGuessesUsed, timeTakenSeconds };
+  return {
+    sessionComplete: isLastRound,
+    songsCorrect,
+    totalGuessesUsed,
+    timeTakenSeconds,
+    totalRounds,
+  };
 }
 
 /** Random (non-deterministic) shuffle — used for multiple-choice option ordering/decoy pick,
@@ -398,10 +425,10 @@ export const ABANDONED_CHALLENGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
  * play behind it (and therefore leaderboard standings) is kept regardless of age. The
  * cascading foreign keys clear the track and session rows.
  */
-export async function evictAbandonedChallenges(
-  ttlMs = ABANDONED_CHALLENGE_TTL_MS,
-): Promise<number> {
-  const cutoff = new Date(Date.now() - ttlMs);
+export async function evictAbandonedChallenges(ttlMs?: number): Promise<number> {
+  const effectiveTtl =
+    ttlMs ?? (await getSettings()).abandonedChallengeTtlDays * 24 * 60 * 60 * 1000;
+  const cutoff = new Date(Date.now() - effectiveTtl);
 
   const removed = await db
     .delete(artistChallenges)
@@ -561,6 +588,9 @@ export interface ArtistLeaderboardEntry {
   rank: number;
   displayName: string;
   songsCorrect: number;
+  /** The length of the run this score came from — runs are not all the same length once the
+   *  admin changes the setting, so "8 correct" is meaningless without it. */
+  totalRounds: number;
   totalGuessesUsed: number;
   timeTakenSeconds: number | null;
   isYou: boolean;
@@ -570,6 +600,7 @@ interface LeaderboardRow {
   ownerKey: string;
   displayName: string | null;
   songsCorrect: number;
+  totalRounds: number;
   totalGuessesUsed: number;
   timeTakenSeconds: number | null;
 }
@@ -581,6 +612,7 @@ function buildLeaderboardEntries(rows: LeaderboardRow[], myKey: string): ArtistL
     rank: index + 1,
     displayName: row.displayName ?? 'Guest',
     songsCorrect: row.songsCorrect,
+    totalRounds: row.totalRounds,
     totalGuessesUsed: row.totalGuessesUsed,
     timeTakenSeconds: row.timeTakenSeconds,
     isYou: row.ownerKey === myKey,
@@ -591,6 +623,7 @@ export interface SourceLeaderboard {
   entries: ArtistLeaderboardEntry[];
   myBest: {
     songsCorrect: number;
+    totalRounds: number;
     totalGuessesUsed: number;
     timeTakenSeconds: number | null;
   } | null;
@@ -611,12 +644,14 @@ export async function getSourceLeaderboard(
 ): Promise<SourceLeaderboard> {
   const rows = (await db.execute(sql`
     SELECT owner_key as "ownerKey", display_name as "displayName", songs_correct as "songsCorrect",
-           total_guesses_used as "totalGuessesUsed", time_taken_seconds as "timeTakenSeconds"
+           total_rounds as "totalRounds", total_guesses_used as "totalGuessesUsed",
+           time_taken_seconds as "timeTakenSeconds"
     FROM (
       SELECT
         COALESCE(r.user_id, r.guest_id) as owner_key,
         u.display_name,
         r.songs_correct,
+        c.total_rounds,
         r.total_guesses_used,
         r.time_taken_seconds,
         ROW_NUMBER() OVER (
@@ -642,6 +677,7 @@ export async function getSourceLeaderboard(
   const myBestRows = await db
     .select({
       songsCorrect: artistSessionResults.songsCorrect,
+      totalRounds: artistChallenges.totalRounds,
       totalGuessesUsed: artistSessionResults.totalGuessesUsed,
       timeTakenSeconds: artistSessionResults.timeTakenSeconds,
     })
@@ -684,9 +720,11 @@ export async function getChallengeLeaderboard(
       COALESCE(r.user_id, r.guest_id) as "ownerKey",
       u.display_name as "displayName",
       r.songs_correct as "songsCorrect",
+      c.total_rounds as "totalRounds",
       r.total_guesses_used as "totalGuessesUsed",
       r.time_taken_seconds as "timeTakenSeconds"
     FROM artist_session_results r
+    JOIN artist_challenges c ON c.id = r.challenge_id
     JOIN users u ON u.id = r.user_id
     WHERE r.challenge_id = ${challengeId}
       AND r.completed = true

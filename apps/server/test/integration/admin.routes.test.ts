@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { createApp } from '../../src/app';
 import { db } from '../../src/db/client';
 import {
+  appSettings,
   artistChallenges,
   artistChallengeTracks,
   artistRoundGuesses,
@@ -16,6 +17,7 @@ import {
   users,
 } from '../../src/db/schema';
 import { getUtcDateString } from '../../src/services/puzzleService';
+import { getSettings, invalidateSettingsCache } from '../../src/services/settingsService';
 
 const app = createApp();
 
@@ -70,6 +72,8 @@ beforeEach(async () => {
   await db.delete(artistChallengeTracks);
   await db.delete(artistChallenges);
   await db.delete(users);
+  await db.delete(appSettings);
+  invalidateSettingsCache();
 });
 
 describe('admin route access', () => {
@@ -94,12 +98,12 @@ describe('admin route access', () => {
 
   it('stops reporting isAdmin once the flag is revoked', async () => {
     const { agent } = await signIn('boss@example.test', true);
-    expect(await agent.get('/api/admin/overview').then((r) => r.status)).toBe(200);
+    expect(await agent.get('/api/admin/dashboard').then((r) => r.status)).toBe(200);
 
     await db.update(users).set({ isAdmin: false }).where(eq(users.email, 'boss@example.test'));
 
     // Same session, no re-login — the flag is read per request, not cached in the session.
-    expect(await agent.get('/api/admin/overview').then((r) => r.status)).toBe(404);
+    expect(await agent.get('/api/admin/dashboard').then((r) => r.status)).toBe(404);
   });
 });
 
@@ -272,5 +276,98 @@ describe('PATCH /api/admin/songs/:songId', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.song.manualOverride).toBe(true);
+  });
+});
+
+describe('admin settings', () => {
+  it('describes every tunable with its value, default and control', async () => {
+    const { agent } = await signIn('boss@example.test', true);
+
+    const res = await agent.get('/api/admin/settings');
+
+    expect(res.status).toBe(200);
+    const rounds = (res.body.settings as { key: string }[]).find(
+      (s) => s.key === 'challengeRounds',
+    );
+    expect(rounds).toMatchObject({
+      value: 10,
+      default: 10,
+      isDefault: true,
+      control: { kind: 'number' },
+    });
+  });
+
+  it('saves a change and makes it the value the game reads', async () => {
+    const { agent, csrf } = await signIn('boss@example.test', true);
+
+    const res = await agent
+      .patch('/api/admin/settings')
+      .set('X-CSRF-Token', csrf)
+      .send({ updates: [{ key: 'challengeRounds', value: 20 }] });
+
+    expect(res.status).toBe(200);
+    expect((await getSettings()).challengeRounds).toBe(20);
+
+    // And the public config the client reads reflects it too.
+    const config = await request(app).get('/api/config');
+    expect(config.body.challengeRounds).toBe(20);
+  });
+
+  it('rejects an out-of-range value with the reason, and changes nothing', async () => {
+    const { agent, csrf } = await signIn('boss@example.test', true);
+
+    const res = await agent
+      .patch('/api/admin/settings')
+      .set('X-CSRF-Token', csrf)
+      .send({ updates: [{ key: 'multiplayerMaxPlayers', value: 999 }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('Players per room');
+    expect((await getSettings()).multiplayerMaxPlayers).toBe(8);
+  });
+
+  it('resets a setting back to its default', async () => {
+    const { agent, csrf } = await signIn('boss@example.test', true);
+    await agent
+      .patch('/api/admin/settings')
+      .set('X-CSRF-Token', csrf)
+      .send({ updates: [{ key: 'challengeRounds', value: 25 }] });
+
+    const res = await agent
+      .post('/api/admin/settings/challengeRounds/reset')
+      .set('X-CSRF-Token', csrf);
+
+    expect(res.status).toBe(200);
+    expect((await getSettings()).challengeRounds).toBe(10);
+  });
+
+  it('is not reachable by a non-admin', async () => {
+    const { agent, csrf } = await signIn('plain@example.test', false);
+
+    expect(await agent.get('/api/admin/settings').then((r) => r.status)).toBe(404);
+    expect(
+      await agent
+        .patch('/api/admin/settings')
+        .set('X-CSRF-Token', csrf)
+        .send({ updates: [{ key: 'challengeRounds', value: 30 }] })
+        .then((r) => r.status),
+    ).toBe(404);
+    expect((await getSettings()).challengeRounds).toBe(10);
+  });
+});
+
+describe('GET /api/admin/dashboard', () => {
+  it('returns the command-centre metrics in one payload', async () => {
+    const { agent } = await signIn('boss@example.test', true);
+    await seedSong(1, 'Something');
+
+    const res = await agent.get('/api/admin/dashboard');
+
+    expect(res.status).toBe(200);
+    expect(res.body.content).toMatchObject({ total: 1, active: 1, curated: 1 });
+    expect(res.body.players.admins).toBe(1);
+    expect(typeof res.body.activity.dailyPlays24h).toBe('number');
+    expect(typeof res.body.caches.pools).toBe('number');
+    expect(res.body.liveRooms).toMatchObject({ total: expect.any(Number) });
   });
 });

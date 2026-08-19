@@ -31,6 +31,10 @@ function assertTestDatabase(): void {
  * this can never wipe another file's data mid-run.
  */
 const TABLES = [
+  // Settings are global game rules, so a row left behind by one file silently changes how every
+  // later file's game behaves — a leftover 20-song run length made ten-round test loops stop
+  // short and their leaderboard assertions fail with no obvious connection to the cause.
+  'app_settings',
   'artist_round_guesses',
   'artist_session_results',
   'artist_challenge_tracks',

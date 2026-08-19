@@ -45,8 +45,6 @@ interface GlobalRow {
   fastestRun: number | null;
 }
 
-const ARTIST_CHALLENGE_SIZE = 10;
-
 /**
  * Overall standings, ranked by total songs guessed correctly across completed runs.
  *
@@ -69,7 +67,7 @@ export async function getGlobalLeaderboard(
       u.display_name                                  AS "displayName",
       COUNT(*)::int                                   AS "runs",
       COALESCE(SUM(r.songs_correct), 0)::int          AS "songsCorrect",
-      (COUNT(*) * ${ARTIST_CHALLENGE_SIZE})::int      AS "songsPossible",
+      COALESCE(SUM(c.total_rounds), 0)::int           AS "songsPossible",
       COALESCE(MAX(r.songs_correct), 0)::int          AS "bestRun",
       AVG(r.time_taken_seconds)                       AS "avgTime",
       MIN(r.time_taken_seconds)::int                  AS "fastestRun"

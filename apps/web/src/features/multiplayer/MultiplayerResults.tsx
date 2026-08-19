@@ -55,7 +55,12 @@ export function MultiplayerResults({
         )}
       </motion.div>
 
-      <MultiplayerScoreboard scores={gameOver.scores} selfId={selfId} title="Final standings" />
+      <MultiplayerScoreboard
+        scores={gameOver.scores}
+        selfId={selfId}
+        showMedals
+        title="Final standings"
+      />
 
       <div className="flex w-full max-w-xl flex-col gap-3">
         {canPlayAgain && (

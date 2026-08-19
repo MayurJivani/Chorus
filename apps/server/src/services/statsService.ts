@@ -1,7 +1,7 @@
 import { eq, and, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { gameResults, userStats } from '../db/schema';
-import { SNIPPET_SCHEDULE_SECONDS, MAX_GUESSES } from './puzzleService';
+import { getSnippetSchedule } from './puzzleService';
 
 const GUESS_DIST_COLUMNS = [
   'guessDist1',
@@ -125,6 +125,9 @@ export async function getSolveTimeStats(ownerKey: string): Promise<SolveTimeStat
   const num = (value: string | null): number | null => (value == null ? null : Number(value));
 
   const avgStage = num(row?.avgStage ?? null);
+  // Indexed against the live schedule, not a constant — an admin can change both its values
+  // and its length, and a stale ladder would report the wrong number of seconds.
+  const schedule = await getSnippetSchedule();
 
   return {
     averageSolveSeconds: round1(num(row?.avgWin ?? null)),
@@ -136,7 +139,7 @@ export async function getSolveTimeStats(ownerKey: string): Promise<SolveTimeStat
     averageSnippetSeconds:
       avgStage == null
         ? null
-        : round1(SNIPPET_SCHEDULE_SECONDS[Math.min(Math.round(avgStage), MAX_GUESSES - 1)] ?? null),
+        : round1(schedule[Math.min(Math.round(avgStage), schedule.length - 1)] ?? null),
     timedWins: row?.timedWins ?? 0,
   };
 }

@@ -247,6 +247,9 @@ describe('GET /api/artists/:artistId/leaderboard', () => {
     expect(leaderboard.body.entries).toHaveLength(0);
     expect(leaderboard.body.myBest).toEqual({
       songsCorrect: 10,
+      // Carried so the client can render "10/10" without assuming every run is ten songs —
+      // the run length is an admin setting.
+      totalRounds: 10,
       totalGuessesUsed: 10,
       timeTakenSeconds: expect.any(Number),
     });

@@ -8,6 +8,7 @@ import { sessionMiddleware } from './auth/session';
 import { doubleCsrfProtection, generateCsrfToken } from './middleware/csrf';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { logger } from './logger';
+import { getPublicGameConfig } from './services/settingsService';
 import { authRouter } from './routes/auth.routes';
 import { songsRouter } from './routes/songs.routes';
 import { puzzleRouter } from './routes/puzzle.routes';
@@ -30,6 +31,15 @@ export function createApp(): Express {
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
+  });
+
+  // Player-facing game config (snippet schedule, guess count, run length). Public because the
+  // client needs it before anyone has logged in, and it contains nothing sensitive — the same
+  // numbers are already visible in any challenge response.
+  app.get('/api/config', (_req, res, next) => {
+    getPublicGameConfig()
+      .then((config) => res.json(config))
+      .catch(next);
   });
 
   app.get('/api/csrf-token', (req, res) => {

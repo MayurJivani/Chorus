@@ -1,15 +1,17 @@
 import { motion } from 'framer-motion';
 import type { GuessAttempt } from './useGameState';
-import { MAX_GUESSES } from '../../types/api';
+import { useGameConfig } from '../../hooks/useGameConfig';
 
 interface AttemptPipsProps {
   history: GuessAttempt[];
 }
 
 export function AttemptPips({ history }: AttemptPipsProps) {
+  const { maxGuesses } = useGameConfig();
+
   return (
     <div className="flex gap-3">
-      {Array.from({ length: MAX_GUESSES }, (_, i) => {
+      {Array.from({ length: maxGuesses }, (_, i) => {
         const attempt = history[i];
         // Amber sits between wrong and correct: the guess was spent, but it narrowed things down.
         const state = !attempt

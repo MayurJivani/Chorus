@@ -14,16 +14,16 @@ describe('isCorrectGuess', () => {
 
 describe('isFinalAttempt', () => {
   it('is final on a correct guess regardless of attempt number', () => {
-    expect(isFinalAttempt(1, true)).toBe(true);
-    expect(isFinalAttempt(3, true)).toBe(true);
+    expect(isFinalAttempt(1, true, MAX_GUESSES)).toBe(true);
+    expect(isFinalAttempt(3, true, MAX_GUESSES)).toBe(true);
   });
 
   it('is not final on a wrong guess before the last attempt', () => {
-    expect(isFinalAttempt(1, false)).toBe(false);
-    expect(isFinalAttempt(MAX_GUESSES - 1, false)).toBe(false);
+    expect(isFinalAttempt(1, false, MAX_GUESSES)).toBe(false);
+    expect(isFinalAttempt(MAX_GUESSES - 1, false, MAX_GUESSES)).toBe(false);
   });
 
   it('is final on the last allowed attempt even if wrong', () => {
-    expect(isFinalAttempt(MAX_GUESSES, false)).toBe(true);
+    expect(isFinalAttempt(MAX_GUESSES, false, MAX_GUESSES)).toBe(true);
   });
 });
