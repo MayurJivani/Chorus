@@ -12,12 +12,22 @@ const GROUP_LABELS: Record<CategoryGroup, { title: string; subtitle: string }> =
 
 const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'genre'];
 
+/** Filter chips. Genres exist but were unreachable in practice: they sit below twenty-four year
+ *  cards, so on a phone nobody scrolled far enough to discover the mode had them at all. */
+const FILTERS: [CategoryGroup | 'all', string][] = [
+  ['all', 'All'],
+  ['now', 'Charts'],
+  ['year', 'Years'],
+  ['genre', 'Genres'],
+];
+
 export function CategoryPickerPage() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [selected, setSelected] = useState<Category | null>(null);
+  const [filter, setFilter] = useState<CategoryGroup | 'all'>('all');
 
   useEffect(() => {
     getCategories()
@@ -55,7 +65,7 @@ export function CategoryPickerPage() {
       >
         <h1 className="text-4xl font-extrabold text-white tracking-tight">Pick a Category</h1>
         <p className="max-w-md text-slate-400 text-sm">
-          Ten songs from one era, chart or genre — every track by a different artist.
+          Ten songs from one era, chart or genre. Every track by a different artist.
         </p>
       </motion.div>
 
@@ -67,9 +77,35 @@ export function CategoryPickerPage() {
         </p>
       )}
 
+      {!loading && !failed && (
+        <div
+          role="tablist"
+          aria-label="Filter categories"
+          className="flex w-full flex-wrap justify-center gap-1.5 rounded-xl border border-white/5 bg-chorus-bg/80 p-1.5"
+        >
+          {FILTERS.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={filter === value}
+              onClick={() => setFilter(value)}
+              className={
+                'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ' +
+                (filter === value
+                  ? 'bg-white/10 text-white'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white')
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {!loading &&
         !failed &&
-        GROUP_ORDER.map((group) => {
+        GROUP_ORDER.filter((group) => filter === 'all' || filter === group).map((group) => {
           const items = grouped.get(group);
           if (!items || items.length === 0) return null;
           return (
@@ -118,8 +154,8 @@ export function CategoryPickerPage() {
             <p className="text-lg font-bold text-white">{selected.label}</p>
           </div>
           <div className="flex rounded-xl bg-chorus-bg/80 p-1.5 gap-1.5 border border-white/5">
-            <ModeButton onClick={() => startGame('search')}>🔍 Type to search</ModeButton>
-            <ModeButton onClick={() => startGame('choice')}>🎯 Multiple choice</ModeButton>
+            <ModeButton onClick={() => startGame('search')}>Type to search</ModeButton>
+            <ModeButton onClick={() => startGame('choice')}>Multiple choice</ModeButton>
           </div>
         </motion.div>
       )}

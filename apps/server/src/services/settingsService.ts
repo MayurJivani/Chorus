@@ -112,7 +112,7 @@ export const SETTING_DEFS = {
   dailyCuratedOnly: {
     group: 'daily',
     label: 'Curated songs only',
-    help: 'Draw the daily puzzle from hand-curated songs only. Turn this off to let chart entries be picked too — they rotate constantly, so a shared song of the day is often one nobody knows.',
+    help: 'Draw the daily puzzle from hand-curated songs only. Turn this off to let chart entries be picked too. They rotate constantly, so a shared song of the day is often one nobody knows.',
     schema: z.boolean(),
     default: true,
     control: { kind: 'boolean' },

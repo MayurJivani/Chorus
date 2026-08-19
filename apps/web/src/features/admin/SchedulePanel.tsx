@@ -110,7 +110,7 @@ export function SchedulePanel() {
 
         {puzzles.length === 0 ? (
           <p className="text-sm text-slate-400">
-            Nothing scheduled yet — the picker fills each day in the first time someone opens it.
+            Nothing scheduled yet. The picker fills each day in the first time someone opens it.
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -140,7 +140,7 @@ export function SchedulePanel() {
                       </span>
                       {locked ? (
                         <span className="text-xs text-slate-600">
-                          {puzzle.plays > 0 ? 'played — locked' : 'past'}
+                          {puzzle.plays > 0 ? 'played, locked' : 'past'}
                         </span>
                       ) : (
                         <>
@@ -160,7 +160,7 @@ export function SchedulePanel() {
                             onClick={() =>
                               void run(
                                 () => unscheduleDailyPuzzle(puzzle.puzzleDate),
-                                `${puzzle.puzzleDate} unscheduled — it will be re-picked automatically.`,
+                                `${puzzle.puzzleDate} unscheduled. It will be re-picked automatically.`,
                               )
                             }
                             className="btn-ghost !py-1 text-xs text-red-300 hover:text-red-200"
@@ -183,7 +183,7 @@ export function SchedulePanel() {
                       }
                       className="self-start text-xs text-slate-500 underline decoration-dotted hover:text-slate-300"
                     >
-                      Not in the curated pool — add it
+                      Not in the curated pool, add it
                     </button>
                   )}
 
@@ -267,7 +267,7 @@ function SongPicker({
               className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/5 hover:text-white disabled:opacity-40"
             >
               <span className="min-w-0 truncate">
-                {song.title} <span className="text-slate-500">— {song.artist}</span>
+                {song.title} <span className="text-slate-500">by {song.artist}</span>
               </span>
               <span className="shrink-0 text-[10px] uppercase tracking-wider text-slate-500">
                 {!song.active ? 'inactive' : song.manualOverride ? 'curated' : 'chart'}

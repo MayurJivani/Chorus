@@ -16,7 +16,7 @@ import { getArtistCatalog } from './artistCatalogService';
 import { getCategoryCatalog } from './categoryCatalogService';
 import { findCategory } from './categories';
 
-export type ChallengeSourceType = 'artist' | 'category';
+export type ChallengeSourceType = 'artist' | 'category' | 'era';
 
 export interface ChallengeSource {
   sourceType: ChallengeSourceType;

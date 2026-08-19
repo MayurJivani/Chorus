@@ -276,6 +276,39 @@ export interface Category {
   blurb: string;
 }
 
+// --- Era Mode -----------------------------------------------------------------------------
+
+export interface EraRound {
+  challengeId: number;
+  totalRounds: number;
+  currentRound: number;
+  songsCorrect: number;
+  totalGuessesUsed: number;
+  completed: boolean;
+  previewUrl?: string;
+  snippetSchedule?: readonly number[];
+  maxGuesses?: number;
+  /** Candidate years for this round, ascending, including the answer. */
+  yearOptions?: number[];
+}
+
+export interface EraGuessResult {
+  correct: boolean;
+  isFinal: true;
+  answerYear: number | null;
+  song: RevealedSong;
+  songsCorrect: number;
+  currentRound: number;
+  sessionComplete: boolean;
+  timeTakenSeconds: number | null;
+  finalScore?: {
+    songsCorrect: number;
+    totalGuessesUsed: number;
+    timeTakenSeconds: number | null;
+    totalRounds: number;
+  };
+}
+
 // --- Survival Mode ------------------------------------------------------------------------
 
 export interface SurvivalRound {

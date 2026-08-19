@@ -5,7 +5,7 @@ import type { SettingDescriptor, SettingGroup } from '../../types/api';
 const GROUP_LABELS: Record<SettingGroup, { title: string; blurb: string }> = {
   challenge: {
     title: 'Artist & Category runs',
-    blurb: 'Applies to both modes — they play by the same rules.',
+    blurb: 'Applies to both modes, which play by the same rules.',
   },
   multiplayer: { title: 'Multiplayer', blurb: 'Rooms snapshot these when they are created.' },
   daily: { title: 'Daily challenge', blurb: 'How the shared song of the day is chosen.' },

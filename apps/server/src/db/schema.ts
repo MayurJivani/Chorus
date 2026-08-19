@@ -200,6 +200,9 @@ export const artistChallengeTracks = pgTable(
     artist: text('artist').notNull(),
     albumArtUrl: text('album_art_url'),
     durationSeconds: integer('duration_seconds').notNull(),
+    // The answer in Era mode, where the player names the year rather than the song. Null for
+    // every other mode, which is why it is not part of the track's identity.
+    releaseYear: integer('release_year'),
   },
   (table) => [
     uniqueIndex('artist_challenge_tracks_challenge_position_idx').on(

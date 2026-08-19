@@ -1,6 +1,51 @@
 import { useState, type ReactNode } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
+
+/** The drawer's links. The home page is the mode picker, so there is no separate "play" entry. */
+const MOBILE_LINKS: { to: string; label: string }[] = [
+  { to: '/', label: 'Home' },
+  { to: '/leaderboard', label: 'Leaderboard' },
+  { to: '/stats', label: 'Stats' },
+  { to: '/about', label: 'About' },
+];
+
+function MobileLink({
+  to,
+  label,
+  onNavigate,
+}: {
+  to: string;
+  label: string;
+  onNavigate: () => void;
+}) {
+  const { pathname } = useLocation();
+  const isActive = to === '/' ? pathname === '/' : pathname.startsWith(to);
+
+  return (
+    <Link
+      to={to}
+      onClick={onNavigate}
+      aria-current={isActive ? 'page' : undefined}
+      className={
+        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ' +
+        (isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white')
+      }
+    >
+      {/* A rule that fills in on the active row: the same "you are here" signal the desktop bar
+          gives, without borrowing an icon set the rest of the interface doesn't use. */}
+      <span
+        className={
+          'h-4 w-0.5 rounded-full transition-colors ' +
+          (isActive ? 'bg-chorus-accent' : 'bg-transparent')
+        }
+        aria-hidden="true"
+      />
+      {label}
+    </Link>
+  );
+}
 
 function NavLink({ to, children }: { to: string; children: ReactNode }) {
   const { pathname } = useLocation();
@@ -100,11 +145,8 @@ export function RootLayout() {
 
           {/* Desktop nav */}
           <div className="hidden items-center gap-7 sm:flex">
-            <NavLink to="/play">Daily Challenge</NavLink>
-            <NavLink to="/artist">Artist Mode</NavLink>
-            <NavLink to="/categories">Categories</NavLink>
-            <NavLink to="/survival">Survival</NavLink>
-            <NavLink to="/multiplayer">Multiplayer</NavLink>
+            {/* No "play" entry: the home page *is* the mode picker, and the logo already goes
+                there. Listing the modes individually ran this bar to eight items. */}
             <NavLink to="/leaderboard">Leaderboard</NavLink>
             <NavLink to="/stats">Stats</NavLink>
             <NavLink to="/about">About</NavLink>
@@ -161,72 +203,63 @@ export function RootLayout() {
 
         {/* Mobile dropdown */}
         {menuOpen && (
-          <div className="glass-2 border-t border-white/[0.06] px-4 pb-4 pt-2 sm:hidden">
-            <div className="flex flex-col gap-3">
-              {(
-                [
-                  ['/', 'Home'],
-                  ['/play', 'Daily Challenge'],
-                  ['/artist', 'Artist Mode'],
-                  ['/categories', 'Categories'],
-                  ['/survival', 'Survival'],
-                  ['/multiplayer', 'Multiplayer'],
-                  ['/leaderboard', 'Leaderboard'],
-                  ['/stats', 'Stats'],
-                  ['/about', 'About'],
-                ] as [string, string][]
-              ).map(([path, label]) => (
-                <Link
-                  key={path}
-                  to={path}
-                  className="text-sm font-medium text-slate-300 hover:text-white"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {label}
-                </Link>
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="glass-2 border-t border-white/[0.06] px-3 pb-4 pt-3 sm:hidden"
+          >
+            <div className="flex flex-col gap-1">
+              {MOBILE_LINKS.map(({ to, label }) => (
+                <MobileLink key={to} to={to} label={label} onNavigate={() => setMenuOpen(false)} />
               ))}
-              <div className="h-px bg-white/10" />
-              {!loading &&
-                (user ? (
-                  <>
-                    {user.isAdmin && (
-                      <Link
-                        to="/admin"
-                        className="text-sm font-medium text-slate-300 hover:text-white"
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        Admin
-                      </Link>
-                    )}
-                    <span className="text-sm text-slate-400">{user.displayName}</span>
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="text-left text-sm font-medium text-slate-400 hover:text-white"
-                    >
-                      Log out
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      to="/login"
-                      className="text-sm font-medium text-slate-300 hover:text-white"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Log in
-                    </Link>
-                    <Link
-                      to="/register"
-                      className="btn-primary !py-2 text-sm"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Sign up
-                    </Link>
-                  </>
-                ))}
+              {user?.isAdmin && (
+                <MobileLink to="/admin" label="Admin" onNavigate={() => setMenuOpen(false)} />
+              )}
             </div>
-          </div>
+
+            <div className="my-3 h-px bg-white/10" />
+
+            {!loading &&
+              (user ? (
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-3 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    {/* An initial rather than an avatar: there is no image to show, and a
+                        coloured disc reads as an account far better than a bare name does. */}
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-chorus-accent/25 text-sm font-bold text-white">
+                      {user.displayName.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="truncate text-sm font-medium text-slate-200">
+                      {user.displayName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="shrink-0 text-sm font-medium text-slate-400 transition-colors hover:text-white"
+                  >
+                    Log out
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/login"
+                    className="btn-secondary flex-1 !py-2 text-center text-sm"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="btn-primary flex-1 !py-2 text-center text-sm"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Sign up
+                  </Link>
+                </div>
+              ))}
+          </motion.div>
         )}
       </header>
 

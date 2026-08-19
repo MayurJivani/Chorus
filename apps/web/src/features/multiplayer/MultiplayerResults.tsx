@@ -40,7 +40,7 @@ export function MultiplayerResults({
         animate={{ opacity: 1, y: 0 }}
         className="glass flex w-full flex-col items-center gap-4 rounded-2xl p-4 sm:p-6 text-center"
       >
-        <h1 className="text-2xl font-extrabold text-white">🏁 Game over!</h1>
+        <h1 className="text-2xl font-extrabold text-white">Game over!</h1>
         {gameOver.winner ? (
           <div className="flex flex-col items-center gap-1">
             <p className="text-4xl">👑</p>

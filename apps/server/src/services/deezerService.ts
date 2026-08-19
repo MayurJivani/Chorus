@@ -207,6 +207,9 @@ export interface ArtistTrack {
   artist: string;
   albumArtUrl: string | null;
   durationSeconds: number;
+  /** Only set for Era mode, where it is the answer. Deezer's track listings don't carry a
+   *  release date, so this is inferred from which "Top Hits <year>" list a track came from. */
+  releaseYear?: number;
 }
 
 interface DeezerAlbum {

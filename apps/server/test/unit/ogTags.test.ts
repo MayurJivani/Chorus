@@ -63,34 +63,34 @@ describe('previewFor', () => {
     });
 
     const preview = await previewFor('/artist/412/play');
-    expect(preview.title).toBe('Can you name 10 Queen songs? — Chorus');
+    expect(preview.title).toBe('Can you name 10 Queen songs? | Chorus');
     expect(preview.description).toContain('Queen');
   });
 
   it('falls back gracefully for an artist nobody has played yet', async () => {
     const preview = await previewFor('/artist/999/play');
-    expect(preview.title).toBe('Artist Mode — Chorus');
+    expect(preview.title).toBe('Artist Mode on Chorus');
   });
 
   it('uses the category label and blurb', async () => {
     const preview = await previewFor('/category/year-2020/play');
-    expect(preview.title).toBe('Top Hits 2020 — Chorus');
+    expect(preview.title).toBe('Top Hits 2020 on Chorus');
     expect(preview.description).toContain('2020');
   });
 
   it('ignores an unknown category rather than inventing a title', async () => {
     const preview = await previewFor('/category/year-1066/play');
-    expect(preview.title).toBe('Chorus — daily music guessing game');
+    expect(preview.title).toBe('Chorus: daily music guessing game');
   });
 
   it('describes Survival and the daily challenge', async () => {
-    expect((await previewFor('/survival')).title).toBe('Survival — Chorus');
-    expect((await previewFor('/play')).title).toBe("Today's challenge — Chorus");
+    expect((await previewFor('/survival')).title).toBe('Survival on Chorus');
+    expect((await previewFor('/play')).title).toBe("Today's challenge on Chorus");
   });
 
   it('falls back to the site card for everything else', async () => {
     for (const route of ['/', '/leaderboard', '/admin', '/nonsense']) {
-      expect((await previewFor(route)).title).toBe('Chorus — daily music guessing game');
+      expect((await previewFor(route)).title).toBe('Chorus: daily music guessing game');
     }
   });
 });
@@ -107,9 +107,9 @@ describe('renderIndexWithPreview', () => {
 
     const html = await renderIndexWithPreview(indexPath, fakeRequest('/artist/412/play'));
 
-    expect(html).toContain('<title>Can you name 10 Queen songs? — Chorus</title>');
-    expect(html).toContain('property="og:title" content="Can you name 10 Queen songs? — Chorus"');
-    expect(html).toContain('name="twitter:title" content="Can you name 10 Queen songs? — Chorus"');
+    expect(html).toContain('<title>Can you name 10 Queen songs? | Chorus</title>');
+    expect(html).toContain('property="og:title" content="Can you name 10 Queen songs? | Chorus"');
+    expect(html).toContain('name="twitter:title" content="Can you name 10 Queen songs? | Chorus"');
     // The wrapped, multi-line description attributes must be rewritten too.
     expect(html).toContain(
       'content="Guess Queen tracks from a growing snippet. How many can you get?"',
@@ -156,6 +156,6 @@ describe('renderIndexWithPreview', () => {
   it('leaves the document intact for an ordinary route', async () => {
     const html = await renderIndexWithPreview(indexPath, fakeRequest('/'));
     expect(html).toContain('<div id="root"></div>');
-    expect(html).toContain('<title>Chorus — daily music guessing game</title>');
+    expect(html).toContain('<title>Chorus: daily music guessing game</title>');
   });
 });

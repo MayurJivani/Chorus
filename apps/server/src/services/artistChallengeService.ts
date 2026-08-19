@@ -114,6 +114,7 @@ export async function getOrCreateChallenge(
       artist: track.artist,
       albumArtUrl: track.albumArtUrl,
       durationSeconds: track.durationSeconds,
+      releaseYear: track.releaseYear ?? null,
     })),
   );
 

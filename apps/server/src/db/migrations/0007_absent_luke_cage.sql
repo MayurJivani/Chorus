@@ -1,0 +1,1 @@
+ALTER TABLE "artist_challenge_tracks" ADD COLUMN "release_year" integer;

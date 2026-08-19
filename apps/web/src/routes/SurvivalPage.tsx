@@ -152,7 +152,7 @@ export function SurvivalPage() {
               {finalStreak === 1 ? 'song' : 'songs'} in a row
             </p>
             {isRecord && finalStreak > 0 && (
-              <p className="mt-2 text-sm font-semibold text-purple-400">🎉 New personal best</p>
+              <p className="mt-2 text-sm font-semibold text-purple-400">New personal best</p>
             )}
             {!isRecord && personalBest != null && personalBest > 0 && (
               <p className="mt-2 text-xs text-slate-500">Your best is {personalBest}</p>
@@ -213,7 +213,7 @@ export function SurvivalPage() {
               }}
               className="btn-primary w-full"
             >
-              {shared ? '✅ Copied!' : '📋 Share streak'}
+              {shared ? 'Copied!' : 'Share streak'}
             </button>
             <button
               type="button"

@@ -150,7 +150,7 @@ export function ChallengeSummary({
           }}
           className="btn-primary w-full"
         >
-          {shared ? '✅ Copied!' : '📋 Share result'}
+          {shared ? 'Copied!' : 'Share result'}
         </button>
 
         {shareUrl && (
@@ -159,7 +159,7 @@ export function ChallengeSummary({
             onClick={handleShare}
             className="btn-primary w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-900/30"
           >
-            {copied ? '✅ Link Copied!' : '👥 Challenge a Friend'}
+            {copied ? 'Link copied!' : 'Challenge a friend'}
           </button>
         )}
         <button type="button" onClick={onPlayAgain} className="btn-secondary w-full">
