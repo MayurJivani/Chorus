@@ -18,7 +18,7 @@ export interface MultiplayerRound {
   snippetSchedule: readonly number[];
   previewUrl: string;
   albumArtUrl: string | null;
-  artistPictureUrl: string | null;
+  pictureUrl: string | null;
   revealDurationMs: number;
   guessMode?: MultiplayerGuessMode;
   /** Present in choice mode: the same three answers for every player in the room. */
@@ -122,7 +122,7 @@ export function useMultiplayerGame(
           snippetSchedule: raw.snippetSchedule as readonly number[],
           previewUrl: raw.previewUrl as string,
           albumArtUrl: raw.albumArtUrl as string | null,
-          artistPictureUrl: raw.artistPictureUrl as string | null,
+          pictureUrl: raw.pictureUrl as string | null,
           revealDurationMs: raw.revealDurationMs as number,
           guessMode: raw.guessMode as MultiplayerGuessMode | undefined,
           // Only present in choice mode; the round payload is whitelisted field by field, so

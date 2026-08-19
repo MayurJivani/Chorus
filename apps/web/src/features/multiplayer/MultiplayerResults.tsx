@@ -7,7 +7,7 @@ import { MultiplayerScoreboard } from './MultiplayerScoreboard';
 interface MultiplayerResultsProps {
   gameOver: MultiplayerGameOver;
   selfId: string | null;
-  artistName: string;
+  label: string;
   canPlayAgain: boolean;
   onPlayAgain: () => void;
   onLeave: () => void;
@@ -16,7 +16,7 @@ interface MultiplayerResultsProps {
 export function MultiplayerResults({
   gameOver,
   selfId,
-  artistName,
+  label,
   canPlayAgain,
   onPlayAgain,
   onLeave,
@@ -46,7 +46,7 @@ export function MultiplayerResults({
             <p className="text-4xl">👑</p>
             <p className="text-xl font-bold text-chorus-accent2">{gameOver.winner.displayName}</p>
             <p className="text-sm text-slate-400">
-              wins the {artistName} race with {gameOver.winner.score} points
+              wins the {label} race with {gameOver.winner.score} points
             </p>
             {iWon && <p className="text-sm font-semibold text-emerald-400">That&apos;s you! 🎉</p>}
           </div>

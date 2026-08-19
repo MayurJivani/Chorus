@@ -12,10 +12,10 @@
  */
 import { Router } from 'express';
 import { z } from 'zod';
-import { asc, desc, eq, gte, ilike, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, inArray, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { dailyPuzzles, gameResults, songs, users } from '../db/schema';
-import { getUtcDateString } from '../services/puzzleService';
+import { getUtcDateString, previewUpcomingPuzzles } from '../services/puzzleService';
 import {
   describeSettings,
   resetSetting,
@@ -123,7 +123,7 @@ async function countPlays(puzzleId: number): Promise<number> {
  */
 async function assertEditable(date: string) {
   if (date < getUtcDateString()) {
-    throw new HttpError(409, 'That date has already passed — past puzzles are read-only');
+    throw new HttpError(409, 'That date has already passed, past puzzles are read-only');
   }
 
   const rows = await db
@@ -138,7 +138,7 @@ async function assertEditable(date: string) {
   if (plays > 0) {
     throw new HttpError(
       409,
-      `${plays} ${plays === 1 ? 'person has' : 'people have'} already played that puzzle — it can no longer be changed`,
+      `${plays} ${plays === 1 ? 'person has' : 'people have'} already played that puzzle, it can no longer be changed`,
     );
   }
   return existing;
@@ -159,7 +159,7 @@ adminRouter.put(
     const song = songRows[0];
     if (!song) throw new HttpError(404, 'No such song');
     if (!song.active) {
-      throw new HttpError(409, 'That song is inactive — reactivate it before scheduling it');
+      throw new HttpError(409, 'That song is inactive, reactivate it before scheduling it');
     }
 
     if (existing) {
@@ -221,6 +221,92 @@ adminRouter.patch(
     const song = updated[0];
     if (!song) throw new HttpError(404, 'No such song');
     res.json({ song });
+  }),
+);
+
+/**
+ * The days ahead: what each will play, and whether that is settled or still a projection.
+ *
+ * Songs are joined in here rather than returned as bare ids so the page can render a schedule
+ * without a second round trip per day.
+ */
+adminRouter.get(
+  '/daily-puzzles/upcoming',
+  validate(z.object({ days: z.coerce.number().int().min(1).max(60).optional() }), 'query'),
+  asyncHandler(async (req, res) => {
+    const { days = 14 } = req.query as unknown as { days?: number };
+    const upcoming = await previewUpcomingPuzzles(days);
+
+    const songIds = [
+      ...new Set(upcoming.map((u) => u.songId).filter((id): id is number => id != null)),
+    ];
+    const songRows = songIds.length
+      ? await db
+          .select({
+            id: songs.id,
+            title: songs.title,
+            artist: songs.artist,
+            albumArtUrl: songs.albumArtUrl,
+          })
+          .from(songs)
+          .where(inArray(songs.id, songIds))
+      : [];
+    const byId = new Map(songRows.map((row) => [row.id, row]));
+
+    res.json({
+      today: getUtcDateString(),
+      days: upcoming.map((u) => ({
+        puzzleDate: u.puzzleDate,
+        scheduled: u.scheduled,
+        song: u.songId == null ? null : (byId.get(u.songId) ?? null),
+      })),
+    });
+  }),
+);
+
+/**
+ * Re-rolls a date onto a different song, chosen at random from the eligible pool.
+ *
+ * Deliberately excludes whatever the day currently holds, so pressing it always visibly does
+ * something — a "shuffle" that can hand back the same song reads as broken.
+ */
+adminRouter.post(
+  '/daily-puzzles/:date/randomize',
+  validate(dateParamsSchema, 'params'),
+  asyncHandler(async (req, res) => {
+    const { date } = req.params as unknown as z.infer<typeof dateParamsSchema>;
+    const existing = await assertEditable(date);
+
+    const eligible = await db
+      .select({ id: songs.id, title: songs.title, artist: songs.artist })
+      .from(songs)
+      .where(and(eq(songs.active, true), eq(songs.manualOverride, true)));
+
+    const pool =
+      eligible.length > 0
+        ? eligible
+        : await db
+            .select({ id: songs.id, title: songs.title, artist: songs.artist })
+            .from(songs)
+            .where(eq(songs.active, true));
+
+    const candidates = pool.filter((song) => song.id !== existing?.songId);
+    if (candidates.length === 0) {
+      throw new HttpError(409, 'There is no other song available to swap in');
+    }
+
+    const chosen = candidates[Math.floor(Math.random() * candidates.length)]!;
+
+    if (existing) {
+      await db
+        .update(dailyPuzzles)
+        .set({ songId: chosen.id })
+        .where(eq(dailyPuzzles.id, existing.id));
+    } else {
+      await db.insert(dailyPuzzles).values({ puzzleDate: date, songId: chosen.id });
+    }
+
+    res.json({ ok: true, puzzleDate: date, song: chosen });
   }),
 );
 

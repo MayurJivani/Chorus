@@ -4,8 +4,8 @@ import { db } from '../db/client';
 import { users } from '../db/schema';
 import type { Identity } from '../auth/identity';
 import { getFreshPreviewUrl, type ArtistTrack } from './deezerService';
-import { getArtistCatalog } from './artistCatalogService';
 import { buildRoundOptions, type RoundOption } from './artistChallengeService';
+import type { ChallengeSource, ChallengeSourceType } from './challengeSource';
 import { seededShuffle } from '../utils/deterministic';
 import { getSettings } from './settingsService';
 import { logger } from '../logger';
@@ -59,9 +59,14 @@ export type MpGuessMode = 'search' | 'choice';
 
 interface MpRoom {
   code: string;
-  artistId: number;
-  artistName: string;
-  artistPictureUrl: string | null;
+  /**
+   * What the room's songs come from.
+   *
+   * Was an artist id, which is why Multiplayer could only ever race over one artist. Holding a
+   * `ChallengeSource` instead means a category room needs no new game logic — the rounds, the
+   * scoring and the socket protocol are identical, only the pool differs.
+   */
+  source: ChallengeSource;
   guessMode: MpGuessMode;
   phase: MpRoomPhase;
   hostId: string;
@@ -95,9 +100,11 @@ export interface MpScoreEntry {
 
 export interface MpRoomSnapshot {
   code: string;
-  artistId: number;
-  artistName: string;
-  artistPictureUrl: string | null;
+  sourceType: ChallengeSourceType;
+  sourceId: string;
+  /** The artist's name or the category's label, whichever the room races over. */
+  label: string;
+  pictureUrl: string | null;
   guessMode: MpGuessMode;
   phase: MpRoomPhase;
   hostId: string;
@@ -121,9 +128,7 @@ function generateRoomCode(): string {
 }
 
 export async function createRoom(
-  artistId: number,
-  artistName: string,
-  artistPictureUrl: string | null = null,
+  source: ChallengeSource,
   guessMode: MpGuessMode = 'search',
 ): Promise<{ code: string }> {
   let code = '';
@@ -135,9 +140,7 @@ export async function createRoom(
 
   rooms.set(code, {
     code,
-    artistId,
-    artistName,
-    artistPictureUrl,
+    source,
     guessMode,
     phase: 'lobby',
     hostId: '',
@@ -156,7 +159,10 @@ export async function createRoom(
     revealSchedule: settings.snippetScheduleSeconds,
   });
 
-  logger.info({ code, artistId, artistName, guessMode }, 'Multiplayer room created');
+  logger.info(
+    { code, sourceType: source.sourceType, sourceId: source.sourceId, guessMode },
+    'Multiplayer room created',
+  );
   return { code };
 }
 
@@ -237,7 +243,7 @@ async function joinRoom(playerId: string, code: string, nickname?: string): Prom
   if (current) leaveRoom(playerId);
 
   const room = rooms.get(code);
-  if (!room) return sendError(playerId, 'Room not found — check the code and try again.');
+  if (!room) return sendError(playerId, 'Room not found, check the code and try again.');
   if (room.phase !== 'lobby') return sendError(playerId, 'That game is already in progress.');
   if (room.players.size >= room.maxPlayers) return sendError(playerId, 'Room is full.');
 
@@ -309,11 +315,11 @@ export async function startGame(playerId: string): Promise<void> {
   }
 
   try {
-    const pool = await getArtistCatalog(room.artistId, false);
+    const pool = await room.source.loadCatalog();
     if (pool.length < room.rounds) {
       return sendError(
         playerId,
-        `Not enough playable tracks for ${room.artistName} to build a game.`,
+        `Not enough playable tracks for ${room.source.label} to build a game.`,
       );
     }
 
@@ -354,7 +360,7 @@ export async function startGame(playerId: string): Promise<void> {
     if (chosen.length < room.rounds) {
       return sendError(
         playerId,
-        `Not enough tracks with playable audio available for ${room.artistName}.`,
+        `Not enough tracks with playable audio available for ${room.source.label}.`,
       );
     }
 
@@ -377,7 +383,7 @@ export async function startGame(playerId: string): Promise<void> {
     startRound(room, 0);
   } catch (err) {
     logger.error({ err }, 'Failed to start multiplayer game');
-    sendError(playerId, 'Could not start the game — please try again.');
+    sendError(playerId, 'Could not start the game, please try again.');
   }
 }
 
@@ -405,7 +411,7 @@ function startRound(room: MpRoom, roundIndex: number): void {
     snippetSchedule: room.revealSchedule,
     previewUrl: room.previewUrls[roundIndex] ?? null,
     albumArtUrl: track?.albumArtUrl ?? null,
-    artistPictureUrl: room.artistPictureUrl,
+    pictureUrl: room.source.pictureUrl,
     revealDurationMs: room.revealDurationMs,
     guessMode: room.guessMode,
     ...(room.guessMode === 'choice' ? { options: room.roundOptions[roundIndex] ?? [] } : {}),
@@ -541,9 +547,10 @@ function buildScores(room: MpRoom): MpScoreEntry[] {
 function buildRoomSnapshot(room: MpRoom): MpRoomSnapshot {
   return {
     code: room.code,
-    artistId: room.artistId,
-    artistName: room.artistName,
-    artistPictureUrl: room.artistPictureUrl,
+    sourceType: room.source.sourceType,
+    sourceId: room.source.sourceId,
+    label: room.source.label,
+    pictureUrl: room.source.pictureUrl,
     guessMode: room.guessMode,
     phase: room.phase,
     hostId: room.hostId,

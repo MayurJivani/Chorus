@@ -59,6 +59,31 @@ class FakeSocket implements MpSocket {
   }
 }
 
+/** The room's song source. Artist-shaped, since that is what these tests race over. */
+function queenSource(pictureUrl: string | null = null) {
+  return {
+    sourceType: 'artist' as const,
+    sourceId: '412',
+    label: 'Queen',
+    pictureUrl,
+    includeFeatures: false,
+    loadCatalog: () =>
+      catalogMocks.getArtistCatalog(412, false) as Promise<ReturnType<typeof mockTracks>>,
+  };
+}
+
+/** A category room. The point of the source refactor: same game, different pool. */
+function categorySource() {
+  return {
+    sourceType: 'category' as const,
+    sourceId: 'year-2020',
+    label: 'Top Hits 2020',
+    pictureUrl: null,
+    includeFeatures: false,
+    loadCatalog: () => Promise.resolve(mockTracks(MP_ROUNDS * 2)),
+  };
+}
+
 function mockTracks(n: number) {
   return Array.from({ length: n }, (_, i) => ({
     deezerTrackId: `dz-${i}`,
@@ -142,18 +167,19 @@ afterEach(() => {
 
 describe('multiplayerService lobby', () => {
   it('creates a room with a short, unambiguous code', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
     expect(__getRoom(code)).toMatchObject({
       code,
-      artistId: 412,
-      artistName: 'Queen',
+      sourceType: 'artist',
+      sourceId: '412',
+      label: 'Queen',
       phase: 'lobby',
     });
   });
 
   it('joins players into a room and assigns the first joiner as host', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     const host = register('p1', 'aaaabbbb');
     register('p2', 'ccccdddd');
     await join('p1', code, 'Alex');
@@ -179,7 +205,7 @@ describe('multiplayerService lobby', () => {
   });
 
   it('rejects a join when the room is full', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     for (let i = 0; i < MP_MAX_PLAYERS; i += 1) {
       register(`p${i}`, `guest${i}`.padEnd(10, '0'));
       await join(`p${i}`, code);
@@ -190,7 +216,7 @@ describe('multiplayerService lobby', () => {
   });
 
   it('rejects a join once the game is in progress', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     register('host', 'hostaaaa');
     await join('host', code);
     handleClientMessage('host', { type: 'start_game' });
@@ -202,7 +228,7 @@ describe('multiplayerService lobby', () => {
   });
 
   it('reassigns host when the host leaves, and destroys the room when it empties', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     register('p1', 'aaaabbbb');
     register('p2', 'ccccdddd');
     await join('p1', code);
@@ -226,7 +252,7 @@ describe('multiplayerService lobby', () => {
 
 describe('multiplayerService start_game', () => {
   it('only lets the host start the game', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbbb');
     await join('host', code);
@@ -242,7 +268,7 @@ describe('multiplayerService start_game', () => {
 
   it('refuses to start when the artist does not have enough playable tracks', async () => {
     catalogMocks.getArtistCatalog.mockResolvedValue([]);
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     const host = register('host', 'hostaaaa');
     await join('host', code);
 
@@ -255,7 +281,7 @@ describe('multiplayerService start_game', () => {
 
 describe('multiplayerService round flow', () => {
   it('lets each player reveal audio manually and awards points by reveal count', async () => {
-    const { code } = await createRoom(412, 'Queen', 'https://art.test/queen.jpg');
+    const { code } = await createRoom(queenSource('https://art.test/queen.jpg'));
     const host = register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbbb');
     await join('host', code);
@@ -270,7 +296,7 @@ describe('multiplayerService round flow', () => {
     expect(start?.totalRounds).toBe(MP_ROUNDS);
     expect(start?.roundDurationMs).toBe(MP_ROUND_DURATION_MS);
     expect(start?.previewUrl).toBe(`https://preview.test/${firstTrack.deezerTrackId}.mp3`);
-    expect(start?.artistPictureUrl).toBe('https://art.test/queen.jpg');
+    expect(start?.pictureUrl).toBe('https://art.test/queen.jpg');
     expect(__getRoomPhase(code)).toBe('playing');
 
     // Nothing auto-reveals — the guest reveals once and hears the second slice.
@@ -299,7 +325,7 @@ describe('multiplayerService round flow', () => {
   });
 
   it('caps reveals at the end of the snippet schedule', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     const host = register('host', 'hostaaaa');
     await join('host', code);
 
@@ -320,7 +346,7 @@ describe('multiplayerService round flow', () => {
   });
 
   it('ends the round when the time limit expires even if nobody answered', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     const host = register('host', 'hostaaaa');
     register('guest', 'guestbbbb');
     await join('host', code);
@@ -336,7 +362,7 @@ describe('multiplayerService round flow', () => {
   });
 
   it('scores zero for a wrong guess and only lets players answer once', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     const host = register('host', 'hostaaaa');
     register('guest', 'guestbbbb');
     await join('host', code);
@@ -357,7 +383,7 @@ describe('multiplayerService round flow', () => {
   });
 
   it(`runs the full ${MP_ROUNDS}-round game and reports a winner`, async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbbb');
     await join('host', code);
@@ -386,7 +412,7 @@ describe('multiplayerService round flow', () => {
   });
 
   it('cleans up connections on unregister', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     const host = register('host', 'hostaaaa');
     await join('host', code);
     unregisterConnection('host');
@@ -397,7 +423,7 @@ describe('multiplayerService round flow', () => {
 
 describe('multiplayerService guess mode', () => {
   it('defaults to search mode and sends no options', async () => {
-    const { code } = await createRoom(412, 'Queen');
+    const { code } = await createRoom(queenSource());
     const host = register('host', 'hostaaaa');
     await join('host', code);
 
@@ -411,7 +437,7 @@ describe('multiplayerService guess mode', () => {
   });
 
   it('sends three options per round in choice mode', async () => {
-    const { code } = await createRoom(412, 'Queen', null, 'choice');
+    const { code } = await createRoom(queenSource(), 'choice');
     const host = register('host', 'hostaaaa');
     await join('host', code);
 
@@ -428,7 +454,7 @@ describe('multiplayerService guess mode', () => {
   });
 
   it('gives every player in the room the same three options', async () => {
-    const { code } = await createRoom(412, 'Queen', null, 'choice');
+    const { code } = await createRoom(queenSource(), 'choice');
     const host = register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbb');
     await join('host', code);
@@ -444,11 +470,44 @@ describe('multiplayerService guess mode', () => {
   });
 
   it('carries the mode on the room snapshot so joiners see it in the lobby', async () => {
-    const { code } = await createRoom(412, 'Queen', null, 'choice');
+    const { code } = await createRoom(queenSource(), 'choice');
     const guest = register('guest', 'guestbbb');
     await join('guest', code);
 
     const state = lastOf(guest, 'room_state')?.room as { guessMode: string };
     expect(state.guessMode).toBe('choice');
+  });
+});
+
+describe('rooms over a category', () => {
+  it('races over a category with the same rules as an artist room', async () => {
+    const { code } = await createRoom(categorySource());
+    const host = register('host', 'hostaaaa');
+    await join('host', code);
+
+    expect(__getRoom(code)).toMatchObject({
+      sourceType: 'category',
+      sourceId: 'year-2020',
+      label: 'Top Hits 2020',
+      phase: 'lobby',
+    });
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    // A category room deals rounds from its own pool, not an artist catalog.
+    expect(catalogMocks.getArtistCatalog).not.toHaveBeenCalled();
+    expect(lastOf(host, 'round_start')).toBeDefined();
+    expect(__getRoomPhase(code)).toBe('playing');
+  });
+
+  it('carries the label onto the snapshot so joiners see what they are racing over', async () => {
+    const { code } = await createRoom(categorySource());
+    const guest = register('guest', 'guestaaa');
+    await join('guest', code);
+
+    // The snapshot is nested under `room`, which is what joiners render the header from.
+    const snapshot = lastOf(guest, 'room_state')?.room as { label: string } | undefined;
+    expect(snapshot?.label).toBe('Top Hits 2020');
   });
 });

@@ -4,6 +4,7 @@ import { songs, dailyPuzzles, gameResults, userStats } from '../../src/db/schema
 import {
   getOrCreateDailyPuzzle,
   getUtcDateString,
+  previewUpcomingPuzzles,
   SNIPPET_SCHEDULE_SECONDS,
 } from '../../src/services/puzzleService';
 
@@ -106,5 +107,95 @@ describe('getOrCreateDailyPuzzle', () => {
     // by now the exclusion window has rolled off day 0, so day 0's song is a valid pick again.
     const next = await getOrCreateDailyPuzzle(dateAt(songCount));
     expect(firstCycle).toContain(next.songId);
+  });
+});
+
+describe('previewUpcomingPuzzles', () => {
+  async function seedCurated(count: number) {
+    await db.insert(songs).values(
+      Array.from({ length: count }, (_, i) => ({
+        title: `Song ${i + 1}`,
+        artist: 'Tester',
+        deezerTrackId: `prev-${i}`,
+        previewUrl: 'https://example.test/p.mp3',
+        durationSeconds: 200,
+        active: true,
+        manualOverride: true,
+      })),
+    );
+  }
+
+  it('projects a run of days without creating any of them', async () => {
+    await seedCurated(10);
+
+    const upcoming = await previewUpcomingPuzzles(5);
+
+    expect(upcoming).toHaveLength(5);
+    expect(upcoming.every((d) => !d.scheduled)).toBe(true);
+    // The whole point: previewing must not pin anything.
+    expect(await db.select().from(dailyPuzzles)).toEqual([]);
+  });
+
+  it('starts at today and walks forward one day at a time', async () => {
+    await seedCurated(10);
+    const upcoming = await previewUpcomingPuzzles(3);
+
+    expect(upcoming[0]?.puzzleDate).toBe(getUtcDateString());
+    const dayMs = 24 * 60 * 60 * 1000;
+    const first = new Date(`${upcoming[0]!.puzzleDate}T00:00:00Z`).getTime();
+    expect(new Date(`${upcoming[1]!.puzzleDate}T00:00:00Z`).getTime()).toBe(first + dayMs);
+    expect(new Date(`${upcoming[2]!.puzzleDate}T00:00:00Z`).getTime()).toBe(first + 2 * dayMs);
+  });
+
+  /**
+   * The reason the projection has to be sequential. Each day excludes recently used songs, so
+   * day three's answer depends on what days one and two took — asking each date in isolation
+   * would happily project the same song twice running.
+   */
+  it('does not repeat a song while the pool is large enough', async () => {
+    await seedCurated(10);
+    const upcoming = await previewUpcomingPuzzles(8);
+
+    const ids = upcoming.map((d) => d.songId);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('agrees with what the picker actually chooses', async () => {
+    await seedCurated(10);
+    const [projected] = await previewUpcomingPuzzles(1);
+
+    const created = await getOrCreateDailyPuzzle(getUtcDateString());
+
+    expect(created.songId).toBe(projected!.songId);
+  });
+
+  it('reports an already-created day as settled, not projected', async () => {
+    await seedCurated(10);
+    await getOrCreateDailyPuzzle(getUtcDateString());
+
+    const [today] = await previewUpcomingPuzzles(1);
+    expect(today?.scheduled).toBe(true);
+  });
+
+  it('re-threads later days around a pinned one', async () => {
+    await seedCurated(10);
+    const before = await previewUpcomingPuzzles(3);
+
+    // Pin tomorrow to whatever the day after was going to take.
+    const dayMs = 24 * 60 * 60 * 1000;
+    const tomorrow = getUtcDateString(new Date(Date.now() + dayMs));
+    await db.insert(dailyPuzzles).values({ puzzleDate: tomorrow, songId: before[2]!.songId! });
+
+    const after = await previewUpcomingPuzzles(3);
+
+    expect(after[1]?.scheduled).toBe(true);
+    expect(after[1]?.songId).toBe(before[2]?.songId);
+    // The day after can no longer take the song that just got pinned ahead of it.
+    expect(after[2]?.songId).not.toBe(before[2]?.songId);
+  });
+
+  it('returns nothing playable when the bank is empty', async () => {
+    const upcoming = await previewUpcomingPuzzles(2);
+    expect(upcoming.every((d) => d.songId === null)).toBe(true);
   });
 });

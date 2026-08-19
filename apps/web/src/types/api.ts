@@ -214,9 +214,11 @@ export type MultiplayerGuessMode = 'search' | 'choice';
 
 export interface MultiplayerRoomSnapshot {
   code: string;
-  artistId: number;
-  artistName: string;
-  artistPictureUrl: string | null;
+  /** A room races over an artist or a category; the game itself is identical either way. */
+  sourceType: 'artist' | 'category';
+  sourceId: string;
+  label: string;
+  pictureUrl: string | null;
   guessMode: MultiplayerGuessMode;
   phase: MultiplayerPhase;
   hostId: string;
@@ -227,9 +229,10 @@ export interface MultiplayerRoomSnapshot {
 
 export interface MultiplayerCreateRoomResponse {
   code: string;
-  artistId: number;
-  artistName: string;
-  artistPictureUrl: string | null;
+  sourceType: 'artist' | 'category';
+  sourceId: string;
+  label: string;
+  pictureUrl: string | null;
   guessMode: MultiplayerGuessMode;
 }
 
@@ -397,6 +400,18 @@ export interface SettingDescriptor {
    *  reset only where there is something to reset. */
   isDefault: boolean;
   control: SettingControl;
+}
+
+export interface UpcomingDay {
+  puzzleDate: string;
+  /** True when a row exists (played or pinned); false means it is still just a projection. */
+  scheduled: boolean;
+  song: { id: number; title: string; artist: string; albumArtUrl: string | null } | null;
+}
+
+export interface UpcomingSchedule {
+  today: string;
+  days: UpcomingDay[];
 }
 
 export interface AdminDashboard {

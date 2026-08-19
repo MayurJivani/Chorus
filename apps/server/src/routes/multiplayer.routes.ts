@@ -1,22 +1,30 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { createRoom } from '../services/multiplayerService';
-import { getArtistById } from '../services/deezerService';
+import { resolveArtistSource, resolveCategorySource } from '../services/challengeSource';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { HttpError } from '../middleware/errorHandler';
 
 export const multiplayerRouter = Router();
 
-const createRoomSchema = z.object({
-  artistId: z.coerce.number().int().positive(),
-  // Chosen when the room is made, not per player: everyone in a race has to be answering the
-  // same way for the scores to mean anything.
-  guessMode: z.enum(['search', 'choice']).optional().default('search'),
-});
+const createRoomSchema = z
+  .object({
+    artistId: z.coerce.number().int().positive().optional(),
+    categoryId: z.string().min(1).max(64).optional(),
+    // Chosen when the room is made, not per player: everyone in a race has to be answering the
+    // same way for the scores to mean anything.
+    guessMode: z.enum(['search', 'choice']).optional().default('search'),
+  })
+  // Exactly one, so a request naming both can't quietly race over whichever the code checks
+  // first while the player who sent it expects the other.
+  .refine(
+    (body) => (body.artistId != null) !== (body.categoryId != null),
+    'Provide exactly one of artistId or categoryId',
+  );
 
 /**
- * Creates an empty multiplayer room for an artist. The creator then connects over the
+ * Creates an empty room over an artist or a category. The creator then connects over the
  * WebSocket (/ws) and becomes host on their first `join_room`. Kept as a tiny REST call so
  * the browser can get the room code (for the shareable link) before the socket connects.
  */
@@ -24,15 +32,25 @@ multiplayerRouter.post(
   '/rooms',
   validate(createRoomSchema),
   asyncHandler(async (req, res) => {
-    const { artistId, guessMode } = req.body as z.infer<typeof createRoomSchema>;
-    const artist = await getArtistById(artistId);
-    if (!artist) throw new HttpError(404, 'Artist not found');
-    const { code } = await createRoom(artistId, artist.name, artist.pictureUrl, guessMode);
+    const { artistId, categoryId, guessMode } = req.body as z.infer<typeof createRoomSchema>;
+
+    let source;
+    try {
+      source =
+        artistId != null
+          ? await resolveArtistSource(artistId, false)
+          : resolveCategorySource(categoryId!);
+    } catch {
+      throw new HttpError(404, artistId != null ? 'Artist not found' : 'Unknown category');
+    }
+
+    const { code } = await createRoom(source, guessMode);
     res.status(201).json({
       code,
-      artistId,
-      artistName: artist.name,
-      artistPictureUrl: artist.pictureUrl,
+      sourceType: source.sourceType,
+      sourceId: source.sourceId,
+      label: source.label,
+      pictureUrl: source.pictureUrl,
       guessMode,
     });
   }),

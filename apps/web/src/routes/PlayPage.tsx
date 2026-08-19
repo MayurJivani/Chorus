@@ -62,7 +62,7 @@ export function PlayPage() {
   return (
     <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-3 sm:gap-5 px-4 py-3 sm:py-6">
       {/* Glass card wrapping the game. Padding and gaps tighten on small screens so the whole
-          game — record, transport, pips, input and guess list — still fits a phone viewport
+          game, record, transport, pips, input and guess list, still fits a phone viewport
           without the page scrolling. */}
       <div className="glass w-full rounded-2xl p-4 sm:p-6 flex flex-col items-center gap-3 sm:gap-4">
         <div className="flex flex-col items-center gap-1 text-center">

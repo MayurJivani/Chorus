@@ -44,12 +44,12 @@ export function MultiplayerLobby({ room, selfId, onStart, onLeave }: Multiplayer
         className="glass flex w-full flex-col items-center gap-4 rounded-2xl p-4 sm:p-6 text-center"
       >
         <div className="flex flex-col items-center gap-1">
-          <h1 className="text-2xl font-extrabold text-white">{room.artistName}</h1>
+          <h1 className="text-2xl font-extrabold text-white">{room.label}</h1>
           <p className="text-sm text-slate-400">
             Real-time multiplayer race ·{' '}
             {/* Fixed when the room was created, so joiners know what they are walking into. */}
             <span className="text-slate-300">
-              {room.guessMode === 'choice' ? '🎯 Multiple choice' : '🔍 Type to search'}
+              {room.guessMode === 'choice' ? 'Multiple choice' : 'Type to search'}
             </span>
           </p>
         </div>

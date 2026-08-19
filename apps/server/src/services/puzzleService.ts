@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, gte } from 'drizzle-orm';
 import { db } from '../db/client';
 import { dailyPuzzles, dailyPuzzleStarts, songs } from '../db/schema';
 import { hashString } from '../utils/deterministic';
@@ -54,6 +54,93 @@ async function selectPool(curatedOnly: boolean) {
     .orderBy(asc(songs.id));
 }
 
+/**
+ * Which song the automatic picker would choose for a date, given what has been used recently.
+ *
+ * Pulled out of `getOrCreateDailyPuzzle` so the admin page can *project* upcoming days without
+ * creating rows for them. Creating a row to find out what it would be is not a preview: it
+ * pins the answer and, worse, feeds the recently-used window for every day after it.
+ */
+export function pickSongForDate(
+  puzzleDate: string,
+  activeSongIds: readonly number[],
+  recentlyUsedIds: ReadonlySet<number>,
+): number | null {
+  if (activeSongIds.length === 0) return null;
+
+  const candidates = activeSongIds.filter((id) => !recentlyUsedIds.has(id));
+  const pool = candidates.length > 0 ? candidates : activeSongIds;
+
+  return pool[hashString(puzzleDate) % pool.length] ?? null;
+}
+
+/** The eligible song ids, honouring the curated-only setting with its degrade-not-fail fallback. */
+async function eligibleSongIds(): Promise<number[]> {
+  const { dailyCuratedOnly } = await getSettings();
+  const curated = dailyCuratedOnly ? await selectPool(true) : [];
+  const active = curated.length > 0 ? curated : await selectPool(false);
+  return active.map((s) => s.id);
+}
+
+export interface UpcomingPuzzle {
+  puzzleDate: string;
+  songId: number | null;
+  /** True when a row already exists, i.e. someone played that day or an admin pinned it.
+   *  False means this is what the picker *would* choose, and is still free to change. */
+  scheduled: boolean;
+}
+
+/**
+ * What the next `days` days will play, projected forward from today.
+ *
+ * The projection has to be sequential, not per-date: each day the picker excludes recently used
+ * songs, so day three's answer depends on what days one and two took. Simulating them in order
+ * with a running window is the only way to preview honestly — asking "what would day three be"
+ * in isolation would ignore the two days about to be created before it.
+ */
+export async function previewUpcomingPuzzles(days = 14): Promise<UpcomingPuzzle[]> {
+  const activeSongIds = await eligibleSongIds();
+  const recentWindow = Math.max(0, activeSongIds.length - 1);
+
+  const alreadyUsed =
+    recentWindow > 0
+      ? await db
+          .select({ songId: dailyPuzzles.songId })
+          .from(dailyPuzzles)
+          .orderBy(desc(dailyPuzzles.puzzleDate))
+          .limit(recentWindow)
+      : [];
+
+  // A queue rather than a set, so the window can drop its oldest entry as the projection walks
+  // forward — exactly what the real picker's `LIMIT recentWindow` does day to day.
+  const window: number[] = alreadyUsed.map((r) => r.songId);
+
+  const today = new Date(`${getUtcDateString()}T00:00:00Z`);
+  const pinned = await db
+    .select({ puzzleDate: dailyPuzzles.puzzleDate, songId: dailyPuzzles.songId })
+    .from(dailyPuzzles)
+    .where(gte(dailyPuzzles.puzzleDate, getUtcDateString()));
+  const pinnedByDate = new Map(pinned.map((p) => [p.puzzleDate, p.songId]));
+
+  const result: UpcomingPuzzle[] = [];
+  for (let offset = 0; offset < days; offset += 1) {
+    const date = new Date(today.getTime() + offset * 24 * 60 * 60 * 1000);
+    const puzzleDate = getUtcDateString(date);
+
+    const existing = pinnedByDate.get(puzzleDate);
+    const songId =
+      existing ??
+      pickSongForDate(puzzleDate, activeSongIds, new Set(window.slice(0, recentWindow)));
+
+    result.push({ puzzleDate, songId: songId ?? null, scheduled: existing != null });
+
+    // Whatever that day takes becomes the newest entry of the window the next day sees.
+    if (songId != null) window.unshift(songId);
+  }
+
+  return result;
+}
+
 export async function getOrCreateDailyPuzzle(puzzleDate: string) {
   const existingRows = await db
     .select()
@@ -72,10 +159,8 @@ export async function getOrCreateDailyPuzzle(puzzleDate: string) {
   // would often be something most players have never heard. The chart sync still keeps the
   // bank fresh; it just doesn't decide the daily. If curation hasn't run yet, fall back to
   // every active song so the game degrades instead of failing.
-  const { dailyCuratedOnly } = await getSettings();
-  const curatedSongs = dailyCuratedOnly ? await selectPool(true) : [];
-  const activeSongs = curatedSongs.length > 0 ? curatedSongs : await selectPool(false);
-  if (activeSongs.length === 0) {
+  const activeSongIds = await eligibleSongIds();
+  if (activeSongIds.length === 0) {
     throw new Error('No active songs available to build a daily puzzle');
   }
 
@@ -83,7 +168,7 @@ export async function getOrCreateDailyPuzzle(puzzleDate: string) {
   // used in the most recent (activeCount - 1) days from today's candidate pool. This window
   // is recomputed from the *current* active count every call, so it self-heals as songs are
   // added/deactivated by the curation scripts over time.
-  const recentWindow = Math.max(0, activeSongs.length - 1);
+  const recentWindow = Math.max(0, activeSongIds.length - 1);
   const recentlyUsed =
     recentWindow > 0
       ? await db
@@ -94,12 +179,8 @@ export async function getOrCreateDailyPuzzle(puzzleDate: string) {
       : [];
   const recentlyUsedIds = new Set(recentlyUsed.map((r) => r.songId));
 
-  const candidates = activeSongs.filter((s) => !recentlyUsedIds.has(s.id));
-  const pool = candidates.length > 0 ? candidates : activeSongs;
-
-  const offset = hashString(puzzleDate) % pool.length;
-  const chosen = pool[offset];
-  if (!chosen) {
+  const chosenId = pickSongForDate(puzzleDate, activeSongIds, recentlyUsedIds);
+  if (chosenId == null) {
     throw new Error('Failed to select a song for the daily puzzle');
   }
 
@@ -108,7 +189,7 @@ export async function getOrCreateDailyPuzzle(puzzleDate: string) {
   // instead of erroring — everyone still ends up on the same song.
   const insertedRows = await db
     .insert(dailyPuzzles)
-    .values({ puzzleDate, songId: chosen.id })
+    .values({ puzzleDate, songId: chosenId })
     .onConflictDoNothing({ target: dailyPuzzles.puzzleDate })
     .returning();
   const inserted = insertedRows[0];

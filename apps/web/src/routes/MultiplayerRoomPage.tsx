@@ -1,6 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { searchArtistTracks } from '../api/artists';
+import { searchCategoryTracks } from '../api/categories';
 import { useMultiplayerGame } from '../features/multiplayer/useMultiplayerGame';
 import { MultiplayerLobby } from '../features/multiplayer/MultiplayerLobby';
 import { MultiplayerGame } from '../features/multiplayer/MultiplayerGame';
@@ -34,11 +35,17 @@ export function MultiplayerRoomPage() {
     leave,
   } = useMultiplayerGame(code, nickname);
 
-  const artistId = room?.artistId;
-  const searchThisArtist = useCallback(
-    (query: string) =>
-      artistId ? searchArtistTracks(artistId, query, false) : Promise.resolve([]),
-    [artistId],
+  // The typeahead has to search whatever the room races over, not always an artist.
+  const sourceType = room?.sourceType;
+  const sourceId = room?.sourceId;
+  const searchRoomTracks = useCallback(
+    (query: string) => {
+      if (!sourceId) return Promise.resolve([]);
+      return sourceType === 'category'
+        ? searchCategoryTracks(sourceId, query)
+        : searchArtistTracks(Number(sourceId), query, false);
+    },
+    [sourceType, sourceId],
   );
 
   const handleLeave = useCallback(() => {
@@ -105,7 +112,7 @@ export function MultiplayerRoomPage() {
       <MultiplayerResults
         gameOver={gameOver}
         selfId={selfId}
-        artistName={room.artistName}
+        label={room.label}
         canPlayAgain={selfId === room.hostId}
         onPlayAgain={startGame}
         onLeave={handleLeave}
@@ -123,7 +130,7 @@ export function MultiplayerRoomPage() {
         roundEnd={roundEnd}
         scores={scores}
         lastGuess={lastGuess}
-        searchFn={searchThisArtist}
+        searchFn={searchRoomTracks}
         onSubmitGuess={submitGuess}
         onReveal={reveal}
         onNextRound={nextRound}

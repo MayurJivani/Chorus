@@ -221,7 +221,7 @@ export async function seedIfEmpty(): Promise<void> {
     return;
   }
 
-  logger.info('Songs table is empty — seeding from Deezer...');
+  logger.info('Songs table is empty, seeding from Deezer...');
 
   let inserted = 0;
   let errors = 0;

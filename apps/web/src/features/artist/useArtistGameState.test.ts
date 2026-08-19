@@ -35,7 +35,7 @@ function renderGame() {
   return renderHook(() => useArtistGameState(412, false, 'search'));
 }
 
-describe('useArtistGameState — final round', () => {
+describe('useArtistGameState, final round', () => {
   it('reveals the tenth song after a skip instead of jumping to the summary', async () => {
     // A skip that exhausts the last attempt of the last round: the run is over, but the
     // player has not been told what the song was yet.
@@ -121,7 +121,7 @@ describe('useArtistGameState — final round', () => {
   });
 });
 
-describe('useArtistGameState — selecting an artist', () => {
+describe('useArtistGameState, selecting an artist', () => {
   it('starts a fresh run rather than resuming an abandoned one', async () => {
     // The server resumes the most recent session unless playAgain is set, so the client has to
     // ask for a new challenge explicitly.

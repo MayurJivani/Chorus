@@ -105,14 +105,14 @@ eraRouter.get(
       tracks.map((t) => t.deezerTrackId),
     );
     if (!playable) {
-      throw new HttpError(503, 'This song is temporarily unavailable — please try again shortly');
+      throw new HttpError(503, 'This song is temporarily unavailable, please try again shortly');
     }
 
     // A substituted track carries its own year, so read the answer off whatever is actually
     // being played rather than the row we started with.
     const answerYear = playable.track.releaseYear;
     if (answerYear == null) {
-      throw new HttpError(503, 'This round is missing its year — please try again shortly');
+      throw new HttpError(503, 'This round is missing its year, please try again shortly');
     }
 
     const snippetSchedule = await getSnippetSchedule();

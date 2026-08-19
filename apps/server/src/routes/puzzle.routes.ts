@@ -98,7 +98,7 @@ puzzleRouter.get(
     // expire in minutes, so the URL actually handed to a player is always fetched live.
     const fresh = await getFreshPreviewUrl(song.deezerTrackId);
     if (!fresh) {
-      throw new HttpError(503, 'This song is temporarily unavailable — please try again shortly');
+      throw new HttpError(503, 'This song is temporarily unavailable, please try again shortly');
     }
 
     res.json({

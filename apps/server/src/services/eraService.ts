@@ -96,7 +96,7 @@ export class EraUnavailableError extends Error {}
 export async function requireEraPool(): Promise<ArtistTrack[]> {
   const pool = await getEraPool();
   if (pool.length < MIN_ERA_TRACKS) {
-    throw new EraUnavailableError('Era mode is warming up — please try again shortly');
+    throw new EraUnavailableError('Era mode is warming up, please try again shortly');
   }
   return pool;
 }

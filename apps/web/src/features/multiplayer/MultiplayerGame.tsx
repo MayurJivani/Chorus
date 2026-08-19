@@ -62,7 +62,7 @@ export function MultiplayerGame({
       <div className="glass flex w-full flex-col items-center gap-4 rounded-2xl p-4 sm:p-6">
         {/* Header */}
         <div className="flex w-full flex-col items-center gap-1 text-center">
-          <h1 className="text-xl font-bold text-white">{room.artistName}</h1>
+          <h1 className="text-xl font-bold text-white">{room.label}</h1>
           <p className="font-mono text-xs text-slate-500">
             Song {round.roundIndex + 1} of {round.totalRounds} ·{' '}
             {roundEnd ? 'next round in' : 'round ends in'}{' '}
@@ -115,7 +115,7 @@ export function MultiplayerGame({
               stageSeconds={stageSeconds}
               playSignal={stageIndex + 1}
               fixedOffsetSeconds={0}
-              artistPictureUrl={round.artistPictureUrl}
+              artistPictureUrl={round.pictureUrl}
             />
 
             <button

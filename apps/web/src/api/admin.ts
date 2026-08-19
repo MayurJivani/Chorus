@@ -4,6 +4,7 @@ import type {
   AdminDashboard,
   AdminSong,
   SettingDescriptor,
+  UpcomingSchedule,
 } from '../types/api';
 
 export function getDailyPuzzles(from?: string): Promise<AdminDailyPuzzleList> {
@@ -60,4 +61,13 @@ export async function resetAdminSetting(key: string): Promise<SettingDescriptor[
 
 export function getAdminDashboard(): Promise<AdminDashboard> {
   return apiRequest<AdminDashboard>('/admin/dashboard');
+}
+
+export function getUpcomingSchedule(days = 14): Promise<UpcomingSchedule> {
+  return apiRequest<UpcomingSchedule>(`/admin/daily-puzzles/upcoming?days=${days}`);
+}
+
+/** Swaps a date onto a different random song. Never returns the one it already had. */
+export function randomizeDailyPuzzle(date: string): Promise<{ ok: true }> {
+  return apiRequest(`/admin/daily-puzzles/${date}/randomize`, { method: 'POST' });
 }

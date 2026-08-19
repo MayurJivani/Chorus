@@ -39,7 +39,59 @@ describe('POST /api/multiplayer/rooms', () => {
       .send({ artistId: 412 });
     expect(res.status).toBe(201);
     expect(res.body.code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
-    expect(res.body).toMatchObject({ artistId: 412, artistName: 'Queen' });
+    expect(res.body).toMatchObject({
+      sourceType: 'artist',
+      sourceId: '412',
+      label: 'Queen',
+    });
+  });
+
+  it('creates a room for a category', async () => {
+    const agent = request.agent(app);
+    const csrfToken = await getCsrfToken(agent);
+    const res = await agent
+      .post('/api/multiplayer/rooms')
+      .set('X-CSRF-Token', csrfToken)
+      .send({ categoryId: 'year-2020' });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      sourceType: 'category',
+      sourceId: 'year-2020',
+      label: 'Top Hits 2020',
+    });
+  });
+
+  it('rejects a request naming both an artist and a category', async () => {
+    // Ambiguous rather than harmless: the room would race over whichever the code checked
+    // first, which need not be the one the player meant.
+    const agent = request.agent(app);
+    const csrfToken = await getCsrfToken(agent);
+    const res = await agent
+      .post('/api/multiplayer/rooms')
+      .set('X-CSRF-Token', csrfToken)
+      .send({ artistId: 412, categoryId: 'year-2020' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a request naming neither', async () => {
+    const agent = request.agent(app);
+    const csrfToken = await getCsrfToken(agent);
+    const res = await agent.post('/api/multiplayer/rooms').set('X-CSRF-Token', csrfToken).send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an unknown category', async () => {
+    const agent = request.agent(app);
+    const csrfToken = await getCsrfToken(agent);
+    const res = await agent
+      .post('/api/multiplayer/rooms')
+      .set('X-CSRF-Token', csrfToken)
+      .send({ categoryId: 'year-1066' });
+
+    expect(res.status).toBe(404);
   });
 
   it('rejects an unknown artist', async () => {

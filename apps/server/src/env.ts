@@ -15,13 +15,13 @@ const envSchema = z.object({
     .string()
     .min(
       32,
-      'SESSION_SECRET must be at least 32 characters — generate one with `openssl rand -hex 32`',
+      'SESSION_SECRET must be at least 32 characters, generate one with `openssl rand -hex 32`',
     ),
   CSRF_SECRET: z
     .string()
     .min(
       32,
-      'CSRF_SECRET must be at least 32 characters — generate one with `openssl rand -hex 32`',
+      'CSRF_SECRET must be at least 32 characters, generate one with `openssl rand -hex 32`',
     ),
   CORS_ORIGIN: z
     .string()

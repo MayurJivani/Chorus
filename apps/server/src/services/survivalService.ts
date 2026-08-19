@@ -142,7 +142,7 @@ export async function getOrStartRound(
 ): Promise<SurvivalRound> {
   const pool = await getSurvivalPool();
   if (pool.length < MIN_POOL_TRACKS) {
-    throw new SurvivalUnavailableError('Survival mode is warming up — please try again shortly');
+    throw new SurvivalUnavailableError('Survival mode is warming up, please try again shortly');
   }
 
   let run = await findActiveRun(identity);

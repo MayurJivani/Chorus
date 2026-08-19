@@ -115,7 +115,7 @@ artistsRouter.get(
       tracks.map((t) => t.deezerTrackId),
     );
     if (!playable) {
-      throw new HttpError(503, 'This song is temporarily unavailable — please try again shortly');
+      throw new HttpError(503, 'This song is temporarily unavailable, please try again shortly');
     }
     const currentTrack = playable.track;
 
