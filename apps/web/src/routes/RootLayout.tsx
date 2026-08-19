@@ -103,6 +103,7 @@ export function RootLayout() {
             <NavLink to="/play">Daily Challenge</NavLink>
             <NavLink to="/artist">Artist Mode</NavLink>
             <NavLink to="/categories">Categories</NavLink>
+            <NavLink to="/survival">Survival</NavLink>
             <NavLink to="/multiplayer">Multiplayer</NavLink>
             <NavLink to="/leaderboard">Leaderboard</NavLink>
             <NavLink to="/stats">Stats</NavLink>
@@ -168,6 +169,7 @@ export function RootLayout() {
                   ['/play', 'Daily Challenge'],
                   ['/artist', 'Artist Mode'],
                   ['/categories', 'Categories'],
+                  ['/survival', 'Survival'],
                   ['/multiplayer', 'Multiplayer'],
                   ['/leaderboard', 'Leaderboard'],
                   ['/stats', 'Stats'],

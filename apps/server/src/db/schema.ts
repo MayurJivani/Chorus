@@ -253,6 +253,45 @@ export interface ArtistTrackPoolEntry {
   durationSeconds: number;
 }
 
+/**
+ * A Survival run: endless rounds, one wrong answer ends it.
+ *
+ * Kept apart from `artist_session_results` rather than folded into it, because the two disagree
+ * about what a run *is*. A challenge has a fixed set of tracks decided up front and a known
+ * length; a survival run has neither — tracks are drawn one at a time until the player misses,
+ * so the pending track and the tracks already used have to live on the run itself.
+ *
+ * `endedAt` doubles as the completion flag: null means in progress, which is also what makes
+ * "resume the run I was in" a single lookup.
+ */
+export const survivalRuns = pgTable(
+  'survival_runs',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').references(() => users.id),
+    guestId: text('guest_id'),
+    guessMode: text('guess_mode').notNull().default('search'),
+    /** Consecutive correct answers so far — the score, and what the board ranks. */
+    streak: integer('streak').notNull().default(0),
+    /** Deezer ids already served in this run, so a run never repeats a song. */
+    usedTrackIds: jsonb('used_track_ids').notNull().$type<string[]>().default([]),
+    // The track currently in play, stored server-side so a guess is checked against what the
+    // server served rather than anything the client reports back.
+    currentTrackId: text('current_track_id'),
+    currentTitle: text('current_title'),
+    currentArtist: text('current_artist'),
+    currentAlbumArtUrl: text('current_album_art_url'),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('survival_runs_user_idx').on(table.userId),
+    index('survival_runs_guest_idx').on(table.guestId),
+    index('survival_runs_streak_idx').on(table.streak),
+  ],
+);
+
 export const artistSessionResults = pgTable(
   'artist_session_results',
   {
@@ -294,3 +333,4 @@ export type NewArtistRoundGuess = typeof artistRoundGuesses.$inferInsert;
 export type ArtistTrackPool = typeof artistTrackPools.$inferSelect;
 export type DailyPuzzleStart = typeof dailyPuzzleStarts.$inferSelect;
 export type AppSetting = typeof appSettings.$inferSelect;
+export type SurvivalRun = typeof survivalRuns.$inferSelect;

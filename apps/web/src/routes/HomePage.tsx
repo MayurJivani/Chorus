@@ -46,6 +46,13 @@ const MODES = [
     cta: 'Browse categories',
   },
   {
+    to: '/survival',
+    icon: '💀',
+    title: 'Survival',
+    description: 'Endless songs. One wrong answer ends the run.',
+    cta: 'Start a run',
+  },
+  {
     to: '/multiplayer',
     icon: '⚡',
     title: 'Multiplayer',
@@ -132,7 +139,7 @@ export function HomePage() {
       >
         <div className="flex flex-col items-center gap-2">
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-purple-400">
-            Four ways to play
+            Five ways to play
           </h2>
           <div className="h-px w-16 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
         </div>

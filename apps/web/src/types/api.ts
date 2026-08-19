@@ -276,6 +276,39 @@ export interface Category {
   blurb: string;
 }
 
+// --- Survival Mode ------------------------------------------------------------------------
+
+export interface SurvivalRound {
+  runId: number;
+  /** Correct answers so far in this run. */
+  streak: number;
+  previewUrl: string;
+  options?: ArtistRoundOption[];
+}
+
+export interface SurvivalGuessResult {
+  correct: boolean;
+  streak: number;
+  runOver: boolean;
+  song: RevealedSong;
+  /** Set when the run ends: the best streak before this one. */
+  personalBest?: number;
+}
+
+export interface SurvivalStanding {
+  rank: number;
+  displayName: string;
+  bestStreak: number;
+  runs: number;
+  isYou: boolean;
+}
+
+export interface SurvivalLeaderboard {
+  entries: SurvivalStanding[];
+  myBest: number;
+  myRuns: number;
+}
+
 // --- Admin ---------------------------------------------------------------------------------
 
 export interface AdminSong {

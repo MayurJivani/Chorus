@@ -11,7 +11,15 @@
   <meta property="og:description"
     content="Hear a growing snippet of a song and guess it in as few listens as possible." />
   <meta property="og:type" content="website" />
-  <meta name="twitter:card" content="summary" />
+  <meta property="og:url" content="/" />
+  <meta property="og:site_name" content="Chorus" />
+  <!-- Absolute at request time: crawlers do not resolve relative og:image paths. The server
+       rewrites this (and the title/description above) per route when a link is shared. -->
+  <meta property="og:image" content="/og-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="/og-card.png" />
   <meta name="twitter:title" content="Chorus - daily music guessing game" />
   <meta name="twitter:description"
     content="Hear a growing snippet of a song and guess it in as few listens as possible." />

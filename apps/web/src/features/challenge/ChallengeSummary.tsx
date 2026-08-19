@@ -5,6 +5,8 @@ import confetti from 'canvas-confetti';
 import { SourceStandings, ChallengeStandings } from './ChallengeLeaderboard';
 import { ChallengeGuessDistribution } from './ChallengeGuessDistribution';
 import { useSession } from '../../hooks/useSession';
+import { buildRunShareText } from '../stats/shareText';
+import { shareOrCopy } from '../stats/shareOrCopy';
 import type {
   ArtistLeaderboardEntry,
   GuessDistributionBucket,
@@ -20,6 +22,8 @@ interface ChallengeSummaryProps {
   timeTakenSeconds?: number | null;
   /** Absolute URL that re-opens this exact challenge. Omitted when there's nothing to share. */
   shareUrl?: string;
+  /** One entry per song answered, in order — drawn as the share grid. */
+  runHistory?: boolean[];
   loadLeaderboard: () => Promise<{
     entries: SourceStanding[];
     mine: Omit<SourceStanding, 'rank' | 'displayName' | 'isYou'> | null;
@@ -45,6 +49,7 @@ export function ChallengeSummary({
   totalRounds,
   timeTakenSeconds,
   shareUrl,
+  runHistory = [],
   loadLeaderboard,
   loadChallengeLeaderboard,
   loadDistribution,
@@ -52,6 +57,7 @@ export function ChallengeSummary({
   browse,
 }: ChallengeSummaryProps) {
   const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
   const { user } = useSession();
 
   useEffect(() => {
@@ -122,6 +128,31 @@ export function ChallengeSummary({
       <ChallengeGuessDistribution load={loadDistribution} />
 
       <div className="flex w-full flex-col gap-3">
+        {/* The grid, not the link: this is the thing someone posts, and it says how the run
+            went without giving away a single answer. */}
+        <button
+          type="button"
+          onClick={() => {
+            void shareOrCopy(
+              buildRunShareText({
+                subject: subjectName,
+                history: runHistory,
+                songsCorrect,
+                totalRounds,
+                timeTakenSeconds,
+                url: shareUrl,
+              }),
+            ).then((ok) => {
+              if (!ok) return;
+              setShared(true);
+              setTimeout(() => setShared(false), 2000);
+            });
+          }}
+          className="btn-primary w-full"
+        >
+          {shared ? '✅ Copied!' : '📋 Share result'}
+        </button>
+
         {shareUrl && (
           <button
             type="button"

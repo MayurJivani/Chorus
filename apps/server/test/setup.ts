@@ -35,6 +35,7 @@ const TABLES = [
   // later file's game behaves — a leftover 20-song run length made ten-round test loops stop
   // short and their leaderboard assertions fail with no obvious connection to the cause.
   'app_settings',
+  'survival_runs',
   'artist_round_guesses',
   'artist_session_results',
   'artist_challenge_tracks',

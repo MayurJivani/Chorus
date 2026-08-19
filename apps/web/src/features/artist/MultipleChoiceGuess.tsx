@@ -89,13 +89,16 @@ export function MultipleChoiceGuess({
             type="button"
             disabled={disabled || roundEnded}
             onClick={() => handleSelect(option)}
-            className={`flex items-center justify-between rounded-xl border px-4 py-3.5 text-left backdrop-blur-sm transition-all duration-200 ${styleClass} disabled:cursor-not-allowed`}
+            className={`flex items-center justify-between gap-2 rounded-xl border px-4 py-3.5 text-left backdrop-blur-sm transition-all duration-200 ${styleClass} disabled:cursor-not-allowed`}
           >
-            <div className="flex flex-col">
-              <span className="font-semibold text-base">{option.title}</span>
-              <span className="text-xs opacity-75">{option.artist}</span>
+            {/* min-w-0 is what lets the truncation actually happen: without it this flex child
+                refuses to shrink below its content, and a long title ("Bang My Head (feat. Sia
+                & Fetty Wap)") pushes the result badge off a phone screen entirely. */}
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-base font-semibold">{option.title}</span>
+              <span className="truncate text-xs opacity-75">{option.artist}</span>
             </div>
-            {badge}
+            {badge && <span className="shrink-0">{badge}</span>}
           </button>
         );
       })}

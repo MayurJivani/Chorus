@@ -9,6 +9,7 @@ import { doubleCsrfProtection, generateCsrfToken } from './middleware/csrf';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { logger } from './logger';
 import { getPublicGameConfig } from './services/settingsService';
+import { renderIndexWithPreview } from './middleware/ogTags';
 import { authRouter } from './routes/auth.routes';
 import { songsRouter } from './routes/songs.routes';
 import { puzzleRouter } from './routes/puzzle.routes';
@@ -17,6 +18,7 @@ import { artistsRouter } from './routes/artists.routes';
 import { multiplayerRouter } from './routes/multiplayer.routes';
 import { leaderboardRouter } from './routes/leaderboard.routes';
 import { categoriesRouter } from './routes/categories.routes';
+import { survivalRouter } from './routes/survival.routes';
 import { adminRouter } from './routes/admin.routes';
 
 export function createApp(): Express {
@@ -56,6 +58,7 @@ export function createApp(): Express {
   app.use('/api/multiplayer', multiplayerRouter);
   app.use('/api/leaderboard', leaderboardRouter);
   app.use('/api/categories', categoriesRouter);
+  app.use('/api/survival', survivalRouter);
   app.use('/api/admin', adminRouter);
 
   // Serve the built Vite frontend in production.
@@ -63,16 +66,31 @@ export function createApp(): Express {
   // In development this directory won't exist and Express will fall through.
   const publicDir = path.join(__dirname, '..', 'public');
   if (fs.existsSync(publicDir)) {
-    app.use(express.static(publicDir));
+    // `index: false` matters: with the default, this would answer "/" with index.html directly
+    // and the catch-all below would never run for the homepage — leaving the most-shared URL of
+    // all with a relative og:image, which every crawler ignores.
+    app.use(express.static(publicDir, { index: false }));
     // SPA catch-all: serve index.html for any non-/api route so that
     // client-side routes (e.g. /play, /artist) work on hard refresh.
-    app.get('/{*path}', (_req, res, next) => {
+    //
+    // The HTML is rewritten rather than sent verbatim so that a shared link previews as what it
+    // actually is. Crawlers don't run JavaScript, so tags React sets at runtime are invisible to
+    // them, and every link — a Queen challenge, a survival streak — previewed identically.
+    app.get('/{*path}', (req, res, next) => {
       const indexPath = path.join(publicDir, 'index.html');
-      if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-      } else {
+      if (!fs.existsSync(indexPath)) {
         next();
+        return;
       }
+
+      renderIndexWithPreview(indexPath, req)
+        .then((html) => res.type('html').send(html))
+        .catch((err) => {
+          // A preview is cosmetic — fall back to the unmodified page rather than 500 a route
+          // that would otherwise have worked.
+          logger.warn({ err, path: req.path }, 'Falling back to the unmodified index.html');
+          res.sendFile(indexPath);
+        });
     });
   }
 

@@ -13,6 +13,7 @@ import { ArtistSearchPage } from './routes/ArtistSearchPage';
 import { ArtistPlayPage } from './routes/ArtistPlayPage';
 import { CategoryPickerPage } from './routes/CategoryPickerPage';
 import { CategoryPlayPage } from './routes/CategoryPlayPage';
+import { SurvivalPage } from './routes/SurvivalPage';
 import { AdminPage } from './routes/AdminPage';
 import { NotFoundPage } from './routes/NotFoundPage';
 import { MultiplayerHomePage } from './routes/MultiplayerHomePage';
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
       { path: '/artist/:artistId/play', element: <ArtistPlayPage /> },
       { path: '/categories', element: <CategoryPickerPage /> },
       { path: '/category/:categoryId/play', element: <CategoryPlayPage /> },
+      { path: '/survival', element: <SurvivalPage /> },
       { path: '/admin', element: <AdminPage /> },
       { path: '/multiplayer', element: <MultiplayerHomePage /> },
       { path: '/room/:code', element: <MultiplayerRoomPage /> },

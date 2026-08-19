@@ -43,6 +43,9 @@ export interface ChallengeGameState {
   finalScore: ArtistGuessResult['finalScore'] | null;
   /** The run is over and the on-screen reveal is its last round. */
   sessionComplete: boolean;
+  /** One entry per song answered in this run, in order — what the share grid is drawn from.
+   *  `roundHistory` cannot serve: it is the attempts within the *current* song and resets. */
+  runHistory: boolean[];
   errorMessage: string | null;
   submitting: boolean;
   guess: (song: SongSearchResult) => Promise<void>;
@@ -60,6 +63,7 @@ export function useChallengeGameState(
   const [challenge, setChallenge] = useState<ArtistChallengeResponse | null>(null);
   const [attemptNumber, setAttemptNumber] = useState(1);
   const [roundHistory, setRoundHistory] = useState<GuessAttempt[]>([]);
+  const [runHistory, setRunHistory] = useState<boolean[]>([]);
   const [revealedSong, setRevealedSong] = useState<RevealedSong | null>(null);
   const [finalScore, setFinalScore] = useState<ArtistGuessResult['finalScore'] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -73,7 +77,7 @@ export function useChallengeGameState(
   endpointsRef.current = endpoints;
 
   const loadCurrentRound = useCallback(
-    async (playAgain?: boolean) => {
+    async (playAgain?: boolean, startingNewRun = false) => {
       const api = endpointsRef.current;
       try {
         // If playAgain is true, we start a new randomized session instead of the shared challenge
@@ -82,6 +86,9 @@ export function useChallengeGameState(
         setChallenge(current);
         setAttemptNumber(1);
         setRoundHistory([]);
+        // Only cleared when a run begins — advancing to the next song must keep the record of
+        // the songs already answered, which is the whole point of it.
+        if (startingNewRun || playAgain) setRunHistory([]);
         setRevealedSong(null);
         setSessionComplete(false);
         setStatus(current.completed ? 'completed' : 'playing');
@@ -107,7 +114,7 @@ export function useChallengeGameState(
     // Opening a challenge always begins a new run — picking something you abandoned halfway
     // should not drop you back into that half-finished attempt. The one exception is a shared
     // challenge link, whose whole purpose is to load one specific challenge.
-    void loadCurrentRound(sharedChallengeId == null);
+    void loadCurrentRound(sharedChallengeId == null, true);
   }, [endpoints.key, guessMode, sharedChallengeId, loadCurrentRound]);
 
   const submit = useCallback(
@@ -129,6 +136,7 @@ export function useChallengeGameState(
 
         if (result.isFinal) {
           setRevealedSong(result.song ?? null);
+          setRunHistory((prev) => [...prev, result.correct]);
           // Patch challenge with the latest server-reported counts so the UI stays in sync.
           if (result.songsCorrect != null) {
             setChallenge((prev) =>
@@ -183,6 +191,7 @@ export function useChallengeGameState(
     revealedSong,
     finalScore,
     sessionComplete,
+    runHistory,
     errorMessage,
     submitting,
     guess,
