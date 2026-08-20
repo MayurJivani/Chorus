@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { getMyProgress } from '../../api/stats';
-import type { MasteryEntry, ProgressSummary } from '../../types/api';
+import type { AchievementView, MasteryEntry, ProgressSummary } from '../../types/api';
 
 const MODE_LABELS: Record<string, string> = {
   artist: 'Artist Mode',
@@ -43,6 +43,8 @@ export function ProgressPanel() {
   if (!progress) return null;
 
   const { level, sources, byMode, byCategoryGroup, survival, daily, duels, mastery } = progress;
+  const achievements = progress.achievements ?? [];
+  const earnedCount = achievements.filter((a) => a.earned).length;
   const modes = (['artist', 'category', 'era'] as const).filter((m) => byMode[m].runs > 0);
   const groups = (['now', 'year', 'genre'] as const).filter((g) => byCategoryGroup[g]);
 
@@ -134,6 +136,24 @@ export function ProgressPanel() {
         </section>
       )}
 
+      {achievements.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">
+              Achievements
+            </h2>
+            <span className="font-mono text-xs text-slate-500">
+              {earnedCount}/{achievements.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {achievements.map((a) => (
+              <AchievementRow key={a.id} achievement={a} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {mastery.length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">
@@ -145,6 +165,50 @@ export function ProgressPanel() {
             ))}
           </ul>
         </section>
+      )}
+    </div>
+  );
+}
+
+const TIER_COLOURS: Record<string, string> = {
+  bronze: 'text-amber-500/90',
+  silver: 'text-slate-300',
+  gold: 'text-yellow-300',
+};
+
+function AchievementRow({ achievement }: { achievement: AchievementView }) {
+  const { earned, progress, current, target, tier } = achievement;
+
+  return (
+    <div
+      className={
+        'rounded-xl border p-3 transition-colors ' +
+        (earned ? 'border-white/15 bg-white/[0.06]' : 'border-white/5 bg-white/[0.02]')
+      }
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <p
+          className={
+            'truncate text-sm font-semibold ' +
+            (earned ? (TIER_COLOURS[tier] ?? 'text-white') : 'text-slate-400')
+          }
+        >
+          {achievement.label}
+        </p>
+        {/* The raw figure, not the capped one: someone with a streak of 200 should see 200. */}
+        <span className="shrink-0 font-mono text-[11px] text-slate-500">
+          {earned ? 'earned' : `${current}/${target}`}
+        </span>
+      </div>
+      <p className="mt-0.5 text-xs leading-snug text-slate-500">{achievement.description}</p>
+
+      {!earned && (
+        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full bg-chorus-accent/70"
+            style={{ width: `${Math.round(progress * 100)}%` }}
+          />
+        </div>
       )}
     </div>
   );

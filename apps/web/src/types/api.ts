@@ -323,6 +323,21 @@ export interface MasteryEntry {
   fastestRunSeconds: number | null;
 }
 
+export type AchievementTier = 'bronze' | 'silver' | 'gold';
+
+export interface AchievementView {
+  id: string;
+  label: string;
+  description: string;
+  tier: AchievementTier;
+  earned: boolean;
+  /** The raw figure, which can exceed the target once earned. */
+  current: number;
+  target: number;
+  /** 0 to 1, capped so a bar never overshoots. */
+  progress: number;
+}
+
 export interface ProgressSummary {
   level: LevelProgress;
   /** Where the XP came from, so the total is explainable rather than magic. */
@@ -333,6 +348,7 @@ export interface ProgressSummary {
   daily: { played: number; won: number };
   duels: { played: number; won: number; rating: number | null };
   mastery: MasteryEntry[];
+  achievements: AchievementView[];
 }
 
 // --- Duels -------------------------------------------------------------------------------
