@@ -1,8 +1,5 @@
 import { motion } from 'framer-motion';
 
-/** Spelled out to match the home page's heading. */
-const NUMBER_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
-
 /** Every mode, in the same order the home page lists them. */
 const MODES: [string, string][] = [
   ['Daily Challenge', 'one shared song per day, the same for everyone. Keep your streak alive.'],
@@ -22,7 +19,9 @@ const sections = [
   },
   {
     icon: '🎤',
-    title: `${NUMBER_WORDS[MODES.length] ?? MODES.length} ways to play`,
+    // No count here: this list includes the daily, which the home page's heading does not,
+    // so a number would contradict it every time a mode is added.
+    title: 'Ways to play',
     body: null,
     jsx: (
       <ul className="flex flex-col gap-1.5 text-sm leading-relaxed text-slate-400">

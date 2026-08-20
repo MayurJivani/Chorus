@@ -11,6 +11,7 @@ import { useGameConfig } from '../hooks/useGameConfig';
 import { useSession } from '../hooks/useSession';
 import { buildSurvivalShareText } from '../features/stats/shareText';
 import { shareOrCopy } from '../features/stats/shareOrCopy';
+import { renderResultCard, shareResultCard } from '../features/stats/resultCard';
 import {
   getSurvivalRound,
   giveUpSurvivalRun,
@@ -42,6 +43,7 @@ export function SurvivalPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [shared, setShared] = useState(false);
+  const [rendering, setRendering] = useState(false);
 
   // How far the player has extended the snippet this round. Free, unlike the other modes where
   // each stage costs an attempt — in Survival the cost is that you only ever get one guess.
@@ -215,11 +217,33 @@ export function SurvivalPage() {
             >
               {shared ? 'Copied!' : 'Share streak'}
             </button>
+            {/* The image is what travels on Instagram, where an emoji streak is invisible. */}
             <button
               type="button"
-              onClick={() => void startNewRun()}
-              className="btn-secondary w-full"
+              disabled={rendering}
+              onClick={() => {
+                setRendering(true);
+                void renderResultCard({
+                  subject: 'Survival',
+                  headline: `${finalStreak}`,
+                  caption: finalStreak === 1 ? 'song in a row' : 'songs in a row',
+                })
+                  .then((blob) =>
+                    blob
+                      ? shareResultCard(
+                          blob,
+                          `chorus-survival-${finalStreak}.png`,
+                          `${finalStreak} in a row on Chorus Survival`,
+                        )
+                      : undefined,
+                  )
+                  .finally(() => setRendering(false));
+              }}
+              className="btn-secondary w-full disabled:opacity-50"
             >
+              {rendering ? 'Making image…' : 'Save image'}
+            </button>
+            <button type="button" onClick={() => void startNewRun()} className="btn-ghost w-full">
               Play again
             </button>
           </div>

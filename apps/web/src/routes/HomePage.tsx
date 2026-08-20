@@ -133,7 +133,9 @@ export function HomePage() {
         <div className="flex items-center gap-3">
           <span className="h-px flex-1 bg-gradient-to-r from-transparent to-white/15" />
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-purple-400">
-            {NUMBER_WORDS[MODES.length + 1] ?? MODES.length + 1} ways to play
+            {/* Counts the grid below it, not the daily button above: the heading labels what
+                it sits on top of. */}
+            {NUMBER_WORDS[MODES.length] ?? MODES.length} ways to play
           </h2>
           <span className="h-px flex-1 bg-gradient-to-l from-transparent to-white/15" />
         </div>

@@ -7,6 +7,7 @@ import { ChallengeGuessDistribution } from './ChallengeGuessDistribution';
 import { useSession } from '../../hooks/useSession';
 import { buildRunShareText } from '../stats/shareText';
 import { shareOrCopy } from '../stats/shareOrCopy';
+import { renderResultCard, shareResultCard } from '../stats/resultCard';
 import type {
   ArtistLeaderboardEntry,
   GuessDistributionBucket,
@@ -58,6 +59,7 @@ export function ChallengeSummary({
 }: ChallengeSummaryProps) {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
+  const [rendering, setRendering] = useState(false);
   const { user } = useSession();
 
   useEffect(() => {
@@ -151,6 +153,35 @@ export function ChallengeSummary({
           className="btn-primary w-full"
         >
           {shared ? 'Copied!' : 'Share result'}
+        </button>
+
+        {/* The image is what travels on Instagram, where an emoji grid is invisible. */}
+        <button
+          type="button"
+          disabled={rendering}
+          onClick={() => {
+            setRendering(true);
+            void renderResultCard({
+              subject: subjectName,
+              headline: `${songsCorrect}/${totalRounds}`,
+              caption: timeTakenSeconds != null ? formatTime(timeTakenSeconds) : undefined,
+              history: runHistory,
+              totalRounds,
+            })
+              .then((blob) => {
+                if (blob) {
+                  return shareResultCard(
+                    blob,
+                    `chorus-${subjectName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`,
+                    `${songsCorrect}/${totalRounds} on ${subjectName}`,
+                  );
+                }
+              })
+              .finally(() => setRendering(false));
+          }}
+          className="btn-secondary w-full disabled:opacity-50"
+        >
+          {rendering ? 'Making image…' : 'Save image'}
         </button>
 
         {shareUrl && (
