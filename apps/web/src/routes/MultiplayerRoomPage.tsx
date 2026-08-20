@@ -134,6 +134,7 @@ export function MultiplayerRoomPage() {
         onSubmitGuess={submitGuess}
         onReveal={reveal}
         onNextRound={nextRound}
+        onLeave={handleLeave}
       />
     );
   }

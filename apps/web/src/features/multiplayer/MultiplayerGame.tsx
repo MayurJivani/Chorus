@@ -28,6 +28,9 @@ interface MultiplayerGameProps {
   onSubmitGuess: (trackId: string) => void;
   onReveal: () => void;
   onNextRound: () => void;
+  /** Mid-game exit. Without it the only way out was closing the tab, which looks to everyone
+   *  else exactly like a crash and leaves the player no way back to the rest of the site. */
+  onLeave: () => void;
 }
 
 export function MultiplayerGame({
@@ -42,6 +45,7 @@ export function MultiplayerGame({
   onSubmitGuess,
   onReveal,
   onNextRound,
+  onLeave,
 }: MultiplayerGameProps) {
   const isHost = selfId === room.hostId;
   const you = room.players.find((p) => p.playerId === selfId);
@@ -177,6 +181,15 @@ export function MultiplayerGame({
         showRoundState
         title="Live standings"
       />
+
+      {/* Understated on purpose: leaving mid-race should be possible, not inviting. */}
+      <button
+        type="button"
+        onClick={onLeave}
+        className="text-xs text-slate-500 underline decoration-dotted transition-colors hover:text-slate-300"
+      >
+        Leave room
+      </button>
     </div>
   );
 }
