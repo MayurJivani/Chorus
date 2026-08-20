@@ -293,6 +293,48 @@ export interface ChallengeSummary {
   } | null;
 }
 
+// --- Progression -------------------------------------------------------------------------
+
+export interface LevelProgress {
+  level: number;
+  xp: number;
+  levelStartXp: number;
+  nextLevelXp: number;
+  /** 0 to 1 through the current level. */
+  progress: number;
+}
+
+export interface ModeBreakdown {
+  songsCorrect: number;
+  songsPossible: number;
+  accuracy: number;
+  runs: number;
+}
+
+export interface MasteryEntry {
+  sourceType: string;
+  sourceId: string;
+  label: string;
+  runs: number;
+  songsCorrect: number;
+  songsPossible: number;
+  accuracy: number;
+  bestRun: number;
+  fastestRunSeconds: number | null;
+}
+
+export interface ProgressSummary {
+  level: LevelProgress;
+  /** Where the XP came from, so the total is explainable rather than magic. */
+  sources: { songs: number; dailyWins: number; duelWins: number; survival: number };
+  byMode: Record<'artist' | 'category' | 'era', ModeBreakdown>;
+  byCategoryGroup: Partial<Record<'now' | 'year' | 'genre', ModeBreakdown>>;
+  survival: { runs: number; bestStreak: number; totalSongs: number };
+  daily: { played: number; won: number };
+  duels: { played: number; won: number; rating: number | null };
+  mastery: MasteryEntry[];
+}
+
 // --- Duels -------------------------------------------------------------------------------
 
 export interface DuelRun {

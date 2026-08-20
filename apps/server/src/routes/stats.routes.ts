@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { getStats, getSolveTimeStats } from '../services/statsService';
+import { getProgress } from '../services/progressService';
+import { getIdentity } from '../auth/identity';
 import { asyncHandler } from '../middleware/asyncHandler';
 
 export const statsRouter = Router();
@@ -42,5 +44,13 @@ statsRouter.get(
       lastPlayedDate: stats.lastPlayedDate,
       ...solveTimes,
     });
+  }),
+);
+
+/** Level, XP and mastery, derived from the runs already recorded. */
+statsRouter.get(
+  '/progress',
+  asyncHandler(async (req, res) => {
+    res.json(await getProgress(getIdentity(req)));
   }),
 );

@@ -6,6 +6,7 @@ import { useSession } from '../hooks/useSession';
 import { GuessDistributionChart } from '../features/stats/GuessDistributionChart';
 import { ShareCard } from '../features/stats/ShareCard';
 import { formatDuration } from '../features/stats/formatDuration';
+import { ProgressPanel } from '../features/stats/ProgressPanel';
 import type { StatsResponse } from '../types/api';
 
 export function StatsPage() {
@@ -41,9 +42,10 @@ export function StatsPage() {
   const winRate =
     stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0;
 
-  // A player who has never finished a puzzle has nothing to show, and a screen of zeroes
-  // beside an empty chart reads as a broken page rather than an empty one. Point them at the
-  // puzzle instead — it is the only useful thing to do from here.
+  // A player who has never finished a *daily* puzzle has no streak or guess distribution to
+  // show, and a screen of zeroes beside an empty chart reads as broken rather than empty. Their
+  // progression still belongs here though: someone who has played fifty artist runs and no
+  // dailies used to be told they had no stats at all.
   if (stats.gamesPlayed === 0) {
     return (
       <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-4 sm:gap-6 px-4 py-4 sm:py-8 text-center">
@@ -55,7 +57,7 @@ export function StatsPage() {
           <span className="text-4xl" aria-hidden="true">
             📊
           </span>
-          <h1 className="text-2xl font-bold text-white">No stats yet</h1>
+          <h1 className="text-2xl font-bold text-white">No daily stats yet</h1>
           <p className="max-w-sm text-sm text-slate-400">
             Finish a daily puzzle and your streak, win rate and guess distribution will show up
             here.
@@ -73,6 +75,7 @@ export function StatsPage() {
             </p>
           )}
         </motion.div>
+        <ProgressPanel />
       </div>
     );
   }
@@ -165,6 +168,12 @@ export function StatsPage() {
       )}
 
       <ShareCard stats={stats} />
+
+      {/* Everything that is not the daily puzzle: level, mode breakdown, and the artists and
+          categories this player actually knows. */}
+      <div className="w-full">
+        <ProgressPanel />
+      </div>
     </div>
   );
 }
