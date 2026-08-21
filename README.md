@@ -13,7 +13,7 @@ A snippet plays. The needle drops. The clock ticks.
 
 <br>
 
-> _For everyone who's ever finished a lyric before the singer did. For the ones who know a song from its first half-second. For the people who still argue about which is the "real" version of a track. This one's for you._
+> _For everyone who's ever finished a lyric before the singer did. For the ones who know a song from its first half-second. For the stans, the superfans, the ones who know the deep cuts too. This one's for you._
 
 ---
 
@@ -29,7 +29,7 @@ A snippet plays. The needle drops. The clock ticks.
 
 **Era** — Strip it back to a single decade. '60s soul, '90s grunge, 2000s pop, wherever your ear was raised.
 
-_Karaoke covers, live cuts, and remixes don't make the bank. Originals only, no cheap wins, just the real thing._
+_Karaoke covers, live cuts, and remixes don't make the bank. Originals only!!_
 
 ---
 
@@ -88,8 +88,6 @@ Argon2id · opaque server-side sessions · double-submit CSRF · rate limiting �
 ---
 
 <div align="center">
-
-_Made for anyone who's ever shouted the song title before the first verse even landed._
 
 **Built with ❤️ and 🎵**
 
