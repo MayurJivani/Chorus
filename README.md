@@ -1,7 +1,7 @@
 <div align="center">
 
 <h1 align="center">
-  <img src="apps/web/public/logo.svg" width="38" height="38" alt="Chorusify Logo" style="vertical-align: 2px; margin-right: 6px; display: inline-block;" />
+  <img src="apps/web/public/logo.svg" width="38" height="38" alt="Chorusify Logo" style="transform: translateY(4px); margin-right: 6px; display: inline-block;" />
   Chorusify
 </h1>
 
