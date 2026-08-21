@@ -81,7 +81,7 @@ export function AboutPage() {
     <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-4 sm:gap-6 px-4 py-4 sm:py-8">
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="mb-2">
         <h1 className="text-4xl font-extrabold gradient-text">About Chorusify</h1>
-        <p className="mt-2 text-slate-400">The snippet type.</p>
+        <p className="mt-2 text-slate-400">Guess your favourite music.</p>
       </motion.div>
 
       <div className="flex flex-col gap-4">

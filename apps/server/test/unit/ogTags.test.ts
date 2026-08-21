@@ -13,7 +13,7 @@ const INDEX_HTML = `<!doctype html>
 <head>
   <meta name="description"
     content="Chorusify - guess the song from a growing snippet." />
-  <meta property="og:title" content="Chorusify - snippet type" />
+  <meta property="og:title" content="Chorusify - guess your favourite music" />
   <meta property="og:description"
     content="Hear a growing snippet of a song and guess it." />
   <meta property="og:type" content="website" />
@@ -22,10 +22,10 @@ const INDEX_HTML = `<!doctype html>
   <meta property="og:image:width" content="1200" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="/og-card.png" />
-  <meta name="twitter:title" content="Chorusify - snippet type" />
+  <meta name="twitter:title" content="Chorusify - guess your favourite music" />
   <meta name="twitter:description"
     content="Hear a growing snippet of a song and guess it." />
-  <title>Chorusify - snippet type</title>
+  <title>Chorusify - guess your favourite music</title>
 </head>
 <body><div id="root"></div></body>
 </html>`;
@@ -80,7 +80,7 @@ describe('previewFor', () => {
 
   it('ignores an unknown category rather than inventing a title', async () => {
     const preview = await previewFor('/category/year-1066/play');
-    expect(preview.title).toBe('Chorusify: snippet type');
+    expect(preview.title).toBe('Chorusify: guess your favourite music');
   });
 
   it('describes Survival and the daily challenge', async () => {
@@ -90,7 +90,7 @@ describe('previewFor', () => {
 
   it('falls back to the site card for everything else', async () => {
     for (const route of ['/', '/leaderboard', '/admin', '/nonsense']) {
-      expect((await previewFor(route)).title).toBe('Chorusify: snippet type');
+      expect((await previewFor(route)).title).toBe('Chorusify: guess your favourite music');
     }
   });
 });
@@ -160,6 +160,6 @@ describe('renderIndexWithPreview', () => {
   it('leaves the document intact for an ordinary route', async () => {
     const html = await renderIndexWithPreview(indexPath, fakeRequest('/'));
     expect(html).toContain('<div id="root"></div>');
-    expect(html).toContain('<title>Chorusify: snippet type</title>');
+    expect(html).toContain('<title>Chorusify: guess your favourite music</title>');
   });
 });

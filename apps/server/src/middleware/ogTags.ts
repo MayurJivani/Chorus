@@ -24,7 +24,7 @@ interface Preview {
 }
 
 const DEFAULT_PREVIEW: Preview = {
-  title: 'Chorusify: snippet type',
+  title: 'Chorusify: guess your favourite music',
   description: 'Hear a growing snippet of a song and guess it in as few listens as possible.',
 };
 
