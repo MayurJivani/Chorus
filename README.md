@@ -1,116 +1,98 @@
-# Chorusify 🎵
+<div align="center">
 
-**A daily music-guessing game.**
+# 📼 Chorusify 🎧
 
-Listen to a growing snippet of a song and guess it in as few listens as possible.
+### _Guess your favorite music._
 
-🎮 **Play now:** [chorusify.com](https://chorusify.com)
+A snippet plays. The needle drops. The clock ticks.
+**Do you actually know the song, or do you just think you do?**
 
-Guests can play instantly. Create an account to permanently save your streaks and stats.
+**[▶ chorusify.com](https://chorusify.com)**
 
-## 🎯 Game Modes
+</div>
 
-### Daily Puzzle
+<br>
 
-One shared song every UTC day. Songs are guaranteed not to repeat until every active song in the bank has been played.
+> _For everyone who's ever finished a lyric before the singer did. For the ones who know a song from its first half-second. For the people who still argue about which is the "real" version of a track. This one's for you._
 
-### Artist Mode
+---
 
-Pick an artist and play a shared **10-song daily challenge** generated from their Deezer discography.
+## 🎶 Modes
 
-- 🏆 Per-artist leaderboards
-- 👤 Solo or async multiplayer
-- 🔎 Type-to-guess with autocomplete
-- 🔘 3-option multiple choice
-- ⭐ Optional featured tracks
+**Daily** — One song. Dropped at midnight UTC. The whole world guesses the same track, at the same time. Did you nail it before your friends woke up?
 
-Both guessing methods use the artist's full filtered catalog, not just the day's 10 songs.
+**Artist** — Pick a discography, any discography, and go 10 rounds deep. Type it out from memory or pick from the lineup. Real leaderboards, per artist, for the true completionists.
 
-Karaoke, tribute, acoustic, live, remix, and other alternate versions are automatically excluded.
+**Multiplayer** — Up to 8 in a room, real-time, no sign-up. Songs unfold second by second (`1s → 2s → 4s → 7s → 11s → 16s`), and _you_ decide how much you need to hear before you buzz in. Hesitate too long and someone else calls it first.
 
-### Multiplayer
+**Survival** — One song after another, no end in sight, until the one that finally gets you. How deep does your crate go?
 
-Real-time, synchronized rounds between up to **8 players** over WebSockets. Hosts pick an artist and share a 6-character room code (or a `/room/<code>` link) with friends.
+**Era** — Strip it back to a single decade. '60s soul, '90s grunge, 2000s pop, wherever your ear was raised.
 
-- 🔢 **5 rounds** of Heardle-style racing on a `1s → 2s → 4s → 7s → 11s → 16s` reveal ladder
-- 🔊 **You control the reveal** — hit "Reveal more audio" to extend only your own snippet
-- ⏱️ Points drop from 6 → 1 the more you reveal before guessing; rounds cap at 60 seconds
-- 🏁 A round ends as soon as everyone has answered
-- 🔄 5-second reveal between rounds; the host can skip it
-- 🏆 Final scoreboard with the winner announced after round 5
-- ✍️ Set your own name before joining
-- 🔌 Lobby reconnects automatically if a player's connection drops
+_Karaoke covers, live cuts, and remixes don't make the bank. Originals only, no cheap wins, just the real thing._
 
-Guest sessions are required (the browser auto-issues one), so players don't need accounts. Rooms live in memory only — no persistence.
+---
 
-## 🛠️ Tech Stack
+## 🛠 Built With
 
-- **Frontend:** React 18, Vite, TypeScript, Tailwind CSS, Framer Motion
-- **Backend:** Express, TypeScript, PostgreSQL, Drizzle ORM, postgres.js
-- **Realtime:** WebSockets via `ws` (same-origin, session-cookie authenticated)
-- **Audio:** Deezer public API with 30-second preview clips
-
-## 🚀 Getting Started
-
-```bash
-npm install
-
-cp apps/server/.env.example apps/server/.env
-cp apps/web/.env.example apps/web/.env.local
-
-npm run -w apps/server db:migrate
-npm run curate:songs
-
-npm run dev
 ```
-
-The API runs on `8888` and the web app on `5174`.
-
-Generate `SESSION_SECRET` and `CSRF_SECRET` with:
-
-```bash
-openssl rand -hex 32
-```
-
-## 📜 Scripts
-
-| Command                  | Description                  |
-| ------------------------ | ---------------------------- |
-| `npm run dev`            | Start frontend and backend   |
-| `npm run lint`           | Lint the project             |
-| `npm run typecheck`      | Run TypeScript checks        |
-| `npm run test`           | Run tests                    |
-| `npm run build`          | Build for production         |
-| `npm run curate:songs`   | Populate the song bank       |
-| `npm run reverify:songs` | Re-check Deezer availability |
-
-## 🔐 Security
-
-- Argon2id password hashing
-- Server-side opaque sessions
-- CSRF protection
-- Rate limiting
-- Zod input validation
-- Helmet security headers
-- Content Security Policy
-
-## 🚢 Deployment
-
-The backend needs a reachable **PostgreSQL** instance; set `DATABASE_URL` to point at it. Migrations run automatically on start (`npm start` runs the migrator before the server), so a fresh database only needs to exist — the schema creates itself.
-
-The frontend can be deployed as a static build to Vercel, Netlify, Cloudflare Pages, or alongside the backend (`npm run build:full && npm start` serves it from the same Express process).
-
-Regularly back up the PostgreSQL database for production deployments.
-
-### Running tests
-
-Tests truncate tables, so they refuse to run against anything but a `_test` database. By default the suite reuses `DATABASE_URL` with `_test` appended to the database name; set `DATABASE_URL_TEST` to point somewhere else.
-
-```bash
-createdb chorusify_test
-npm test
+apps/web     React 19 · Vite 8 · TypeScript · Tailwind v4 · Framer Motion
+apps/server  Express 5 · TypeScript · PostgreSQL · Drizzle ORM · postgres.js
+realtime     WebSockets (ws), same-origin, session-authenticated
+music data   Deezer API, 30s previews, thousands of tracks deep
 ```
 
 ---
 
-Built with ❤️ and 🎵
+## 🎧 Sound Check
+
+Get it spinning locally before you drop the needle for real.
+
+```bash
+npm install
+cp apps/server/.env.example apps/server/.env
+openssl rand -hex 32          # session secret
+
+npm run -w apps/server db:migrate
+npm run curate:songs
+npm run dev                    # api :8888, web :5174
+```
+
+| Script               | What it does                          |
+| -------------------- | ------------------------------------- |
+| `dev`                | frontend + backend, watch mode        |
+| `build`              | production build                      |
+| `lint` / `typecheck` | keep the code in tune                 |
+| `test`               | full suite, isolated `_test` database |
+| `curate:songs`       | stock the crate from Deezer           |
+| `reverify:songs`     | make sure every track still plays     |
+
+---
+
+## 🚀 Deploy
+
+Set `DATABASE_URL`, ship it. Migrations run automatically on boot.
+
+```bash
+npm run build:full && npm start
+```
+
+The frontend also ships standalone to Vercel, Netlify, or Cloudflare Pages, if you'd rather split the set.
+
+---
+
+## 🔒 Security
+
+Argon2id · opaque server-side sessions · double-submit CSRF · rate limiting · Zod validation · Helmet + CSP
+
+---
+
+<div align="center">
+
+_Made for anyone who's ever shouted the song title before the first verse even landed._
+
+**Built with ❤️ and 🎵**
+
+[chorusify.com](https://chorusify.com)
+
+</div>
