@@ -38,7 +38,7 @@ function MobileLink({
       <span
         className={
           'h-4 w-0.5 rounded-full transition-colors ' +
-          (isActive ? 'bg-chorus-accent' : 'bg-transparent')
+          (isActive ? 'bg-chorusify-accent' : 'bg-transparent')
         }
         aria-hidden="true"
       />
@@ -78,9 +78,9 @@ export function RootLayout() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-chorus-bg text-slate-100 overflow-hidden">
+    <div className="h-screen flex flex-col bg-chorusify-bg text-slate-100 overflow-hidden">
       {/* Sticky dark header */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-chorus-bg/90 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-chorusify-bg/90 backdrop-blur-md">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
           {/* Logo with vinyl disc */}
           <Link
@@ -140,7 +140,7 @@ export function RootLayout() {
                 </svg>
               </span>
             </span>
-            <span>Chorus</span>
+            <span>Chorusify</span>
           </Link>
 
           {/* Desktop nav */}
@@ -226,7 +226,7 @@ export function RootLayout() {
                   <div className="flex min-w-0 items-center gap-2.5">
                     {/* An initial rather than an avatar: there is no image to show, and a
                         coloured disc reads as an account far better than a bare name does. */}
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-chorus-accent/25 text-sm font-bold text-white">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-chorusify-accent/25 text-sm font-bold text-white">
                       {user.displayName.charAt(0).toUpperCase()}
                     </span>
                     <span className="truncate text-sm font-medium text-slate-200">

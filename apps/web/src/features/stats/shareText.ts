@@ -17,7 +17,7 @@ export function buildShareText(
 
   const score = won ? `${history.length}/${maxGuesses}` : `X/${maxGuesses}`;
 
-  return `Chorus ${puzzleDate} 🎵 ${score}\n${pips}`;
+  return `Chorusify ${puzzleDate} 🎵 ${score}\n${pips}`;
 }
 
 /**
@@ -59,7 +59,7 @@ export function buildRunShareText(input: {
     input.timeTakenSeconds != null ? ` · ${formatShareDuration(input.timeTakenSeconds)}` : '';
 
   return [
-    `Chorus · ${input.subject} 🎵 ${input.songsCorrect}/${input.totalRounds}${time}`,
+    `Chorusify · ${input.subject} 🎵 ${input.songsCorrect}/${input.totalRounds}${time}`,
     grid,
     ...(input.url ? [input.url] : []),
   ].join('\n');
@@ -68,7 +68,7 @@ export function buildRunShareText(input: {
 /** A survival run: the number is the whole story, so the grid would only dilute it. */
 export function buildSurvivalShareText(streak: number, url?: string): string {
   const flames = streak === 0 ? '💀' : '🔥'.repeat(Math.min(5, Math.ceil(streak / 5)));
-  return [`Chorus Survival ${flames} ${streak} in a row`, ...(url ? [url] : [])].join('\n');
+  return [`Chorusify Survival ${flames} ${streak} in a row`, ...(url ? [url] : [])].join('\n');
 }
 
 function formatShareDuration(seconds: number): string {

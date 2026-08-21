@@ -84,7 +84,7 @@ export function UpcomingPanel() {
                 <p className="flex items-center gap-2 font-mono text-xs text-slate-500">
                   {day.puzzleDate}
                   {day.puzzleDate === today && (
-                    <span className="rounded-full bg-chorus-accent/20 px-2 py-0.5 text-[10px] font-semibold text-chorus-accent">
+                    <span className="rounded-full bg-chorusify-accent/20 px-2 py-0.5 text-[10px] font-semibold text-chorusify-accent">
                       today
                     </span>
                   )}

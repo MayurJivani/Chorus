@@ -58,7 +58,7 @@ export function LeaderboardPage() {
       <div
         role="tablist"
         aria-label="Leaderboard mode"
-        className="flex rounded-xl border border-white/5 bg-chorus-bg/80 p-1.5 gap-1.5"
+        className="flex rounded-xl border border-white/5 bg-chorusify-bg/80 p-1.5 gap-1.5"
       >
         {(
           [
@@ -222,7 +222,7 @@ function TopPlayers({
                 <tr
                   key={player.userId}
                   className={`border-t border-white/5 ${
-                    player.isYou ? 'bg-chorus-accent/10 text-white' : 'text-slate-300'
+                    player.isYou ? 'bg-chorusify-accent/10 text-white' : 'text-slate-300'
                   }`}
                 >
                   <td className="py-2 font-mono text-xs text-slate-500">
@@ -231,7 +231,9 @@ function TopPlayers({
                   <td className="max-w-[10rem] truncate py-2 font-medium">
                     {player.displayName}
                     {player.isYou && (
-                      <span className="ml-1.5 text-[10px] uppercase text-chorus-accent">you</span>
+                      <span className="ml-1.5 text-[10px] uppercase text-chorusify-accent">
+                        you
+                      </span>
                     )}
                     <span className="ml-2 font-mono text-[11px] text-slate-500">
                       {player.runs} {player.runs === 1 ? 'run' : 'runs'}

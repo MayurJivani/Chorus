@@ -99,7 +99,7 @@ export function PlayPage() {
 
         {!isOver && <GuessHistory history={history} />}
 
-        {errorMessage && <p className="text-sm text-chorus-danger">{errorMessage}</p>}
+        {errorMessage && <p className="text-sm text-chorusify-danger">{errorMessage}</p>}
       </div>
 
       {isOver && revealedSong && (

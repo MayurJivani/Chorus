@@ -218,7 +218,7 @@ export function EraPlayPage() {
                   type="button"
                   disabled={submitting}
                   onClick={() => void guess(year)}
-                  className="rounded-xl border border-white/10 bg-chorus-surface/80 px-4 py-4 text-lg font-bold text-slate-100 transition-all duration-200 hover:border-white/30 hover:bg-white/5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl border border-white/10 bg-chorusify-surface/80 px-4 py-4 text-lg font-bold text-slate-100 transition-all duration-200 hover:border-white/30 hover:bg-white/5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {year}
                 </button>
@@ -249,7 +249,7 @@ export function EraPlayPage() {
               )}
             </div>
 
-            {errorMessage && <p className="text-sm text-chorus-danger">{errorMessage}</p>}
+            {errorMessage && <p className="text-sm text-chorusify-danger">{errorMessage}</p>}
           </>
         )}
       </div>

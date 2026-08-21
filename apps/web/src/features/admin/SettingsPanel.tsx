@@ -163,7 +163,7 @@ function SettingRow({
           <p className="text-sm font-semibold text-white">
             {setting.label}
             {!setting.isDefault && (
-              <span className="ml-2 rounded-full bg-chorus-accent/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-chorus-accent">
+              <span className="ml-2 rounded-full bg-chorusify-accent/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-chorusify-accent">
                 changed
               </span>
             )}

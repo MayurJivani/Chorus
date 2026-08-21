@@ -52,7 +52,7 @@ function hasFlag(name: string): boolean {
 async function fetchDeezerTrack(deezerId: string): Promise<DeezerTrackResponse | null> {
   try {
     const res = await fetch(`https://api.deezer.com/track/${encodeURIComponent(deezerId)}`, {
-      headers: { Referer: 'https://chorus.app/' },
+      headers: { Referer: 'https://chorusify.com/' },
     });
     if (!res.ok) return null;
     const body = (await res.json()) as DeezerTrackResponse;
@@ -67,7 +67,7 @@ async function searchDeezer(query: string): Promise<DeezerSearchResponse['data']
   try {
     const res = await fetch(
       `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=5`,
-      { headers: { Referer: 'https://chorus.app/' } },
+      { headers: { Referer: 'https://chorusify.com/' } },
     );
     if (!res.ok) return [];
     const body = (await res.json()) as DeezerSearchResponse;

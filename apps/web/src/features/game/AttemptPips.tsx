@@ -41,11 +41,11 @@ export function AttemptPips({ history }: AttemptPipsProps) {
             className={
               'h-4 w-4 rounded-full border-2 transition-all duration-300 ' +
               (state === 'correct'
-                ? 'border-chorus-success bg-chorus-success shadow-[0_0_8px_#22c55eaa]'
+                ? 'border-chorusify-success bg-chorusify-success shadow-[0_0_8px_#22c55eaa]'
                 : state === 'close'
                   ? 'border-amber-400 bg-amber-400 shadow-[0_0_8px_#fbbf24aa]'
                   : state === 'wrong'
-                    ? 'border-chorus-danger bg-chorus-danger shadow-[0_0_8px_#ef4444aa]'
+                    ? 'border-chorusify-danger bg-chorusify-danger shadow-[0_0_8px_#ef4444aa]'
                     : 'border-slate-700 bg-transparent')
             }
           />

@@ -59,7 +59,7 @@ export function MultiplayerLobby({ room, selfId, onStart, onLeave }: Multiplayer
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
             Room code
           </p>
-          <p className="font-mono text-4xl font-black tracking-[0.3em] text-chorus-accent2">
+          <p className="font-mono text-4xl font-black tracking-[0.3em] text-chorusify-accent2">
             {room.code}
           </p>
         </div>

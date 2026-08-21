@@ -72,7 +72,7 @@ export function CategoryPickerPage() {
       {loading && <p className="text-sm text-slate-400">Loading categories…</p>}
 
       {failed && (
-        <p className="text-sm text-chorus-danger">
+        <p className="text-sm text-chorusify-danger">
           Couldn’t load the categories. Please refresh and try again.
         </p>
       )}
@@ -81,7 +81,7 @@ export function CategoryPickerPage() {
         <div
           role="tablist"
           aria-label="Filter categories"
-          className="flex w-full flex-wrap justify-center gap-1.5 rounded-xl border border-white/5 bg-chorus-bg/80 p-1.5"
+          className="flex w-full flex-wrap justify-center gap-1.5 rounded-xl border border-white/5 bg-chorusify-bg/80 p-1.5"
         >
           {FILTERS.map(([value, label]) => (
             <button
@@ -126,7 +126,7 @@ export function CategoryPickerPage() {
                     className={
                       'rounded-xl border px-3 py-3 text-left transition-all duration-200 active:scale-[0.97] ' +
                       (selected?.id === category.id
-                        ? 'border-chorus-accent/60 bg-chorus-accent/15 text-white shadow-sm'
+                        ? 'border-chorusify-accent/60 bg-chorusify-accent/15 text-white shadow-sm'
                         : 'border-white/5 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06] hover:text-white')
                     }
                   >
@@ -153,7 +153,7 @@ export function CategoryPickerPage() {
             <p className="text-xs uppercase tracking-wider text-slate-500">Selected</p>
             <p className="text-lg font-bold text-white">{selected.label}</p>
           </div>
-          <div className="flex rounded-xl bg-chorus-bg/80 p-1.5 gap-1.5 border border-white/5">
+          <div className="flex rounded-xl bg-chorusify-bg/80 p-1.5 gap-1.5 border border-white/5">
             <ModeButton onClick={() => startGame('search')}>Type to search</ModeButton>
             <ModeButton onClick={() => startGame('choice')}>Multiple choice</ModeButton>
           </div>

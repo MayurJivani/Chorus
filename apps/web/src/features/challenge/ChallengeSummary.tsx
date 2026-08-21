@@ -100,7 +100,7 @@ export function ChallengeSummary({
       {/* A guest has just earned a score they can never be ranked with, so this is the moment
           the offer is worth making — right beside the leaderboard they are missing from. */}
       {!user && (
-        <div className="w-full rounded-2xl border border-chorus-accent/30 bg-chorus-accent/10 p-4">
+        <div className="w-full rounded-2xl border border-chorusify-accent/30 bg-chorusify-accent/10 p-4">
           <p className="text-sm font-semibold text-white">
             {songsCorrect}/{totalRounds}. Want this on the leaderboard?
           </p>
@@ -172,7 +172,7 @@ export function ChallengeSummary({
                 if (blob) {
                   return shareResultCard(
                     blob,
-                    `chorus-${subjectName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`,
+                    `chorusify-${subjectName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`,
                     `${songsCorrect}/${totalRounds} on ${subjectName}`,
                   );
                 }

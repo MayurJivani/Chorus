@@ -5,7 +5,7 @@ import { env } from '../env';
 const { generateCsrfToken, doubleCsrfProtection, invalidCsrfTokenError } = doubleCsrf({
   getSecret: () => env.CSRF_SECRET,
   getSessionIdentifier: (req: Request) => req.session.id,
-  cookieName: env.NODE_ENV === 'production' ? '__Host-chorus.csrf' : 'chorus_csrf',
+  cookieName: env.NODE_ENV === 'production' ? '__Host-chorusify.csrf' : 'chorusify_csrf',
   cookieOptions: {
     sameSite: 'lax',
     path: '/',

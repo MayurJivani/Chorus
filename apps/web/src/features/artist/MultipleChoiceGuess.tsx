@@ -56,7 +56,7 @@ export function MultipleChoiceGuess({
         const isWrong = roundEnded && isSelected && !isCorrect;
 
         let styleClass =
-          'border-white/10 bg-chorus-surface/80 text-slate-100 hover:border-white/30 hover:bg-white/5';
+          'border-white/10 bg-chorusify-surface/80 text-slate-100 hover:border-white/30 hover:bg-white/5';
         let badge = null;
 
         if (roundEnded) {

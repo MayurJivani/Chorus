@@ -53,7 +53,7 @@ export function AdminPage() {
       <div
         role="tablist"
         aria-label="Admin sections"
-        className="flex flex-wrap gap-1.5 rounded-xl border border-white/5 bg-chorus-bg/80 p-1.5"
+        className="flex flex-wrap gap-1.5 rounded-xl border border-white/5 bg-chorusify-bg/80 p-1.5"
       >
         {TABS.map(([value, label]) => (
           <button

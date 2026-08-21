@@ -12,7 +12,7 @@ export function RegisterPage() {
       >
         {/* Logo */}
         <div className="flex flex-col items-center gap-2 text-center">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-chorus-gradient text-xl shadow-lg shadow-chorus-accent/30">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-chorusify-gradient text-xl shadow-lg shadow-chorusify-accent/30">
             🎵
           </span>
           <h1 className="text-2xl font-extrabold text-white">Create an account</h1>
@@ -23,7 +23,7 @@ export function RegisterPage() {
 
         <p className="text-center text-sm text-slate-400">
           Already have an account?{' '}
-          <Link to="/login" className="font-medium text-chorus-accent2 hover:underline">
+          <Link to="/login" className="font-medium text-chorusify-accent2 hover:underline">
             Log in
           </Link>
         </p>

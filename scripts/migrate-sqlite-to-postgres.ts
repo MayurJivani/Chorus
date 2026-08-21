@@ -122,7 +122,7 @@ interface ArtistRoundGuessRow {
 
 const DEFAULT_SQLITE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../apps/server/data/chorus.db',
+  '../apps/server/data/chorusify.db',
 );
 
 function toDate(value: string | null): Date | null {

@@ -66,7 +66,7 @@ export function MultiplayerRoomPage() {
         >
           <div className="flex flex-col items-center gap-1">
             <p className="text-sm text-slate-400">You&apos;re joining room</p>
-            <p className="font-mono text-3xl font-black tracking-[0.25em] text-chorus-accent2">
+            <p className="font-mono text-3xl font-black tracking-[0.25em] text-chorusify-accent2">
               {code}
             </p>
           </div>
@@ -77,7 +77,7 @@ export function MultiplayerRoomPage() {
             maxLength={24}
             placeholder="Your name (optional)"
             aria-label="Your name"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-white outline-none placeholder:text-slate-600 focus:border-chorus-accent2"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-white outline-none placeholder:text-slate-600 focus:border-chorusify-accent2"
           />
           <button type="submit" className="btn-primary w-full !rounded-xl">
             Join room →
@@ -163,7 +163,7 @@ export function MultiplayerRoomPage() {
   return (
     <Centered>
       <div className="flex flex-col items-center gap-3 text-slate-400">
-        <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-chorus-accent2" />
+        <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-chorusify-accent2" />
         <p className="font-mono text-sm">Joining room {code}…</p>
       </div>
     </Centered>

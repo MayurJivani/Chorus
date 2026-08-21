@@ -15,9 +15,9 @@ export function SnippetProgressBar({ stageIndex }: SnippetProgressBarProps) {
   return (
     <div className="w-full max-w-md">
       {/* Track */}
-      <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-chorus-surface/80">
+      <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-chorusify-surface/80">
         <motion.div
-          className="h-full rounded-full bg-chorus-accent2"
+          className="h-full rounded-full bg-chorusify-accent2"
           initial={{ width: 0 }}
           animate={{ width: `${widthPercent}%` }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -33,11 +33,11 @@ export function SnippetProgressBar({ stageIndex }: SnippetProgressBarProps) {
               <span
                 className={
                   'h-1.5 w-1.5 rounded-full transition-colors duration-300 ' +
-                  (reached ? 'bg-chorus-accent2 shadow-[0_0_4px_#22d3ee99]' : 'bg-slate-700')
+                  (reached ? 'bg-chorusify-accent2 shadow-[0_0_4px_#22d3ee99]' : 'bg-slate-700')
                 }
               />
               <span
-                className={`text-[10px] font-mono transition-colors duration-300 ${reached ? 'text-chorus-accent2' : 'text-slate-600'}`}
+                className={`text-[10px] font-mono transition-colors duration-300 ${reached ? 'text-chorusify-accent2' : 'text-slate-600'}`}
               >
                 {seconds}s
               </span>

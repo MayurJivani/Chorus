@@ -55,7 +55,7 @@ export function RegisterForm() {
         onChange={(e) => setPassword(e.target.value)}
         className="input-base"
       />
-      {error && <p className="text-sm text-chorus-danger">{error}</p>}
+      {error && <p className="text-sm text-chorusify-danger">{error}</p>}
       <button type="submit" disabled={submitting} className="btn-primary w-full !rounded-xl !py-3">
         {submitting ? 'Creating account…' : 'Sign up'}
       </button>

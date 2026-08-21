@@ -53,7 +53,7 @@ export function ArtistSearchPage() {
           {/* Mode selection — clicking starts the game immediately */}
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium text-slate-300">How do you want to guess?</p>
-            <div className="flex rounded-xl bg-chorus-bg/80 p-1.5 gap-1.5 border border-white/5">
+            <div className="flex rounded-xl bg-chorusify-bg/80 p-1.5 gap-1.5 border border-white/5">
               <ModeButton onClick={() => startGame('search')}>Type to search</ModeButton>
               <ModeButton onClick={() => startGame('choice')}>Multiple choice</ModeButton>
             </div>

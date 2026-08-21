@@ -150,7 +150,7 @@ export function MultiplayerGame({
                   </>
                 ) : (
                   <>
-                    <p className="text-lg font-bold text-chorus-danger">Not that one</p>
+                    <p className="text-lg font-bold text-chorusify-danger">Not that one</p>
                     <p className="text-xs text-slate-400">You&apos;re done for this round.</p>
                   </>
                 )}

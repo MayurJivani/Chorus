@@ -24,7 +24,7 @@ interface Preview {
 }
 
 const DEFAULT_PREVIEW: Preview = {
-  title: 'Chorus: daily music guessing game',
+  title: 'Chorusify: snippet type',
   description: 'Hear a growing snippet of a song and guess it in as few listens as possible.',
 };
 
@@ -79,9 +79,9 @@ export async function previewFor(pathname: string): Promise<Preview> {
   const artistMatch = /^\/artist\/(\d+)\/play\/?$/.exec(pathname);
   if (artistMatch) {
     const name = await artistNameFor(artistMatch[1]!);
-    if (!name) return { ...DEFAULT_PREVIEW, title: 'Artist Mode on Chorus' };
+    if (!name) return { ...DEFAULT_PREVIEW, title: 'Artist Mode on Chorusify' };
     return {
-      title: `Can you name 10 ${name} songs? | Chorus`,
+      title: `Can you name 10 ${name} songs? | Chorusify`,
       description: `Guess ${name} tracks from a growing snippet. How many can you get?`,
     };
   }
@@ -91,7 +91,7 @@ export async function previewFor(pathname: string): Promise<Preview> {
     const category = findCategory(decodeURIComponent(categoryMatch[1]!));
     if (category) {
       return {
-        title: `${category.label} on Chorus`,
+        title: `${category.label} on Chorusify`,
         description: `${category.blurb}. Ten songs, one growing snippet each.`,
       };
     }
@@ -99,14 +99,14 @@ export async function previewFor(pathname: string): Promise<Preview> {
 
   if (/^\/survival\/?$/.test(pathname)) {
     return {
-      title: 'Survival on Chorus',
+      title: 'Survival on Chorusify',
       description: 'Endless songs, one wrong answer ends the run. How long can you last?',
     };
   }
 
   if (/^\/play\/?$/.test(pathname)) {
     return {
-      title: "Today's challenge on Chorus",
+      title: "Today's challenge on Chorusify",
       description: 'One song, six growing snippets. A new puzzle every day.',
     };
   }

@@ -188,9 +188,9 @@ function Stat({
   accent?: boolean;
 }) {
   return (
-    <div className="glass group rounded-2xl px-2 py-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-chorus-accent/30 hover:shadow-lg hover:shadow-chorus-accent/10">
+    <div className="glass group rounded-2xl px-2 py-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-chorusify-accent/30 hover:shadow-lg hover:shadow-chorusify-accent/10">
       <p
-        className={`text-xl font-extrabold tabular-nums ${accent ? 'text-chorus-accent' : 'text-white'}`}
+        className={`text-xl font-extrabold tabular-nums ${accent ? 'text-chorusify-accent' : 'text-white'}`}
       >
         {value}
       </p>

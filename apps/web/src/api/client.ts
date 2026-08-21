@@ -12,7 +12,7 @@ export class ApiError extends Error {
 }
 
 /**
- * The CSRF token is read fresh from the `chorus_csrf` cookie on every request rather than
+ * The CSRF token is read fresh from the `chorusify_csrf` cookie on every request rather than
  * cached in memory. The server can rotate the session (and therefore the CSRF pairing) not
  * just on explicit login/register/logout, but also silently whenever `sessionMiddleware`
  * has to reissue a guest session (e.g. a stale/unknown session cookie) — there's no reliable
@@ -21,7 +21,7 @@ export class ApiError extends Error {
  * set, by construction, matching the double-submit-cookie pattern csrf-csrf implements.
  */
 function readCsrfTokenFromCookie(): string | null {
-  const match = document.cookie.match(/(?:^|;\s*)(chorus_csrf|__Host-chorus\.csrf)=([^;]+)/);
+  const match = document.cookie.match(/(?:^|;\s*)(chorusify_csrf|__Host-chorusify\.csrf)=([^;]+)/);
   if (!match?.[2]) return null;
   const rawValue = decodeURIComponent(match[2]);
   return rawValue.split('|')[0] ?? null;

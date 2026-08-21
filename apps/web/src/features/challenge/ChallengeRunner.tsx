@@ -140,10 +140,10 @@ export function ChallengeRunner({
       {/* The mark to beat, kept in view for the whole run: a duel where you only learn the
           target at the end is just a solo run with a scoreboard afterwards. */}
       {duel && (
-        <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-chorus-accent/30 bg-chorus-accent/10 px-4 py-2 text-sm">
+        <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-chorusify-accent/30 bg-chorusify-accent/10 px-4 py-2 text-sm">
           <span className="font-semibold text-white">{duel.displayName}</span>
           <span className="text-slate-400">scored</span>
-          <span className="font-mono font-bold text-chorus-accent">
+          <span className="font-mono font-bold text-chorusify-accent">
             {duel.songsCorrect}/{duel.totalRounds}
           </span>
           <span className="text-slate-400">on this challenge</span>
@@ -257,7 +257,7 @@ export function ChallengeRunner({
               />
             )}
 
-            {errorMessage && <p className="text-sm text-chorus-danger">{errorMessage}</p>}
+            {errorMessage && <p className="text-sm text-chorusify-danger">{errorMessage}</p>}
           </>
         )}
       </div>

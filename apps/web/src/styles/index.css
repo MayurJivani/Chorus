@@ -8,7 +8,7 @@ body,
 }
 
 body {
-  @apply bg-chorus-bg text-slate-100 font-sans;
+  @apply bg-chorusify-bg text-slate-100 font-sans;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -27,11 +27,11 @@ body {
 /* ── Sleek Dark Components ─────────────────────────────── */
 @layer components {
   .glass {
-    @apply bg-chorus-surface/90 border border-white/[0.08] shadow-xl;
+    @apply bg-chorusify-surface/90 border border-white/[0.08] shadow-xl;
   }
 
   .glass-2 {
-    @apply bg-chorus-surface-2/90 border border-white/10 shadow-lg;
+    @apply bg-chorusify-surface-2/90 border border-white/10 shadow-lg;
   }
 
   /* Solid clean typography, no harsh gradient */
@@ -50,9 +50,9 @@ body {
   }
 
   .btn-secondary {
-    @apply rounded-xl border border-white/15 bg-chorus-surface-2 px-6 py-2.5 font-semibold text-slate-200
+    @apply rounded-xl border border-white/15 bg-chorusify-surface-2 px-6 py-2.5 font-semibold text-slate-200
            transition-all duration-200
-           hover:bg-chorus-surface-hover hover:border-white/30 hover:text-white
+           hover:bg-chorusify-surface-hover hover:border-white/30 hover:text-white
            active:scale-95
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
@@ -67,7 +67,7 @@ body {
 
   /* Input base */
   .input-base {
-    @apply w-full rounded-2xl border border-white/10 bg-chorus-surface
+    @apply w-full rounded-2xl border border-white/10 bg-chorusify-surface
            px-5 py-3.5 text-slate-100 placeholder-slate-400
            outline-none ring-0
            transition-all duration-200

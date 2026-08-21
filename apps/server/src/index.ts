@@ -15,7 +15,7 @@ const server = createServer(app);
 attachWebSocketServer(server);
 
 server.listen(env.PORT, () => {
-  logger.info(`Chorus server listening on port ${env.PORT} (${env.NODE_ENV})`);
+  logger.info(`Chorusify server listening on port ${env.PORT} (${env.NODE_ENV})`);
 });
 
 // Seed the fallback pool first (only inserts when the songs table is empty), then

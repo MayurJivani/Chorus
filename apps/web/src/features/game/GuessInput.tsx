@@ -95,7 +95,7 @@ export function GuessInput({
       />
 
       {open && (
-        <ul className="absolute z-10 mt-1.5 w-full overflow-hidden rounded-xl border border-white/10 bg-chorus-surface/90 shadow-2xl shadow-black/50 backdrop-blur-xl">
+        <ul className="absolute z-10 mt-1.5 w-full overflow-hidden rounded-xl border border-white/10 bg-chorusify-surface/90 shadow-2xl shadow-black/50 backdrop-blur-xl">
           {results.map((song, i) => (
             <li key={song.id}>
               <button
@@ -103,7 +103,7 @@ export function GuessInput({
                 onClick={() => selectSong(song)}
                 className={
                   'flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ' +
-                  (i === activeIndex ? 'bg-chorus-accent/20' : 'hover:bg-chorus-accent/10')
+                  (i === activeIndex ? 'bg-chorusify-accent/20' : 'hover:bg-chorusify-accent/10')
                 }
               >
                 {/* Album art thumbnail */}
@@ -114,7 +114,7 @@ export function GuessInput({
                     className="h-9 w-9 flex-shrink-0 rounded-md object-cover shadow-md"
                   />
                 ) : (
-                  <div className="h-9 w-9 flex-shrink-0 rounded-md bg-chorus-surface-2 flex items-center justify-center text-slate-600 text-xs">
+                  <div className="h-9 w-9 flex-shrink-0 rounded-md bg-chorusify-surface-2 flex items-center justify-center text-slate-600 text-xs">
                     ♪
                   </div>
                 )}

@@ -183,7 +183,7 @@ export function SurvivalPage() {
           )}
 
           {!user && (
-            <div className="w-full rounded-2xl border border-chorus-accent/30 bg-chorus-accent/10 p-4">
+            <div className="w-full rounded-2xl border border-chorusify-accent/30 bg-chorusify-accent/10 p-4">
               <p className="text-sm font-semibold text-white">
                 Want {finalStreak} on the leaderboard?
               </p>
@@ -232,8 +232,8 @@ export function SurvivalPage() {
                     blob
                       ? shareResultCard(
                           blob,
-                          `chorus-survival-${finalStreak}.png`,
-                          `${finalStreak} in a row on Chorus Survival`,
+                          `chorusify-survival-${finalStreak}.png`,
+                          `${finalStreak} in a row on Chorusify Survival`,
                         )
                       : undefined,
                   )
@@ -314,7 +314,7 @@ export function SurvivalPage() {
           />
         )}
 
-        {errorMessage && <p className="text-sm text-chorus-danger">{errorMessage}</p>}
+        {errorMessage && <p className="text-sm text-chorusify-danger">{errorMessage}</p>}
       </div>
 
       <button

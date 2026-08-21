@@ -36,7 +36,7 @@ function sleep(ms: number): Promise<void> {
 async function trackStillAvailable(deezerTrackId: string): Promise<boolean> {
   try {
     const res = await fetch(`https://api.deezer.com/track/${encodeURIComponent(deezerTrackId)}`, {
-      headers: { Referer: 'https://chorus.app/' },
+      headers: { Referer: 'https://chorusify.com/' },
     });
     if (!res.ok) return false;
     const body = (await res.json()) as DeezerTrackResponse;
@@ -49,7 +49,7 @@ async function trackStillAvailable(deezerTrackId: string): Promise<boolean> {
 async function findFreshMatch(song: Song): Promise<DeezerSearchResponse['data'][number] | null> {
   const res = await fetch(
     `https://api.deezer.com/search?q=${encodeURIComponent(`${song.artist} ${song.title}`)}&limit=5`,
-    { headers: { Referer: 'https://chorus.app/' } },
+    { headers: { Referer: 'https://chorusify.com/' } },
   );
   if (!res.ok) return null;
   const body = (await res.json()) as DeezerSearchResponse;

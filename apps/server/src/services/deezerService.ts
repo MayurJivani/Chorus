@@ -86,7 +86,7 @@ async function deezerFetchJson<T>(url: string, bulk = false): Promise<T | null> 
   for (let attempt = 0; attempt <= QUOTA_RETRIES; attempt += 1) {
     await acquireDeezerSlot(bulk);
 
-    const res = await fetch(url, { headers: { Referer: 'https://chorus.app/' } });
+    const res = await fetch(url, { headers: { Referer: 'https://chorusify.com/' } });
     if (!res.ok) return null;
 
     const body = (await res.json()) as T;

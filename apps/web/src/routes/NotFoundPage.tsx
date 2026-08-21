@@ -62,7 +62,7 @@ export function NotFoundPage() {
         className="flex w-full flex-col items-center gap-5"
       >
         <Link to="/" className="btn-primary !px-8">
-          Back to Chorus
+          Back to Chorusify
         </Link>
 
         <div className="grid w-full grid-cols-2 gap-2">

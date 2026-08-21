@@ -57,7 +57,7 @@ export async function fetchPlaylistTracks(playlistId: string): Promise<PlaylistT
   let url: string | null = `https://api.deezer.com/playlist/${playlistId}/tracks?limit=100`;
 
   while (url) {
-    const res = await fetch(url, { headers: { Referer: 'https://chorus.app/' } });
+    const res = await fetch(url, { headers: { Referer: 'https://chorusify.com/' } });
     if (!res.ok) {
       throw new Error(`Deezer playlist ${playlistId} fetch failed with status ${res.status}`);
     }

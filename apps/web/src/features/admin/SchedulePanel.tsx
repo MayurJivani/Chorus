@@ -131,7 +131,7 @@ export function SchedulePanel() {
                       <p className="font-mono text-xs text-slate-500">
                         {puzzle.puzzleDate}
                         {puzzle.puzzleDate === today && (
-                          <span className="ml-2 rounded-full bg-chorus-accent/20 px-2 py-0.5 text-[10px] font-semibold text-chorus-accent">
+                          <span className="ml-2 rounded-full bg-chorusify-accent/20 px-2 py-0.5 text-[10px] font-semibold text-chorusify-accent">
                             today
                           </span>
                         )}

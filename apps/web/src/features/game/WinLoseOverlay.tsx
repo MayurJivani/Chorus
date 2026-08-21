@@ -50,7 +50,7 @@ export function WinLoseOverlay({ won, song, history, puzzleDate }: WinLoseOverla
       transition={{ duration: 0.4, ease: 'easeOut' }}
       className="glass flex w-full max-w-md flex-col items-center gap-5 rounded-2xl p-6 text-center"
     >
-      <h2 className={`text-2xl font-extrabold ${won ? 'gradient-text' : 'text-chorus-danger'}`}>
+      <h2 className={`text-2xl font-extrabold ${won ? 'gradient-text' : 'text-chorusify-danger'}`}>
         {won ? '🎉 You got it!' : '😔 So close, next time!'}
       </h2>
 
@@ -63,8 +63,8 @@ export function WinLoseOverlay({ won, song, history, puzzleDate }: WinLoseOverla
             className={
               'h-20 w-20 flex-shrink-0 rounded-xl object-cover shadow-xl ' +
               (won
-                ? 'shadow-chorus-accent/30 ring-2 ring-chorus-accent/40'
-                : 'shadow-chorus-danger/20')
+                ? 'shadow-chorusify-accent/30 ring-2 ring-chorusify-accent/40'
+                : 'shadow-chorusify-danger/20')
             }
           />
         )}

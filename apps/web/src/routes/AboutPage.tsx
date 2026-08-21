@@ -47,14 +47,14 @@ const sections = [
         Song previews are provided by{' '}
         <a
           href="https://www.deezer.com"
-          className="font-medium text-chorus-accent2 hover:underline"
+          className="font-medium text-chorusify-accent2 hover:underline"
           target="_blank"
           rel="noreferrer"
         >
           Deezer
         </a>
         . All rights to the underlying recordings belong to their respective artists and labels.
-        Chorus only plays short preview clips for the purpose of the guessing game.
+        Chorusify only plays short preview clips for the purpose of the guessing game.
       </p>
     ),
   },
@@ -80,8 +80,8 @@ export function AboutPage() {
   return (
     <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-4 sm:gap-6 px-4 py-4 sm:py-8">
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="mb-2">
-        <h1 className="text-4xl font-extrabold gradient-text">About Chorus</h1>
-        <p className="mt-2 text-slate-400">The daily music guessing game.</p>
+        <h1 className="text-4xl font-extrabold gradient-text">About Chorusify</h1>
+        <p className="mt-2 text-slate-400">The snippet type.</p>
       </motion.div>
 
       <div className="flex flex-col gap-4">
@@ -93,7 +93,7 @@ export function AboutPage() {
             transition={{ delay: 0.1 + i * 0.08 }}
             className="glass rounded-2xl p-6 flex gap-4"
           >
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-chorus-accent/15 text-xl">
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-chorusify-accent/15 text-xl">
               {icon}
             </span>
             <div className="flex flex-col gap-1.5">
@@ -111,7 +111,7 @@ export function AboutPage() {
         transition={{ delay: 0.1 + sections.length * 0.08 }}
         className="glass rounded-2xl p-6 flex gap-4"
       >
-        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-chorus-accent/15 text-xl">
+        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-chorusify-accent/15 text-xl">
           👥
         </span>
         <div className="flex flex-col gap-3">
@@ -123,7 +123,7 @@ export function AboutPage() {
                 href={member.github}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 transition-all duration-200 hover:border-chorus-accent/40 hover:bg-chorus-accent/10 hover:-translate-y-0.5"
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 transition-all duration-200 hover:border-chorusify-accent/40 hover:bg-chorusify-accent/10 hover:-translate-y-0.5"
               >
                 {/* GitHub icon */}
                 <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-slate-400">

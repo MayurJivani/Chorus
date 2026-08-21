@@ -271,7 +271,7 @@ export function SnippetPlayer({
               <div
                 key={i}
                 className={`w-0.5 rounded-full transition-all duration-300 ${
-                  isPlaying ? 'bg-chorus-accent2 animate-pulse' : 'bg-slate-700'
+                  isPlaying ? 'bg-chorusify-accent2 animate-pulse' : 'bg-slate-700'
                 }`}
                 style={{
                   height: isPlaying ? `${height}%` : '20%',

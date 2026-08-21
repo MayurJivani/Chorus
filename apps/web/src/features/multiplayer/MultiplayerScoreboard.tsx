@@ -60,7 +60,7 @@ export function MultiplayerScoreboard({
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-100">
                 {player.displayName}
                 {isYou && (
-                  <span className="ml-2 text-[10px] font-semibold uppercase text-chorus-accent2">
+                  <span className="ml-2 text-[10px] font-semibold uppercase text-chorusify-accent2">
                     you
                   </span>
                 )}

@@ -152,7 +152,7 @@ export async function renderResultCard(options: ResultCardOptions): Promise<Blob
 
   ctx.fillStyle = '#ffffff';
   ctx.font = `800 44px ${FONT}`;
-  ctx.fillText('CHORUS', SIZE / 2, 320);
+  ctx.fillText('CHORUSIFY', SIZE / 2, 320);
 
   ctx.fillStyle = MUTED;
   ctx.font = `500 38px ${FONT}`;

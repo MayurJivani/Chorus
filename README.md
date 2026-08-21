@@ -1,10 +1,10 @@
-# Chorus 🎵
+# Chorusify 🎵
 
 **A daily music-guessing game.**
 
 Listen to a growing snippet of a song and guess it in as few listens as possible.
 
-🎮 **Play now:** [chorus.futile.studio](https://chorus.futile.studio)
+🎮 **Play now:** [chorusify.com](https://chorusify.com)
 
 Guests can play instantly. Create an account to permanently save your streaks and stats.
 
@@ -107,7 +107,7 @@ Regularly back up the PostgreSQL database for production deployments.
 Tests truncate tables, so they refuse to run against anything but a `_test` database. By default the suite reuses `DATABASE_URL` with `_test` appended to the database name; set `DATABASE_URL_TEST` to point somewhere else.
 
 ```bash
-createdb chorus_test
+createdb chorusify_test
 npm test
 ```
 

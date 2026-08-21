@@ -10,7 +10,7 @@ describe('buildShareText', () => {
     ];
 
     const text = buildShareText(history, true, '2026-01-01');
-    expect(text).toBe('Chorus 2026-01-01 🎵 2/6\n🟥🟩⬛⬛⬛⬛');
+    expect(text).toBe('Chorusify 2026-01-01 🎵 2/6\n🟥🟩⬛⬛⬛⬛');
   });
 
   it('renders a loss with X/6 and all attempts as red', () => {
@@ -20,7 +20,7 @@ describe('buildShareText', () => {
     }));
 
     const text = buildShareText(history, false, '2026-01-02');
-    expect(text).toBe('Chorus 2026-01-02 🎵 X/6\n🟥🟥🟥🟥🟥🟥');
+    expect(text).toBe('Chorusify 2026-01-02 🎵 X/6\n🟥🟥🟥🟥🟥🟥');
   });
 
   it('represents a skip the same as a wrong guess', () => {
@@ -39,7 +39,7 @@ describe('buildRunShareText', () => {
       totalRounds: 3,
     });
 
-    expect(text).toContain('Chorus · Queen 🎵 2/3');
+    expect(text).toContain('Chorusify · Queen 🎵 2/3');
     expect(text).toContain('🟩🟥🟩');
   });
 
@@ -76,10 +76,10 @@ describe('buildRunShareText', () => {
       songsCorrect: 1,
       totalRounds: 1,
       timeTakenSeconds: 95,
-      url: 'https://chorus.test/x',
+      url: 'https://chorusify.com/x',
     });
     expect(withExtras).toContain('1m 35s');
-    expect(withExtras).toContain('https://chorus.test/x');
+    expect(withExtras).toContain('https://chorusify.com/x');
 
     const bare = buildRunShareText({
       subject: 'Queen',

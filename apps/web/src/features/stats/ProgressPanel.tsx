@@ -61,7 +61,7 @@ export function ProgressPanel() {
             initial={{ width: 0 }}
             animate={{ width: `${Math.round(level.progress * 100)}%` }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="h-full rounded-full bg-gradient-to-r from-purple-500 to-chorus-accent2"
+            className="h-full rounded-full bg-gradient-to-r from-purple-500 to-chorusify-accent2"
           />
         </div>
         <p className="mt-2 text-xs text-slate-500">
@@ -205,7 +205,7 @@ function AchievementRow({ achievement }: { achievement: AchievementView }) {
       {!earned && (
         <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
           <div
-            className="h-full rounded-full bg-chorus-accent/70"
+            className="h-full rounded-full bg-chorusify-accent/70"
             style={{ width: `${Math.round(progress * 100)}%` }}
           />
         </div>

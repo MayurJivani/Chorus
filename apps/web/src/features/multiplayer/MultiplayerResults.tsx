@@ -44,7 +44,9 @@ export function MultiplayerResults({
         {gameOver.winner ? (
           <div className="flex flex-col items-center gap-1">
             <p className="text-4xl">👑</p>
-            <p className="text-xl font-bold text-chorus-accent2">{gameOver.winner.displayName}</p>
+            <p className="text-xl font-bold text-chorusify-accent2">
+              {gameOver.winner.displayName}
+            </p>
             <p className="text-sm text-slate-400">
               wins the {label} race with {gameOver.winner.score} points
             </p>

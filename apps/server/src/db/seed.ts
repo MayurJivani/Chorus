@@ -191,7 +191,7 @@ function sleep(ms: number): Promise<void> {
 
 async function searchDeezer(query: string): Promise<DeezerTrack[]> {
   const res = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=5`, {
-    headers: { Referer: 'https://chorus.app/' },
+    headers: { Referer: 'https://chorusify.com/' },
   });
   if (!res.ok) {
     throw new Error(`Deezer search failed with status ${res.status}`);

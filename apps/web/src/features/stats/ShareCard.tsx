@@ -11,7 +11,7 @@ function buildStatsShareText(stats: StatsResponse): string {
     stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0;
 
   const lines = [
-    'Chorus stats 🎵',
+    'Chorusify stats 🎵',
     `🔥 ${stats.currentStreak} day streak (best ${stats.maxStreak})`,
     `${winRate}% win rate over ${stats.gamesPlayed} games`,
   ];

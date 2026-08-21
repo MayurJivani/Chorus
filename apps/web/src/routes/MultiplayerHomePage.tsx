@@ -66,7 +66,7 @@ export function MultiplayerHomePage() {
       <div
         role="tablist"
         aria-label="What to race over"
-        className="flex w-full gap-1.5 rounded-xl border border-white/5 bg-chorus-bg/80 p-1.5"
+        className="flex w-full gap-1.5 rounded-xl border border-white/5 bg-chorusify-bg/80 p-1.5"
       >
         {(
           [
@@ -114,7 +114,7 @@ export function MultiplayerHomePage() {
               className={
                 'rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-all ' +
                 (category?.id === c.id
-                  ? 'border-chorus-accent/60 bg-chorus-accent/15 text-white'
+                  ? 'border-chorusify-accent/60 bg-chorusify-accent/15 text-white'
                   : 'border-white/5 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]')
               }
             >
@@ -154,7 +154,7 @@ export function MultiplayerHomePage() {
               /* min-w-0 is the fix: a flex item defaults to min-width:auto, so this input refused
                  to shrink below the width of its own "ROOM CODE" placeholder and shoved the button
                  off the screen on a narrow phone. */
-              className="w-full min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center font-mono text-base font-black tracking-widest text-chorus-accent2 outline-none focus:border-chorus-accent2 uppercase placeholder:font-sans placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-600"
+              className="w-full min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center font-mono text-base font-black tracking-widest text-chorusify-accent2 outline-none focus:border-chorusify-accent2 uppercase placeholder:font-sans placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-600"
             />
             <button
               type="submit"
@@ -211,7 +211,7 @@ export function MultiplayerHomePage() {
                   aria-pressed={guessMode === mode}
                   className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
                     guessMode === mode
-                      ? 'border-chorus-accent/60 bg-chorus-accent/10 text-white'
+                      ? 'border-chorusify-accent/60 bg-chorusify-accent/10 text-white'
                       : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/25'
                   }`}
                 >
@@ -233,7 +233,7 @@ export function MultiplayerHomePage() {
             {creating ? 'Creating room…' : 'Create room →'}
           </button>
 
-          {error && <p className="mt-3 text-sm text-chorus-danger">{error}</p>}
+          {error && <p className="mt-3 text-sm text-chorusify-danger">{error}</p>}
         </motion.div>
       )}
     </div>

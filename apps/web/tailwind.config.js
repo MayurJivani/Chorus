@@ -8,7 +8,7 @@ export default {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
-        chorus: {
+        chorusify: {
           bg: '#121214',
           surface: '#1c1c20',
           'surface-2': '#26262b',

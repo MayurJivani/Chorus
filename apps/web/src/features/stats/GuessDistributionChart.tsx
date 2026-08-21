@@ -18,10 +18,10 @@ export function GuessDistributionChart({ distribution }: GuessDistributionChartP
         return (
           <div key={i} className="flex items-center gap-3">
             <span className="w-4 text-right font-mono text-xs text-slate-500">{i + 1}</span>
-            <div className="h-6 flex-1 overflow-hidden rounded-full bg-chorus-bg/60">
+            <div className="h-6 flex-1 overflow-hidden rounded-full bg-chorusify-bg/60">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
-                  isBest ? 'bg-chorus-gradient shadow-[0_0_6px_#22d3ee55]' : 'bg-white/20'
+                  isBest ? 'bg-chorusify-gradient shadow-[0_0_6px_#22d3ee55]' : 'bg-white/20'
                 }`}
                 style={{ width: `${(count / max) * 100}%`, minWidth: count > 0 ? '1.5rem' : 0 }}
               />

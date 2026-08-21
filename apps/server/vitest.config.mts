@@ -22,10 +22,10 @@ function resolveTestDatabaseUrl(): string {
   if (explicit) return explicit;
 
   const appUrl = process.env.DATABASE_URL;
-  if (!appUrl) return 'postgres://postgres:postgres@localhost:5432/chorus_test';
+  if (!appUrl) return 'postgres://postgres:postgres@localhost:5432/chorusify_test';
 
   const url = new URL(appUrl);
-  const name = url.pathname.replace(/^\//, '') || 'chorus';
+  const name = url.pathname.replace(/^\//, '') || 'chorusify';
   url.pathname = `/${name.endsWith('_test') ? name : `${name}_test`}`;
   return url.toString();
 }
