@@ -1,26 +1,7 @@
 <div align="center">
 
 <h1 align="center">
-  <svg viewBox="0 0 32 32" width="38" height="38" aria-hidden="true" style="vertical-align: middle; margin-right: 6px; display: inline-block;">
-    <!-- Outer disc -->
-    <circle cx="16" cy="16" r="15.5" fill="#151515" stroke="#252525" stroke-width="0.5" />
-    <!-- Grooves -->
-    <circle cx="16" cy="16" r="13" fill="none" stroke="#222" stroke-width="0.3" />
-    <circle cx="16" cy="16" r="11.5" fill="none" stroke="#1c1c1c" stroke-width="0.3" />
-    <circle cx="16" cy="16" r="10" fill="none" stroke="#222" stroke-width="0.3" />
-    <circle cx="16" cy="16" r="8.5" fill="none" stroke="#1c1c1c" stroke-width="0.3" />
-    <!-- Purple gradient center label -->
-    <defs>
-      <radialGradient id="logo-center-grad" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#a78bfa" />
-        <stop offset="100%" stop-color="#7c3aed" />
-      </radialGradient>
-    </defs>
-    <circle cx="16" cy="16" r="5.5" fill="url(#logo-center-grad)" />
-    <circle cx="16" cy="16" r="5.5" fill="none" stroke="#111" stroke-width="0.5" />
-    <!-- Spindle hole -->
-    <circle cx="16" cy="16" r="1.2" fill="#000" />
-  </svg>
+  <img src="apps/web/public/logo.svg" width="38" height="38" alt="Chorusify Logo" style="vertical-align: middle; margin-right: 6px; display: inline-block;" />
   Chorusify
 </h1>
 
