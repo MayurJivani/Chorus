@@ -1,7 +1,7 @@
 <div align="center">
 
 <h1 align="center">
-  <img src="apps/web/public/logo.svg" width="38" height="38" alt="Chorusify Logo" style="vertical-align: -6px; margin-right: 6px; display: inline-block;" />
+  <img src="apps/web/public/logo.svg" width="38" height="38" alt="Chorusify Logo" style="vertical-align: -2px; margin-right: 6px; display: inline-block;" />
   Chorusify
 </h1>
 
@@ -23,7 +23,7 @@
 
 **Artist** — Pick a discography, any discography, and go 10 rounds deep. Type it out from memory or pick from the lineup. Real leaderboards, per artist, for the true completionists.
 
-**Multiplayer** — Up to 8 in a room, real-time, no sign-up. Songs unfold second by second (`1s → 2s → 4s → 7s → 11s → 16s`), and _you_ decide how much you need to hear before you buzz in. Hesitate too long and someone else calls it first.
+**Multiplayer** — Up to 8 in a room, real-time, no sign-up. Songs unfold second by second (`1s → 2s → 4s → 7s → 11s → 16s`), and _you_ decide how much you need to hear before you buzz in.
 
 **Survival** — One song after another, no end in sight, until the one that finally gets you. How deep does your crate go?
 
