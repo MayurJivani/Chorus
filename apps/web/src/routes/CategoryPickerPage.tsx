@@ -5,18 +5,18 @@ import { getCategories } from '../api/categories';
 import type { Category, CategoryGroup } from '../types/api';
 
 const GROUP_LABELS: Record<CategoryGroup, { title: string; subtitle: string }> = {
-  now: { title: 'Right Now', subtitle: 'Live charts and this year’s biggest tracks' },
+  now: { title: 'Right Now', subtitle: "Live charts and this year's biggest tracks" },
   year: { title: 'By Year', subtitle: 'The songs that defined each year, back to 2000' },
   genre: { title: 'By Genre', subtitle: 'Pop, rock, rap, K-pop and more' },
+  bollywood: { title: 'Bollywood', subtitle: 'Hindi film music, romance, and party anthems' },
 };
 
-const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'genre'];
+const GROUP_ORDER: CategoryGroup[] = ['now', 'bollywood', 'year', 'genre'];
 
-/** Filter chips. Genres exist but were unreachable in practice: they sit below twenty-four year
- *  cards, so on a phone nobody scrolled far enough to discover the mode had them at all. */
 const FILTERS: [CategoryGroup | 'all', string][] = [
   ['all', 'All'],
   ['now', 'Charts'],
+  ['bollywood', 'Bollywood'],
   ['year', 'Years'],
   ['genre', 'Genres'],
 ];
@@ -73,7 +73,7 @@ export function CategoryPickerPage() {
 
       {failed && (
         <p className="text-sm text-chorusify-danger">
-          Couldn’t load the categories. Please refresh and try again.
+          Couldn't load the categories. Please refresh and try again.
         </p>
       )}
 

@@ -23,6 +23,7 @@ import { eraRouter } from './routes/era.routes';
 import { challengesRouter } from './routes/challenges.routes';
 import { duelsRouter } from './routes/duels.routes';
 import { adminRouter } from './routes/admin.routes';
+import { friendsRouter } from './routes/friends.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -66,6 +67,7 @@ export function createApp(): Express {
   app.use('/api/challenges', challengesRouter);
   app.use('/api/duels', duelsRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/friends', friendsRouter);
 
   // Serve the built Vite frontend in production.
   // `public/` lives alongside `dist/` (i.e. at <server-root>/public).

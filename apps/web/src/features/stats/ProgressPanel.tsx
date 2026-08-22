@@ -11,6 +11,7 @@ const MODE_LABELS: Record<string, string> = {
 
 const GROUP_LABELS: Record<string, string> = {
   now: 'Charts',
+  bollywood: 'Bollywood',
   year: 'By year',
   genre: 'By genre',
 };
@@ -46,7 +47,7 @@ export function ProgressPanel() {
   const achievements = progress.achievements ?? [];
   const earnedCount = achievements.filter((a) => a.earned).length;
   const modes = (['artist', 'category', 'era'] as const).filter((m) => byMode[m].runs > 0);
-  const groups = (['now', 'year', 'genre'] as const).filter((g) => byCategoryGroup[g]);
+  const groups = (['now', 'bollywood', 'year', 'genre'] as const).filter((g) => byCategoryGroup[g]);
 
   return (
     <div className="flex flex-col gap-5">

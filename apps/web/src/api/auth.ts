@@ -20,3 +20,11 @@ export function login(input: { email: string; password: string }): Promise<AuthR
 export function logout(): Promise<{ ok: boolean; csrfToken: string }> {
   return apiRequest('/auth/logout', { method: 'POST' });
 }
+
+export function forgotPassword(email: string): Promise<{ ok: true; resetToken?: string }> {
+  return apiRequest('/auth/forgot-password', { method: 'POST', body: { email } });
+}
+
+export function resetPassword(token: string, password: string): Promise<{ ok: true }> {
+  return apiRequest('/auth/reset-password', { method: 'POST', body: { token, password } });
+}

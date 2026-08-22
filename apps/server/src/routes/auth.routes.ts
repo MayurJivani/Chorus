@@ -11,6 +11,8 @@ import { validate } from '../middleware/validate';
 import { authRateLimiter } from '../middleware/rateLimiters';
 import { generateCsrfToken } from '../middleware/csrf';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { createResetToken, resetPassword, ResetError } from '../services/passwordResetService';
+import { env } from '../env';
 
 export const authRouter = Router();
 
@@ -93,6 +95,52 @@ authRouter.post(
     await destroySession(req, res);
     const csrfToken = generateCsrfToken(req, res, { overwrite: true });
     res.json({ ok: true, csrfToken });
+  }),
+);
+
+const forgotSchema = z.object({ email: z.string().trim().toLowerCase().email() });
+
+authRouter.post(
+  '/forgot-password',
+  authRateLimiter,
+  validate(forgotSchema),
+  asyncHandler(async (req, res) => {
+    const { email } = req.body as z.infer<typeof forgotSchema>;
+    const token = await createResetToken(email);
+
+    if (env.NODE_ENV !== 'production' && token) {
+      // In dev, return the token directly so it can be used without an email service.
+      res.json({ ok: true, resetToken: token });
+      return;
+    }
+
+    // Always 200 to prevent email enumeration. In production this would send an email.
+    // TODO: integrate an email provider (Resend, SES, etc.)
+    res.json({ ok: true });
+  }),
+);
+
+const resetSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8).max(128),
+});
+
+authRouter.post(
+  '/reset-password',
+  authRateLimiter,
+  validate(resetSchema),
+  asyncHandler(async (req, res) => {
+    const { token, password } = req.body as z.infer<typeof resetSchema>;
+    try {
+      await resetPassword(token, password);
+      res.json({ ok: true });
+    } catch (err) {
+      if (err instanceof ResetError) {
+        res.status(err.statusCode).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
   }),
 );
 

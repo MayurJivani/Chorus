@@ -13,7 +13,7 @@
  * editions, verified to return international tracks (Top Hits 2000 is Destiny's Child and
  * Britney; 2024 Pop is Espresso and Texas Hold 'Em).
  */
-export type CategoryGroup = 'now' | 'year' | 'genre';
+export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood';
 
 export interface Category {
   /** Stable slug used in URLs and as the catalog cache key. */
@@ -113,7 +113,28 @@ const GENRES: Category[] = GENRE_DEFS.map(([label, playlistId]) => ({
   blurb: `The best of ${label}`,
 }));
 
-export const CATEGORIES: Category[] = [...NOW, ...YEARS, ...GENRES];
+/**
+ * Bollywood / Indian music. Deezer's editorial playlists cover this well — "Best Of Bollywood"
+ * and year-specific compilations exist and are maintained. Playlist ids verified to contain
+ * Hindi-language tracks with working previews.
+ */
+const BOLLYWOOD_DEFS: [label: string, playlistId: string, blurb: string][] = [
+  ['Bollywood Top 50', '5714603022', 'The biggest Bollywood songs of all time'],
+  ['Bollywood 2000s', '9598289882', 'Nostalgia hits from 2000 to 2010'],
+  ['Bollywood Romance', '10421653842', 'Love songs from the silver screen'],
+  ['Bollywood Party', '9660774522', 'Dance floor anthems from Hindi films'],
+  ['Bollywood 2026', '14922241343', 'The latest Bollywood hits'],
+];
+
+const BOLLYWOOD: Category[] = BOLLYWOOD_DEFS.map(([label, playlistId, blurb]) => ({
+  id: `bollywood-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+  label,
+  group: 'bollywood' as CategoryGroup,
+  playlistId,
+  blurb,
+}));
+
+export const CATEGORIES: Category[] = [...NOW, ...YEARS, ...GENRES, ...BOLLYWOOD];
 
 const BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
 

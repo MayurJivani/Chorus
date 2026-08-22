@@ -366,6 +366,77 @@ export const artistSessionResults = pgTable(
   ],
 );
 
+/**
+ * Friendships between registered users.
+ *
+ * Symmetric: once accepted, both sides see each other. The requester/addressee distinction only
+ * matters while the request is pending, so we keep it simple with a status enum rather than two
+ * rows per pair.
+ */
+export const friendships = pgTable(
+  'friendships',
+  {
+    id: serial('id').primaryKey(),
+    requesterId: text('requester_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    addresseeId: text('addressee_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('pending'), // pending | accepted | rejected
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('friendships_pair_idx').on(table.requesterId, table.addresseeId),
+    index('friendships_addressee_idx').on(table.addresseeId),
+  ],
+);
+
+/**
+ * Direct messages between friends.
+ *
+ * Only friends can message each other (enforced at the route level), so there is no spam vector
+ * and no block/report flow needed yet.
+ */
+export const messages = pgTable(
+  'messages',
+  {
+    id: serial('id').primaryKey(),
+    senderId: text('sender_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    recipientId: text('recipient_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    /** Game invite payload, if this message is an invite. */
+    invite: jsonb('invite').$type<{ type: 'duel' | 'multiplayer'; id: number | string } | null>(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('messages_recipient_idx').on(table.recipientId),
+    index('messages_sender_idx').on(table.senderId),
+  ],
+);
+
+/**
+ * Password reset tokens.
+ *
+ * Short-lived (1 hour), single-use, hashed in the database so a leaked row doesn't grant access.
+ */
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: text('token_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Song = typeof songs.$inferSelect;
 export type NewSong = typeof songs.$inferInsert;
 export type DailyPuzzle = typeof dailyPuzzles.$inferSelect;
@@ -386,3 +457,6 @@ export type DailyPuzzleStart = typeof dailyPuzzleStarts.$inferSelect;
 export type AppSetting = typeof appSettings.$inferSelect;
 export type SurvivalRun = typeof survivalRuns.$inferSelect;
 export type Duel = typeof duels.$inferSelect;
+export type Friendship = typeof friendships.$inferSelect;
+export type Message = typeof messages.$inferSelect;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
