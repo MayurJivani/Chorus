@@ -68,6 +68,7 @@ export function ChallengeSummary({
   const [copied, setCopied] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [showMissed, setShowMissed] = useState(false);
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const { user } = useSession();
   const missedSongs = revealedSongs.filter((e) => !e.correct);
 
@@ -155,7 +156,13 @@ export function ChallengeSummary({
               className="mt-2 flex flex-col gap-2"
             >
               {missedSongs.map((entry, i) => (
-                <MissedSongRow key={i} entry={entry} />
+                <MissedSongRow
+                  key={i}
+                  entry={entry}
+                  isPlaying={playingIndex === i}
+                  onPlay={() => setPlayingIndex(i)}
+                  onStop={() => setPlayingIndex(null)}
+                />
               ))}
             </motion.ul>
           )}
@@ -211,23 +218,39 @@ export function ChallengeSummary({
   );
 }
 
-function MissedSongRow({ entry }: { entry: SongEntry }) {
+function MissedSongRow({
+  entry,
+  isPlaying,
+  onPlay,
+  onStop,
+}: {
+  entry: SongEntry;
+  isPlaying: boolean;
+  onPlay: () => void;
+  onStop: () => void;
+}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(0.5);
 
-  const toggle = useCallback(() => {
+  useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (playing) {
-      audio.pause();
-      setPlaying(false);
-    } else {
+    if (isPlaying) {
       audio.volume = volume;
-      audio.play().catch(() => {});
-      setPlaying(true);
+      audio.play().catch(() => onStop());
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
     }
-  }, [playing, volume]);
+  }, [isPlaying, onStop, volume]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onEnded = () => onStop();
+    audio.addEventListener('ended', onEnded);
+    return () => audio.removeEventListener('ended', onEnded);
+  }, [onStop]);
 
   const handleVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
@@ -235,20 +258,14 @@ function MissedSongRow({ entry }: { entry: SongEntry }) {
     if (audioRef.current) audioRef.current.volume = v;
   }, []);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onEnded = () => setPlaying(false);
-    audio.addEventListener('ended', onEnded);
-    return () => audio.removeEventListener('ended', onEnded);
-  }, []);
+  const toggle = entry.previewUrl ? () => (isPlaying ? onStop() : onPlay()) : undefined;
 
   return (
     <li className="flex flex-col gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={entry.previewUrl ? toggle : undefined}
+          onClick={toggle}
           disabled={!entry.previewUrl}
           className="relative h-10 w-10 flex-shrink-0 rounded-lg overflow-hidden group"
         >
@@ -265,9 +282,9 @@ function MissedSongRow({ entry }: { entry: SongEntry }) {
           )}
           {entry.previewUrl && (
             <div
-              className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${playing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+              className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
             >
-              <span className="text-white text-lg">{playing ? '⏸' : '▶'}</span>
+              <span className="text-white text-lg">{isPlaying ? '⏸' : '▶'}</span>
             </div>
           )}
         </button>
@@ -276,7 +293,7 @@ function MissedSongRow({ entry }: { entry: SongEntry }) {
           <p className="truncate text-xs text-slate-400">{entry.song.artist}</p>
         </div>
       </div>
-      {playing && entry.previewUrl && (
+      {isPlaying && entry.previewUrl && (
         <div className="flex items-center gap-2 pl-1">
           <span className="text-[10px] text-slate-500">🔈</span>
           <input
