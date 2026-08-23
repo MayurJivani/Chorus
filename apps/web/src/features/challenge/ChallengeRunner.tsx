@@ -199,7 +199,7 @@ export function ChallengeRunner({
               </div>
             </div>
 
-            {!lastAttempt?.correct && previewUrl && <SongPreviewButton previewUrl={previewUrl} />}
+            {previewUrl && <SongPreviewButton previewUrl={previewUrl} />}
 
             {guessMode === 'choice' && 'options' in challenge && challenge.options ? (
               <MultipleChoiceGuess

@@ -82,7 +82,7 @@ export function WinLoseOverlay({
         </div>
       </div>
 
-      {!won && previewUrl && <SongPreviewButton previewUrl={previewUrl} />}
+      {previewUrl && <SongPreviewButton previewUrl={previewUrl} />}
 
       <button type="button" onClick={handleShare} className="btn-primary w-full !rounded-xl">
         {copied ? '✓ Copied!' : 'Share result'}

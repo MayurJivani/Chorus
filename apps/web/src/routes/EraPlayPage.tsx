@@ -203,9 +203,7 @@ export function EraPlayPage() {
               </div>
             )}
 
-            {!result.correct && round?.previewUrl && (
-              <SongPreviewButton previewUrl={round.previewUrl} />
-            )}
+            {round?.previewUrl && <SongPreviewButton previewUrl={round.previewUrl} />}
 
             <button
               type="button"
