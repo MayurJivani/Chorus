@@ -108,6 +108,7 @@ export function PlayPage() {
           song={revealedSong}
           history={history}
           puzzleDate={puzzle.puzzleDate}
+          previewUrl={'previewUrl' in puzzle ? puzzle.previewUrl : undefined}
         />
       )}
     </div>

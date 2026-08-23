@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import type { RevealedSong } from '../../types/api';
 import type { GuessAttempt } from './useGameState';
+import { SongPreviewButton } from './SongPreviewButton';
 import { buildShareText } from '../stats/shareText';
 import { useGameConfig } from '../../hooks/useGameConfig';
 
@@ -11,9 +12,16 @@ interface WinLoseOverlayProps {
   song: RevealedSong;
   history: GuessAttempt[];
   puzzleDate: string;
+  previewUrl?: string | null;
 }
 
-export function WinLoseOverlay({ won, song, history, puzzleDate }: WinLoseOverlayProps) {
+export function WinLoseOverlay({
+  won,
+  song,
+  history,
+  puzzleDate,
+  previewUrl,
+}: WinLoseOverlayProps) {
   const { maxGuesses } = useGameConfig();
   const [copied, setCopied] = useState(false);
 
@@ -73,6 +81,8 @@ export function WinLoseOverlay({ won, song, history, puzzleDate }: WinLoseOverla
           <p className="text-sm text-slate-400">{song.artist}</p>
         </div>
       </div>
+
+      {!won && previewUrl && <SongPreviewButton previewUrl={previewUrl} />}
 
       <button type="button" onClick={handleShare} className="btn-primary w-full !rounded-xl">
         {copied ? '✓ Copied!' : 'Share result'}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { SnippetPlayer } from '../game/SnippetPlayer';
+import { SongPreviewButton } from '../game/SongPreviewButton';
 import { SnippetProgressBar } from '../game/SnippetProgressBar';
 import { AttemptPips } from '../game/AttemptPips';
 import { GuessInput } from '../game/GuessInput';
@@ -197,6 +198,8 @@ export function ChallengeRunner({
                 <p className="text-xs text-slate-400 truncate">{revealedSong.artist}</p>
               </div>
             </div>
+
+            {!lastAttempt?.correct && previewUrl && <SongPreviewButton previewUrl={previewUrl} />}
 
             {guessMode === 'choice' && 'options' in challenge && challenge.options ? (
               <MultipleChoiceGuess

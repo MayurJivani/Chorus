@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { SnippetPlayer } from '../features/game/SnippetPlayer';
+import { SongPreviewButton } from '../features/game/SongPreviewButton';
 import { SnippetProgressBar } from '../features/game/SnippetProgressBar';
 import { ChallengeSummary } from '../features/challenge/ChallengeSummary';
 import { useGameConfig } from '../hooks/useGameConfig';
@@ -94,7 +95,7 @@ export function EraPlayPage() {
         setSubmitting(false);
       }
     },
-    [status, submitting, revealCount],
+    [status, submitting, revealCount, round],
   );
 
   const next = useCallback(async () => {
@@ -200,6 +201,10 @@ export function EraPlayPage() {
                   <p className="truncate text-xs text-slate-400">{revealed.artist}</p>
                 </div>
               </div>
+            )}
+
+            {!result.correct && round?.previewUrl && (
+              <SongPreviewButton previewUrl={round.previewUrl} />
             )}
 
             <button

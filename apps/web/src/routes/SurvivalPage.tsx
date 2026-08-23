@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { SnippetPlayer } from '../features/game/SnippetPlayer';
+import { SongPreviewButton } from '../features/game/SongPreviewButton';
 import { SnippetProgressBar } from '../features/game/SnippetProgressBar';
 import { GuessInput } from '../features/game/GuessInput';
 import { MultipleChoiceGuess } from '../features/artist/MultipleChoiceGuess';
@@ -18,7 +19,7 @@ import {
 } from '../api/survival';
 import type { RevealedSong, SongSearchResult, SurvivalRound } from '../types/api';
 
-type Status = 'loading' | 'playing' | 'over' | 'error';
+type Status = 'picking-mode' | 'loading' | 'playing' | 'over' | 'error';
 
 /**
  * Survival: endless rounds, one miss ends the run.
@@ -28,14 +29,16 @@ type Status = 'loading' | 'playing' | 'over' | 'error';
  * rule, so the screen says it once and then stays out of the way.
  */
 export function SurvivalPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const guessMode = searchParams.get('guessMode') === 'choice' ? 'choice' : 'search';
+  const [searchParams] = useSearchParams();
+  const initialMode = searchParams.get('guessMode') === 'choice' ? 'choice' : 'search';
   const { snippetSchedule } = useGameConfig();
   const { user } = useSession();
 
-  const [status, setStatus] = useState<Status>('loading');
+  const [guessMode, setGuessMode] = useState<'search' | 'choice'>(initialMode);
+  const [status, setStatus] = useState<Status>('picking-mode');
   const [round, setRound] = useState<SurvivalRound | null>(null);
   const [revealed, setRevealed] = useState<RevealedSong | null>(null);
+  const [lastPreviewUrl, setLastPreviewUrl] = useState<string | null>(null);
   const [finalStreak, setFinalStreak] = useState(0);
   const [personalBest, setPersonalBest] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -47,27 +50,31 @@ export function SurvivalPage() {
   const [revealCount, setRevealCount] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
 
-  const loadRound = useCallback(async () => {
+  const guessModeRef = useRef(guessMode);
+  guessModeRef.current = guessMode;
+
+  const loadRound = useCallback(async (mode?: 'search' | 'choice') => {
+    const m = mode ?? guessModeRef.current;
     setStatus('loading');
     setRevealed(null);
+    setLastPreviewUrl(null);
     setRevealCount(0);
     try {
-      setRound(await getSurvivalRound(guessMode));
+      setRound(await getSurvivalRound(m));
       setStatus('playing');
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Could not start a run.');
       setStatus('error');
     }
-  }, [guessMode]);
+  }, []);
 
-  // A ref, not state: StrictMode runs this effect twice in development and without the guard
-  // the second pass would draw a second song before the first was answered.
-  const startedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (startedRef.current === guessMode) return;
-    startedRef.current = guessMode;
-    void loadRound();
-  }, [guessMode, loadRound]);
+  const startGame = useCallback(
+    (mode: 'search' | 'choice') => {
+      setGuessMode(mode);
+      void loadRound(mode);
+    },
+    [loadRound],
+  );
 
   useEffect(() => {
     if (autoPlay) {
@@ -83,10 +90,12 @@ export function SurvivalPage() {
       setErrorMessage(null);
 
       try {
+        const currentPreview = round?.previewUrl ?? null;
         const result = await submitSurvivalGuess(song?.id as string | undefined);
         setRevealed(result.song);
 
         if (result.runOver) {
+          setLastPreviewUrl(currentPreview);
           setFinalStreak(result.streak);
           setPersonalBest(result.personalBest ?? null);
           setStatus('over');
@@ -105,20 +114,54 @@ export function SurvivalPage() {
         setSubmitting(false);
       }
     },
-    [status, submitting, loadRound],
+    [status, submitting, round, loadRound],
   );
 
   const startNewRun = useCallback(async () => {
     await giveUpSurvivalRun().catch(() => {});
     setFinalStreak(0);
     setPersonalBest(null);
-    await loadRound();
-  }, [loadRound]);
+    setStatus('picking-mode');
+  }, []);
 
   const revealMore = useCallback(() => {
     setRevealCount((n) => n + 1);
     setAutoPlay(true);
   }, []);
+
+  if (status === 'picking-mode') {
+    return (
+      <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-5 px-4 py-6">
+        <div className="glass flex w-full flex-col items-center gap-6 rounded-2xl border border-white/10 p-6 text-center">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Survival</h1>
+            <p className="mt-1 text-sm text-slate-400">One wrong answer ends the run</p>
+          </div>
+          <div className="flex w-full flex-col gap-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Choose your mode
+            </p>
+            <button
+              type="button"
+              onClick={() => startGame('search')}
+              className="w-full rounded-xl border border-white/10 bg-chorusify-surface/80 px-4 py-4 text-left transition-all hover:border-white/30 hover:bg-white/5"
+            >
+              <p className="font-bold text-white">Type Answer</p>
+              <p className="mt-0.5 text-xs text-slate-400">Search and pick the correct song</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => startGame('choice')}
+              className="w-full rounded-xl border border-white/10 bg-chorusify-surface/80 px-4 py-4 text-left transition-all hover:border-white/30 hover:bg-white/5"
+            >
+              <p className="font-bold text-white">Multiple Choice</p>
+              <p className="mt-0.5 text-xs text-slate-400">Pick from four options</p>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (status === 'loading' && !round) {
     return <Centered>Starting your run…</Centered>;
@@ -181,6 +224,8 @@ export function SurvivalPage() {
               </div>
             </div>
           )}
+
+          {lastPreviewUrl && <SongPreviewButton previewUrl={lastPreviewUrl} />}
 
           {!user && (
             <div className="w-full rounded-2xl border border-chorusify-accent/30 bg-chorusify-accent/10 p-4">
@@ -300,14 +345,6 @@ export function SurvivalPage() {
 
         {errorMessage && <p className="text-sm text-chorusify-danger">{errorMessage}</p>}
       </div>
-
-      <button
-        type="button"
-        onClick={() => setSearchParams({ guessMode: guessMode === 'choice' ? 'search' : 'choice' })}
-        className="text-xs text-slate-500 underline decoration-dotted hover:text-slate-300"
-      >
-        Switch to {guessMode === 'choice' ? 'type to search' : 'multiple choice'}
-      </button>
     </div>
   );
 }
