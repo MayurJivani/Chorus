@@ -19,7 +19,7 @@ COPY apps/server/ apps/server/
 ENV VITE_API_URL=/api
 RUN npm run build:full
 
-RUN npm prune --omit=dev
+RUN npm prune --omit=dev --legacy-peer-deps
 
 FROM node:22-alpine
 WORKDIR /app
