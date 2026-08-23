@@ -69,6 +69,13 @@ export function ChallengeSummary({
   const [rendering, setRendering] = useState(false);
   const [showMissed, setShowMissed] = useState(false);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
+  const [missedVolume, setMissedVolume] = useState(() => {
+    try {
+      const saved = localStorage.getItem('snippet-volume');
+      if (saved != null) return parseFloat(saved);
+    } catch {}
+    return 0.5;
+  });
   const { user } = useSession();
   const missedSongs = revealedSongs.filter((e) => !e.correct);
 
@@ -162,6 +169,8 @@ export function ChallengeSummary({
                   isPlaying={playingIndex === i}
                   onPlay={() => setPlayingIndex(i)}
                   onStop={() => setPlayingIndex(null)}
+                  volume={missedVolume}
+                  onVolumeChange={setMissedVolume}
                 />
               ))}
             </motion.ul>
@@ -223,14 +232,17 @@ function MissedSongRow({
   isPlaying,
   onPlay,
   onStop,
+  volume,
+  onVolumeChange,
 }: {
   entry: SongEntry;
   isPlaying: boolean;
   onPlay: () => void;
   onStop: () => void;
+  volume: number;
+  onVolumeChange: (v: number) => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [volume, setVolume] = useState(0.5);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -252,11 +264,17 @@ function MissedSongRow({
     return () => audio.removeEventListener('ended', onEnded);
   }, [onStop]);
 
-  const handleVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = parseFloat(e.target.value);
-    setVolume(v);
-    if (audioRef.current) audioRef.current.volume = v;
-  }, []);
+  const handleVolume = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const v = parseFloat(e.target.value);
+      onVolumeChange(v);
+      if (audioRef.current) audioRef.current.volume = v;
+      try {
+        localStorage.setItem('snippet-volume', String(v));
+      } catch {}
+    },
+    [onVolumeChange],
+  );
 
   const toggle = entry.previewUrl ? () => (isPlaying ? onStop() : onPlay()) : undefined;
 
