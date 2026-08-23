@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -16,6 +16,7 @@ import type {
 interface SongEntry {
   song: RevealedSong;
   correct: boolean;
+  previewUrl?: string;
 }
 
 interface ChallengeSummaryProps {
@@ -154,26 +155,7 @@ export function ChallengeSummary({
               className="mt-2 flex flex-col gap-2"
             >
               {missedSongs.map((entry, i) => (
-                <li
-                  key={i}
-                  className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5"
-                >
-                  {entry.song.albumArtUrl ? (
-                    <img
-                      src={entry.song.albumArtUrl}
-                      alt=""
-                      className="h-10 w-10 flex-shrink-0 rounded-lg object-cover ring-1 ring-white/10"
-                    />
-                  ) : (
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white/10 text-sm">
-                      🎵
-                    </div>
-                  )}
-                  <div className="min-w-0 text-left">
-                    <p className="truncate text-sm font-semibold text-white">{entry.song.title}</p>
-                    <p className="truncate text-xs text-slate-400">{entry.song.artist}</p>
-                  </div>
-                </li>
+                <MissedSongRow key={i} entry={entry} />
               ))}
             </motion.ul>
           )}
@@ -226,5 +208,68 @@ export function ChallengeSummary({
         </Link>
       </div>
     </motion.div>
+  );
+}
+
+function MissedSongRow({ entry }: { entry: SongEntry }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+
+  const toggle = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) {
+      audio.pause();
+      setPlaying(false);
+    } else {
+      audio.play().catch(() => {});
+      setPlaying(true);
+    }
+  }, [playing]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onEnded = () => setPlaying(false);
+    audio.addEventListener('ended', onEnded);
+    return () => audio.removeEventListener('ended', onEnded);
+  }, []);
+
+  return (
+    <li className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
+      <button
+        type="button"
+        onClick={entry.previewUrl ? toggle : undefined}
+        disabled={!entry.previewUrl}
+        className="relative h-10 w-10 flex-shrink-0 rounded-lg overflow-hidden group"
+      >
+        {entry.song.albumArtUrl ? (
+          <img
+            src={entry.song.albumArtUrl}
+            alt=""
+            className="h-full w-full object-cover ring-1 ring-white/10"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-white/10 text-sm">
+            🎵
+          </div>
+        )}
+        {entry.previewUrl && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-white text-lg">{playing ? '⏸' : '▶'}</span>
+          </div>
+        )}
+        {playing && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+            <span className="text-white text-lg">⏸</span>
+          </div>
+        )}
+      </button>
+      <div className="min-w-0 flex-1 text-left">
+        <p className="truncate text-sm font-semibold text-white">{entry.song.title}</p>
+        <p className="truncate text-xs text-slate-400">{entry.song.artist}</p>
+      </div>
+      {entry.previewUrl && <audio ref={audioRef} src={entry.previewUrl} preload="none" />}
+    </li>
   );
 }

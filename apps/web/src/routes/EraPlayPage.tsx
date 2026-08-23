@@ -26,9 +26,9 @@ export function EraPlayPage() {
   const [revealed, setRevealed] = useState<RevealedSong | null>(null);
   const [finalScore, setFinalScore] = useState<EraGuessResult['finalScore'] | null>(null);
   const [runHistory, setRunHistory] = useState<boolean[]>([]);
-  const [revealedSongs, setRevealedSongs] = useState<{ song: RevealedSong; correct: boolean }[]>(
-    [],
-  );
+  const [revealedSongs, setRevealedSongs] = useState<
+    { song: RevealedSong; correct: boolean; previewUrl?: string }[]
+  >([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -81,7 +81,10 @@ export function EraPlayPage() {
         setRevealed(res.song);
         setRunHistory((prev) => [...prev, res.correct]);
         if (res.song) {
-          setRevealedSongs((prev) => [...prev, { song: res.song, correct: res.correct }]);
+          setRevealedSongs((prev) => [
+            ...prev,
+            { song: res.song, correct: res.correct, previewUrl: round?.previewUrl },
+          ]);
         }
         if (res.sessionComplete) setFinalScore(res.finalScore ?? null);
         setStatus('round-ended');

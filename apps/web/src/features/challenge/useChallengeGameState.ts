@@ -10,6 +10,7 @@ import type { GuessAttempt } from '../game/useGameState';
 export interface RunSongEntry {
   song: RevealedSong;
   correct: boolean;
+  previewUrl?: string;
 }
 
 export type ChallengeGameStatus = 'loading' | 'playing' | 'round-ended' | 'completed' | 'error';
@@ -84,6 +85,11 @@ export function useChallengeGameState(
   const endpointsRef = useRef(endpoints);
   endpointsRef.current = endpoints;
 
+  const currentPreviewUrl = useRef<string | undefined>(undefined);
+  if (challenge && !challenge.completed) {
+    currentPreviewUrl.current = challenge.previewUrl;
+  }
+
   const loadCurrentRound = useCallback(
     async (playAgain?: boolean, startingNewRun = false) => {
       const api = endpointsRef.current;
@@ -149,7 +155,14 @@ export function useChallengeGameState(
           setRevealedSong(result.song ?? null);
           setRunHistory((prev) => [...prev, result.correct]);
           if (result.song) {
-            setRevealedSongs((prev) => [...prev, { song: result.song!, correct: result.correct }]);
+            setRevealedSongs((prev) => [
+              ...prev,
+              {
+                song: result.song!,
+                correct: result.correct,
+                previewUrl: currentPreviewUrl.current,
+              },
+            ]);
           }
           // Patch challenge with the latest server-reported counts so the UI stays in sync.
           if (result.songsCorrect != null) {
