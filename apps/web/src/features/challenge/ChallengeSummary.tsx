@@ -214,6 +214,7 @@ export function ChallengeSummary({
 function MissedSongRow({ entry }: { entry: SongEntry }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [volume, setVolume] = useState(0.5);
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
@@ -222,10 +223,17 @@ function MissedSongRow({ entry }: { entry: SongEntry }) {
       audio.pause();
       setPlaying(false);
     } else {
+      audio.volume = volume;
       audio.play().catch(() => {});
       setPlaying(true);
     }
-  }, [playing]);
+  }, [playing, volume]);
+
+  const handleVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value);
+    setVolume(v);
+    if (audioRef.current) audioRef.current.volume = v;
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -236,39 +244,53 @@ function MissedSongRow({ entry }: { entry: SongEntry }) {
   }, []);
 
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
-      <button
-        type="button"
-        onClick={entry.previewUrl ? toggle : undefined}
-        disabled={!entry.previewUrl}
-        className="relative h-10 w-10 flex-shrink-0 rounded-lg overflow-hidden group"
-      >
-        {entry.song.albumArtUrl ? (
-          <img
-            src={entry.song.albumArtUrl}
-            alt=""
-            className="h-full w-full object-cover ring-1 ring-white/10"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-white/10 text-sm">
-            🎵
-          </div>
-        )}
-        {entry.previewUrl && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-            <span className="text-white text-lg">{playing ? '⏸' : '▶'}</span>
-          </div>
-        )}
-        {playing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-            <span className="text-white text-lg">⏸</span>
-          </div>
-        )}
-      </button>
-      <div className="min-w-0 flex-1 text-left">
-        <p className="truncate text-sm font-semibold text-white">{entry.song.title}</p>
-        <p className="truncate text-xs text-slate-400">{entry.song.artist}</p>
+    <li className="flex flex-col gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={entry.previewUrl ? toggle : undefined}
+          disabled={!entry.previewUrl}
+          className="relative h-10 w-10 flex-shrink-0 rounded-lg overflow-hidden group"
+        >
+          {entry.song.albumArtUrl ? (
+            <img
+              src={entry.song.albumArtUrl}
+              alt=""
+              className="h-full w-full object-cover ring-1 ring-white/10"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-white/10 text-sm">
+              🎵
+            </div>
+          )}
+          {entry.previewUrl && (
+            <div
+              className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${playing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            >
+              <span className="text-white text-lg">{playing ? '⏸' : '▶'}</span>
+            </div>
+          )}
+        </button>
+        <div className="min-w-0 flex-1 text-left">
+          <p className="truncate text-sm font-semibold text-white">{entry.song.title}</p>
+          <p className="truncate text-xs text-slate-400">{entry.song.artist}</p>
+        </div>
       </div>
+      {playing && entry.previewUrl && (
+        <div className="flex items-center gap-2 pl-1">
+          <span className="text-[10px] text-slate-500">🔈</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={handleVolume}
+            className="h-1 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-purple-500 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-400"
+          />
+          <span className="text-[10px] text-slate-500">🔊</span>
+        </div>
+      )}
       {entry.previewUrl && <audio ref={audioRef} src={entry.previewUrl} preload="none" />}
     </li>
   );
