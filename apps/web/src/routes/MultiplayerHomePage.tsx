@@ -205,7 +205,7 @@ export function MultiplayerHomePage() {
               {(
                 [
                   ['classic', 'Classic', 'Progressive reveal, points by stage'],
-                  ['speed', 'Speed Round', 'Full snippet, first correct wins'],
+                  ['speed', 'Speed Round', 'Full snippet, fastest correct = most points'],
                 ] as [MultiplayerGameMode, string, string][]
               ).map(([mode, label, hint]) => (
                 <button

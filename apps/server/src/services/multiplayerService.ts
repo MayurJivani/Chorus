@@ -62,6 +62,7 @@ export type MpGameMode = 'classic' | 'speed';
 
 const SPEED_ROUND_DURATION_MS = 15 * 1000;
 const SPEED_SNIPPET_SECONDS = 30;
+const SPEED_POINTS = [3, 2, 1] as const;
 
 interface MpRoom {
   code: string;
@@ -93,6 +94,8 @@ interface MpRoom {
   revealDurationMs: number;
   maxPlayers: number;
   revealSchedule: readonly number[];
+  /** Number of correct guesses so far this round in speed mode (for order-based scoring). */
+  speedCorrectCount: number;
 }
 
 export interface MpScoreEntry {
@@ -167,6 +170,7 @@ export async function createRoom(
     revealDurationMs: settings.multiplayerRevealSeconds * 1000,
     maxPlayers: settings.multiplayerMaxPlayers,
     revealSchedule: settings.snippetScheduleSeconds,
+    speedCorrectCount: 0,
   });
 
   logger.info(
@@ -410,6 +414,7 @@ function startRound(room: MpRoom, roundIndex: number): void {
   room.currentRound = roundIndex;
   room.phase = 'playing';
   room.roundStartedAt = Date.now();
+  room.speedCorrectCount = 0;
 
   const track = room.tracks[roundIndex];
   const isSpeed = room.gameMode === 'speed';
@@ -467,7 +472,16 @@ function submitGuess(playerId: string, trackId: string): void {
   const track = room.tracks[room.currentRound];
   const correct = track?.deezerTrackId === trackId;
   const isSpeed = room.gameMode === 'speed';
-  const points = correct ? (isSpeed ? 1 : (MP_REVEAL_POINTS[player.stageIndex] ?? 1)) : 0;
+
+  let points = 0;
+  if (correct) {
+    if (isSpeed) {
+      points = SPEED_POINTS[Math.min(room.speedCorrectCount, SPEED_POINTS.length - 1)] ?? 1;
+      room.speedCorrectCount += 1;
+    } else {
+      points = MP_REVEAL_POINTS[player.stageIndex] ?? 1;
+    }
+  }
 
   player.score += points;
   player.roundAnswered = true;
@@ -481,11 +495,6 @@ function submitGuess(playerId: string, trackId: string): void {
     stageIndex: player.stageIndex,
   });
   broadcast(room, { type: 'scores', scores: buildScores(room) });
-
-  if (isSpeed && correct) {
-    endRound(room);
-    return;
-  }
 
   const remaining = [...room.players.values()].filter((p) => !p.roundAnswered);
   if (remaining.length === 0) endRound(room);

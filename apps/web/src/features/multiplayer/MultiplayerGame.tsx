@@ -145,10 +145,14 @@ export function MultiplayerGame({
                 {lastGuess?.correct ? (
                   <>
                     <p className="text-lg font-bold text-emerald-400">
-                      {isSpeed ? 'First! +1' : `Locked in! +${lastGuess.points}`}
+                      {isSpeed
+                        ? `Correct! +${lastGuess.points}`
+                        : `Locked in! +${lastGuess.points}`}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {isSpeed ? 'You got it first!' : 'Now wait for the reveal, no changing it!'}
+                      {isSpeed
+                        ? 'Speed bonus — faster = more points!'
+                        : 'Now wait for the reveal, no changing it!'}
                     </p>
                   </>
                 ) : (
