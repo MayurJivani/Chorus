@@ -1,5 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 
+const SILENT_WAV =
+  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+let mediaUnlocked = false;
+
+function unlockMedia() {
+  if (mediaUnlocked) return;
+  const a = new Audio(SILENT_WAV);
+  a.volume = 0;
+  a.play()
+    .then(() => {
+      a.pause();
+      mediaUnlocked = true;
+    })
+    .catch(() => {});
+  document.removeEventListener('click', unlockMedia, true);
+  document.removeEventListener('touchstart', unlockMedia, true);
+  document.removeEventListener('keydown', unlockMedia, true);
+}
+
+document.addEventListener('click', unlockMedia, true);
+document.addEventListener('touchstart', unlockMedia, true);
+document.addEventListener('keydown', unlockMedia, true);
+
 interface SnippetPlayerProps {
   previewUrl: string;
   stageSeconds: number;
@@ -140,8 +163,6 @@ export function SnippetPlayer({
       .play()
       .then(() => setIsPlaying(true))
       .catch(() => {
-        // Autoplay refused — most often a round that started from a socket message rather
-        // than a tap. Say so instead of showing a spinning record over silence.
         setIsPlaying(false);
         setBlocked(true);
       });
