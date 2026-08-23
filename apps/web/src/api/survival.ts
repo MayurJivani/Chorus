@@ -22,8 +22,9 @@ export function giveUpSurvivalRun(): Promise<{ ok: true }> {
   return apiRequest('/survival/give-up', { method: 'POST' });
 }
 
-export function getSurvivalLeaderboard(): Promise<SurvivalLeaderboard> {
-  return apiRequest<SurvivalLeaderboard>('/survival/leaderboard');
+export function getSurvivalLeaderboard(mode?: 'search' | 'choice'): Promise<SurvivalLeaderboard> {
+  const q = mode ? `?mode=${mode}` : '';
+  return apiRequest<SurvivalLeaderboard>(`/survival/leaderboard${q}`);
 }
 
 export async function searchSurvivalTracks(query: string): Promise<SongSearchResult[]> {

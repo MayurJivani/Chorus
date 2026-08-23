@@ -150,6 +150,9 @@ export function SurvivalPage() {
             <p className="mt-1 text-sm text-slate-400">
               {finalStreak === 1 ? 'song' : 'songs'} in a row
             </p>
+            <p className="mt-1 inline-block rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              {guessMode === 'choice' ? 'Multiple Choice' : 'Type Answer'}
+            </p>
             {isRecord && finalStreak > 0 && (
               <p className="mt-2 text-sm font-semibold text-purple-400">New personal best</p>
             )}
@@ -230,7 +233,7 @@ export function SurvivalPage() {
           </div>
         </motion.div>
 
-        <SurvivalLeaderboardPanel />
+        <SurvivalLeaderboardPanel mode={guessMode} />
       </div>
     );
   }

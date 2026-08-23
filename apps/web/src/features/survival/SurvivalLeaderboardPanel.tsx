@@ -1,27 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getSurvivalLeaderboard } from '../../api/survival';
 import type { SurvivalLeaderboard } from '../../types/api';
 
-/**
- * Longest streaks.
- *
- * Ranked on best run, unlike the artist and category boards. Those switched to totals because a
- * bad draw could be discarded and re-rolled; a survival run cannot be — a bad draw ends it. The
- * only way to a big number is to actually survive, so best-of is honest here.
- */
-export function SurvivalLeaderboardPanel() {
+export function SurvivalLeaderboardPanel({ mode }: { mode: 'search' | 'choice' }) {
+  const [tab, setTab] = useState<'search' | 'choice'>(mode);
   const [data, setData] = useState<SurvivalLeaderboard | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    getSurvivalLeaderboard()
+  const load = useCallback((m: 'search' | 'choice') => {
+    setLoading(true);
+    getSurvivalLeaderboard(m)
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p className="py-2 text-sm text-slate-400">Loading streaks…</p>;
-  if (!data) return null;
+  useEffect(() => load(tab), [tab, load]);
 
   return (
     <div className="flex w-full max-w-md flex-col gap-3">
@@ -29,12 +23,35 @@ export function SurvivalLeaderboardPanel() {
         <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-200">
           Longest streaks
         </h3>
-        {data.myBest > 0 && (
+        {data && data.myBest > 0 && (
           <span className="font-mono text-xs text-purple-400">Your best: {data.myBest}</span>
         )}
       </div>
 
-      {data.entries.length === 0 ? (
+      <div className="flex gap-1 rounded-lg bg-white/[0.03] p-1">
+        <button
+          type="button"
+          onClick={() => setTab('search')}
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+            tab === 'search' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          Type Answer
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('choice')}
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+            tab === 'choice' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          Multiple Choice
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="py-2 text-sm text-slate-400">Loading streaks…</p>
+      ) : !data || data.entries.length === 0 ? (
         <p className="py-4 text-center text-sm text-slate-400">
           No ranked streaks yet. Be the first!
         </p>

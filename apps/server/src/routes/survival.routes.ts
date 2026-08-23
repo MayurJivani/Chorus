@@ -67,8 +67,10 @@ survivalRouter.post(
 
 survivalRouter.get(
   '/leaderboard',
+  validate(modeQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
-    res.json(await getSurvivalLeaderboard(getIdentity(req)));
+    const { mode } = req.query as unknown as z.infer<typeof modeQuerySchema>;
+    res.json(await getSurvivalLeaderboard(getIdentity(req), mode));
   }),
 );
 

@@ -263,7 +263,7 @@ export async function submitSurvivalGuess(
     return { correct: true, streak, runOver: false, song };
   }
 
-  const personalBest = await getBestStreak(identity);
+  const personalBest = await getBestStreak(identity, run.guessMode as 'search' | 'choice');
 
   await db
     .update(survivalRuns)
@@ -273,12 +273,17 @@ export async function submitSurvivalGuess(
   return { correct: false, streak: run.streak, runOver: true, song, personalBest };
 }
 
-/** The player's longest finished streak, ignoring the run currently in progress. */
-export async function getBestStreak(identity: Identity): Promise<number> {
+/** The player's longest finished streak, optionally filtered by guess mode. */
+export async function getBestStreak(
+  identity: Identity,
+  guessMode?: 'search' | 'choice',
+): Promise<number> {
+  const conditions = [ownerWhere(identity)];
+  if (guessMode) conditions.push(eq(survivalRuns.guessMode, guessMode));
   const rows = await db
     .select({ best: sql<number>`COALESCE(MAX(${survivalRuns.streak}), 0)::int` })
     .from(survivalRuns)
-    .where(ownerWhere(identity));
+    .where(and(...conditions));
   return rows[0]?.best ?? 0;
 }
 
@@ -306,8 +311,11 @@ export interface SurvivalStanding {
  */
 export async function getSurvivalLeaderboard(
   identity: Identity,
+  guessMode?: 'search' | 'choice',
   limit = 20,
 ): Promise<{ entries: SurvivalStanding[]; myBest: number; myRuns: number }> {
+  const modeFilter = guessMode ? sql` AND r.guess_mode = ${guessMode}` : sql``;
+
   const rows = (await db.execute(sql`
     SELECT
       u.id                        AS "userId",
@@ -317,6 +325,7 @@ export async function getSurvivalLeaderboard(
     FROM survival_runs r
     JOIN users u ON u.id = r.user_id
     WHERE r.ended_at IS NOT NULL AND r.user_id IS NOT NULL
+    ${modeFilter}
     GROUP BY u.id, u.display_name
     ORDER BY "bestStreak" DESC, "runs" ASC
     LIMIT ${limit}
@@ -327,13 +336,16 @@ export async function getSurvivalLeaderboard(
     runs: number;
   }[];
 
+  const mineConditions = [ownerWhere(identity)];
+  if (guessMode) mineConditions.push(eq(survivalRuns.guessMode, guessMode));
+
   const mineRows = await db
     .select({
       best: sql<number>`COALESCE(MAX(${survivalRuns.streak}), 0)::int`,
       runs: sql<number>`COUNT(*)::int`,
     })
     .from(survivalRuns)
-    .where(ownerWhere(identity));
+    .where(and(...mineConditions));
 
   return {
     entries: rows.map((row, index) => ({
