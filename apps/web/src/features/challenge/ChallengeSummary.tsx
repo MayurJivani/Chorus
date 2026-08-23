@@ -5,14 +5,18 @@ import confetti from 'canvas-confetti';
 import { SourceStandings, ChallengeStandings } from './ChallengeLeaderboard';
 import { ChallengeGuessDistribution } from './ChallengeGuessDistribution';
 import { useSession } from '../../hooks/useSession';
-import { buildRunShareText } from '../stats/shareText';
-import { shareOrCopy } from '../stats/shareOrCopy';
 import { renderResultCard, shareResultCard } from '../stats/resultCard';
 import type {
   ArtistLeaderboardEntry,
   GuessDistributionBucket,
+  RevealedSong,
   SourceStanding,
 } from '../../types/api';
+
+interface SongEntry {
+  song: RevealedSong;
+  correct: boolean;
+}
 
 interface ChallengeSummaryProps {
   /** The artist's name or the category's label. */
@@ -25,6 +29,8 @@ interface ChallengeSummaryProps {
   shareUrl?: string;
   /** One entry per song answered, in order — drawn as the share grid. */
   runHistory?: boolean[];
+  /** All songs revealed during the run, used to show "Songs you missed". */
+  revealedSongs?: SongEntry[];
   loadLeaderboard: () => Promise<{
     entries: SourceStanding[];
     mine: Omit<SourceStanding, 'rank' | 'displayName' | 'isYou'> | null;
@@ -51,6 +57,7 @@ export function ChallengeSummary({
   timeTakenSeconds,
   shareUrl,
   runHistory = [],
+  revealedSongs = [],
   loadLeaderboard,
   loadChallengeLeaderboard,
   loadDistribution,
@@ -58,9 +65,10 @@ export function ChallengeSummary({
   browse,
 }: ChallengeSummaryProps) {
   const [copied, setCopied] = useState(false);
-  const [shared, setShared] = useState(false);
   const [rendering, setRendering] = useState(false);
+  const [showMissed, setShowMissed] = useState(false);
   const { user } = useSession();
+  const missedSongs = revealedSongs.filter((e) => !e.correct);
 
   useEffect(() => {
     if (songsCorrect >= totalRounds * 0.7) {
@@ -129,33 +137,50 @@ export function ChallengeSummary({
 
       <ChallengeGuessDistribution load={loadDistribution} />
 
-      <div className="flex w-full flex-col gap-3">
-        {/* The grid, not the link: this is the thing someone posts, and it says how the run
-            went without giving away a single answer. */}
-        <button
-          type="button"
-          onClick={() => {
-            void shareOrCopy(
-              buildRunShareText({
-                subject: subjectName,
-                history: runHistory,
-                songsCorrect,
-                totalRounds,
-                timeTakenSeconds,
-                url: shareUrl,
-              }),
-            ).then((ok) => {
-              if (!ok) return;
-              setShared(true);
-              setTimeout(() => setShared(false), 2000);
-            });
-          }}
-          className="btn-primary w-full"
-        >
-          {shared ? 'Copied!' : 'Share result'}
-        </button>
+      {missedSongs.length > 0 && (
+        <div className="w-full">
+          <button
+            type="button"
+            onClick={() => setShowMissed((v) => !v)}
+            className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/[0.06]"
+          >
+            <span>Songs you missed ({missedSongs.length})</span>
+            <span className="text-xs text-slate-500">{showMissed ? '▲' : '▼'}</span>
+          </button>
+          {showMissed && (
+            <motion.ul
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="mt-2 flex flex-col gap-2"
+            >
+              {missedSongs.map((entry, i) => (
+                <li
+                  key={i}
+                  className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5"
+                >
+                  {entry.song.albumArtUrl ? (
+                    <img
+                      src={entry.song.albumArtUrl}
+                      alt=""
+                      className="h-10 w-10 flex-shrink-0 rounded-lg object-cover ring-1 ring-white/10"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white/10 text-sm">
+                      🎵
+                    </div>
+                  )}
+                  <div className="min-w-0 text-left">
+                    <p className="truncate text-sm font-semibold text-white">{entry.song.title}</p>
+                    <p className="truncate text-xs text-slate-400">{entry.song.artist}</p>
+                  </div>
+                </li>
+              ))}
+            </motion.ul>
+          )}
+        </div>
+      )}
 
-        {/* The image is what travels on Instagram, where an emoji grid is invisible. */}
+      <div className="flex w-full flex-col gap-3">
         <button
           type="button"
           disabled={rendering}
@@ -179,16 +204,16 @@ export function ChallengeSummary({
               })
               .finally(() => setRendering(false));
           }}
-          className="btn-secondary w-full disabled:opacity-50"
+          className="btn-primary w-full disabled:opacity-50"
         >
-          {rendering ? 'Making image…' : 'Save image'}
+          {rendering ? 'Making image…' : 'Share result'}
         </button>
 
         {shareUrl && (
           <button
             type="button"
             onClick={handleShare}
-            className="btn-primary w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-900/30"
+            className="btn-secondary w-full flex items-center justify-center gap-2"
           >
             {copied ? 'Link copied!' : 'Challenge a friend'}
           </button>

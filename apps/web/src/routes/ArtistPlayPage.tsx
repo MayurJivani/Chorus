@@ -94,6 +94,7 @@ export function ArtistPlayPage() {
             totalRounds={finalScore?.totalRounds ?? challenge.totalRounds}
             timeTakenSeconds={finalScore?.timeTakenSeconds}
             runHistory={game.runHistory}
+            revealedSongs={game.revealedSongs}
             shareUrl={
               challengeId != null
                 ? `${window.location.origin}/artist/${artistId}/play?challengeId=${challengeId}&guessMode=${guessMode}`

@@ -7,6 +7,11 @@ import type {
 } from '../../types/api';
 import type { GuessAttempt } from '../game/useGameState';
 
+export interface RunSongEntry {
+  song: RevealedSong;
+  correct: boolean;
+}
+
 export type ChallengeGameStatus = 'loading' | 'playing' | 'round-ended' | 'completed' | 'error';
 
 export interface ChallengeGuessInput {
@@ -46,6 +51,8 @@ export interface ChallengeGameState {
   /** One entry per song answered in this run, in order — what the share grid is drawn from.
    *  `roundHistory` cannot serve: it is the attempts within the *current* song and resets. */
   runHistory: boolean[];
+  /** Every song revealed during the run, with its result. */
+  revealedSongs: RunSongEntry[];
   errorMessage: string | null;
   submitting: boolean;
   guess: (song: SongSearchResult) => Promise<void>;
@@ -64,6 +71,7 @@ export function useChallengeGameState(
   const [attemptNumber, setAttemptNumber] = useState(1);
   const [roundHistory, setRoundHistory] = useState<GuessAttempt[]>([]);
   const [runHistory, setRunHistory] = useState<boolean[]>([]);
+  const [revealedSongs, setRevealedSongs] = useState<RunSongEntry[]>([]);
   const [revealedSong, setRevealedSong] = useState<RevealedSong | null>(null);
   const [finalScore, setFinalScore] = useState<ArtistGuessResult['finalScore'] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -88,7 +96,10 @@ export function useChallengeGameState(
         setRoundHistory([]);
         // Only cleared when a run begins — advancing to the next song must keep the record of
         // the songs already answered, which is the whole point of it.
-        if (startingNewRun || playAgain) setRunHistory([]);
+        if (startingNewRun || playAgain) {
+          setRunHistory([]);
+          setRevealedSongs([]);
+        }
         setRevealedSong(null);
         setSessionComplete(false);
         setStatus(current.completed ? 'completed' : 'playing');
@@ -137,6 +148,9 @@ export function useChallengeGameState(
         if (result.isFinal) {
           setRevealedSong(result.song ?? null);
           setRunHistory((prev) => [...prev, result.correct]);
+          if (result.song) {
+            setRevealedSongs((prev) => [...prev, { song: result.song!, correct: result.correct }]);
+          }
           // Patch challenge with the latest server-reported counts so the UI stays in sync.
           if (result.songsCorrect != null) {
             setChallenge((prev) =>
@@ -192,6 +206,7 @@ export function useChallengeGameState(
     finalScore,
     sessionComplete,
     runHistory,
+    revealedSongs,
     errorMessage,
     submitting,
     guess,

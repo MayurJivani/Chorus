@@ -26,6 +26,9 @@ export function EraPlayPage() {
   const [revealed, setRevealed] = useState<RevealedSong | null>(null);
   const [finalScore, setFinalScore] = useState<EraGuessResult['finalScore'] | null>(null);
   const [runHistory, setRunHistory] = useState<boolean[]>([]);
+  const [revealedSongs, setRevealedSongs] = useState<{ song: RevealedSong; correct: boolean }[]>(
+    [],
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -37,7 +40,10 @@ export function EraPlayPage() {
     setResult(null);
     setRevealed(null);
     setRevealCount(0);
-    if (playAgain) setRunHistory([]);
+    if (playAgain) {
+      setRunHistory([]);
+      setRevealedSongs([]);
+    }
     try {
       const next = await getEraChallenge(playAgain);
       setRound(next);
@@ -74,6 +80,9 @@ export function EraPlayPage() {
         setResult(res);
         setRevealed(res.song);
         setRunHistory((prev) => [...prev, res.correct]);
+        if (res.song) {
+          setRevealedSongs((prev) => [...prev, { song: res.song, correct: res.correct }]);
+        }
         if (res.sessionComplete) setFinalScore(res.finalScore ?? null);
         setStatus('round-ended');
       } catch {
@@ -121,6 +130,7 @@ export function EraPlayPage() {
           totalRounds={finalScore?.totalRounds ?? round.totalRounds}
           timeTakenSeconds={finalScore?.timeTakenSeconds}
           runHistory={runHistory}
+          revealedSongs={revealedSongs}
           loadLeaderboard={getEraLeaderboard}
           loadDistribution={() => Promise.resolve([])}
           onPlayAgain={() => void load(true)}

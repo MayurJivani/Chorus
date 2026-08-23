@@ -9,8 +9,6 @@ import { MultipleChoiceGuess } from '../features/artist/MultipleChoiceGuess';
 import { SurvivalLeaderboardPanel } from '../features/survival/SurvivalLeaderboardPanel';
 import { useGameConfig } from '../hooks/useGameConfig';
 import { useSession } from '../hooks/useSession';
-import { buildSurvivalShareText } from '../features/stats/shareText';
-import { shareOrCopy } from '../features/stats/shareOrCopy';
 import { renderResultCard, shareResultCard } from '../features/stats/resultCard';
 import {
   getSurvivalRound,
@@ -42,7 +40,6 @@ export function SurvivalPage() {
   const [personalBest, setPersonalBest] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [shared, setShared] = useState(false);
   const [rendering, setRendering] = useState(false);
 
   // How far the player has extended the snippet this round. Free, unlike the other modes where
@@ -204,22 +201,6 @@ export function SurvivalPage() {
           <div className="flex w-full flex-col gap-2">
             <button
               type="button"
-              onClick={() => {
-                void shareOrCopy(
-                  buildSurvivalShareText(finalStreak, `${window.location.origin}/survival`),
-                ).then((ok) => {
-                  if (!ok) return;
-                  setShared(true);
-                  setTimeout(() => setShared(false), 2000);
-                });
-              }}
-              className="btn-primary w-full"
-            >
-              {shared ? 'Copied!' : 'Share streak'}
-            </button>
-            {/* The image is what travels on Instagram, where an emoji streak is invisible. */}
-            <button
-              type="button"
               disabled={rendering}
               onClick={() => {
                 setRendering(true);
@@ -239,9 +220,9 @@ export function SurvivalPage() {
                   )
                   .finally(() => setRendering(false));
               }}
-              className="btn-secondary w-full disabled:opacity-50"
+              className="btn-primary w-full disabled:opacity-50"
             >
-              {rendering ? 'Making image…' : 'Save image'}
+              {rendering ? 'Making image…' : 'Share result'}
             </button>
             <button type="button" onClick={() => void startNewRun()} className="btn-ghost w-full">
               Play again

@@ -113,6 +113,7 @@ export function CategoryPlayPage() {
             totalRounds={finalScore?.totalRounds ?? challenge.totalRounds}
             timeTakenSeconds={finalScore?.timeTakenSeconds}
             runHistory={game.runHistory}
+            revealedSongs={game.revealedSongs}
             shareUrl={
               challengeId != null
                 ? `${window.location.origin}/category/${encodeURIComponent(categoryId)}/play?challengeId=${challengeId}&guessMode=${guessMode}`

@@ -2,16 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
-import { ArtistSearchInput } from '../features/artist/ArtistSearchInput';
 import {
   acceptDuel,
-  createDuel,
   getMyDuels,
   getOpenDuels,
   getRatingLeaderboard,
   matchmake,
 } from '../api/duels';
-import type { ArtistSearchResult, DuelView, RatingStanding } from '../types/api';
+import type { DuelView, RatingStanding } from '../types/api';
 
 /** Where a duel's challenge is played, in whichever mode built it. */
 function playHref(duel: DuelView): string {
@@ -39,7 +37,6 @@ export function DuelsPage() {
   const [mine, setMine] = useState<DuelView[]>([]);
   const [open, setOpen] = useState<DuelView[]>([]);
   const [board, setBoard] = useState<RatingStanding[]>([]);
-  const [artist, setArtist] = useState<ArtistSearchResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,19 +56,6 @@ export function DuelsPage() {
     if (loading) return;
     void refresh();
   }, [loading, refresh]);
-
-  const challenge = async () => {
-    if (!artist || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const duel = await createDuel({ artistId: artist.id });
-      navigate(`/artist/${artist.id}/play?challengeId=${duel.challengeId}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start that duel.');
-      setBusy(false);
-    }
-  };
 
   const take = async (duel: DuelView) => {
     setBusy(true);
@@ -120,59 +104,37 @@ export function DuelsPage() {
           </div>
         </div>
       ) : (
-        <>
-          <section className="glass flex flex-col gap-4 rounded-2xl p-5">
-            <div>
-              <h2 className="font-bold text-white">Quick Match</h2>
-              <p className="text-xs text-slate-400">
-                Get matched with a random opponent on a popular artist. No setup needed.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={async () => {
-                setBusy(true);
-                setError(null);
-                try {
-                  const duel = await matchmake();
-                  if (duel.opponent) {
-                    navigate(playHref(duel));
-                  } else {
-                    await refresh();
-                  }
-                } catch (err) {
-                  setError(err instanceof Error ? err.message : 'Matchmaking failed.');
-                } finally {
-                  setBusy(false);
+        <section className="glass flex flex-col gap-4 rounded-2xl p-5">
+          <div>
+            <h2 className="font-bold text-white">Quick Match</h2>
+            <p className="text-xs text-slate-400">
+              Get matched with a random opponent on a popular artist. No setup needed.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                const duel = await matchmake();
+                if (duel.opponent) {
+                  navigate(playHref(duel));
+                } else {
+                  await refresh();
                 }
-              }}
-              disabled={busy}
-              className="btn-primary w-full disabled:opacity-50"
-            >
-              {busy ? 'Finding opponent…' : 'Find a match'}
-            </button>
-          </section>
-
-          <section className="glass flex flex-col gap-4 rounded-2xl p-5">
-            <div>
-              <h2 className="font-bold text-white">Challenge someone</h2>
-              <p className="text-xs text-slate-400">
-                Pick an artist, then send the link to whoever you want to beat.
-              </p>
-            </div>
-            <ArtistSearchInput onSelect={setArtist} />
-            {artist && (
-              <button
-                type="button"
-                onClick={() => void challenge()}
-                disabled={busy}
-                className="btn-primary w-full disabled:opacity-50"
-              >
-                {busy ? 'Starting…' : `Duel over ${artist.name}`}
-              </button>
-            )}
-          </section>
-        </>
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Matchmaking failed.');
+              } finally {
+                setBusy(false);
+              }
+            }}
+            disabled={busy}
+            className="btn-primary w-full disabled:opacity-50"
+          >
+            {busy ? 'Finding opponent…' : 'Find a match'}
+          </button>
+        </section>
       )}
 
       {user && open.length > 0 && (
