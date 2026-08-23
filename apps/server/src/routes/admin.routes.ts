@@ -26,7 +26,7 @@ import {
   type SettingUpdate,
 } from '../services/settingsService';
 import { getMostPlayedArtists, getMostPlayedCategories } from '../services/leaderboardService';
-import { activeRoomCount } from '../services/multiplayerService';
+import { activeRoomCount, listRooms, forceCloseRoom } from '../services/multiplayerService';
 import { requireAdmin } from '../middleware/requireAdmin';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -431,5 +431,103 @@ adminRouter.get(
       topCategories,
       liveRooms: activeRoomCount(),
     });
+  }),
+);
+
+// --- Users -------------------------------------------------------------------------------
+
+const usersQuerySchema = z.object({
+  q: z.string().trim().max(80).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
+adminRouter.get(
+  '/users',
+  validate(usersQuerySchema, 'query'),
+  asyncHandler(async (req, res) => {
+    const { q, limit = 50, offset = 0 } = req.query as unknown as z.infer<typeof usersQuerySchema>;
+
+    const rows = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        displayName: users.displayName,
+        isAdmin: users.isAdmin,
+        rating: users.rating,
+        ratedDuels: users.ratedDuels,
+        createdAt: users.createdAt,
+        lastLoginAt: users.lastLoginAt,
+      })
+      .from(users)
+      .where(q ? or(ilike(users.displayName, `%${q}%`), ilike(users.email, `%${q}%`)) : undefined)
+      .orderBy(desc(users.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const countRows = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(users)
+      .where(q ? or(ilike(users.displayName, `%${q}%`), ilike(users.email, `%${q}%`)) : undefined);
+
+    res.json({ users: rows, total: countRows[0]?.count ?? 0 });
+  }),
+);
+
+adminRouter.patch(
+  '/users/:userId',
+  validate(z.object({ userId: z.string().min(1) }), 'params'),
+  validate(
+    z.object({
+      isAdmin: z.boolean().optional(),
+      displayName: z.string().trim().min(1).max(50).optional(),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    const { userId } = req.params as { userId: string };
+    const patch = req.body as { isAdmin?: boolean; displayName?: string };
+
+    if (patch.isAdmin === undefined && patch.displayName === undefined) {
+      throw new HttpError(400, 'Nothing to change');
+    }
+
+    if (patch.isAdmin === false && userId === req.session.userId) {
+      throw new HttpError(409, 'You cannot remove your own admin access');
+    }
+
+    const updated = await db.update(users).set(patch).where(eq(users.id, userId)).returning({
+      id: users.id,
+      email: users.email,
+      displayName: users.displayName,
+      isAdmin: users.isAdmin,
+      rating: users.rating,
+      ratedDuels: users.ratedDuels,
+      createdAt: users.createdAt,
+      lastLoginAt: users.lastLoginAt,
+    });
+
+    const user = updated[0];
+    if (!user) throw new HttpError(404, 'No such user');
+    res.json({ user });
+  }),
+);
+
+// --- Multiplayer rooms -------------------------------------------------------------------
+
+adminRouter.get(
+  '/rooms',
+  asyncHandler(async (_req, res) => {
+    res.json({ rooms: listRooms() });
+  }),
+);
+
+adminRouter.delete(
+  '/rooms/:code',
+  validate(z.object({ code: z.string().min(1) }), 'params'),
+  asyncHandler(async (req, res) => {
+    const { code } = req.params as { code: string };
+    const closed = forceCloseRoom(code);
+    if (!closed) throw new HttpError(404, 'No such room');
+    res.json({ ok: true });
   }),
 );

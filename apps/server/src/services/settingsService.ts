@@ -136,6 +136,40 @@ export const SETTING_DEFS = {
     control: { kind: 'number', min: 1, max: 720, unit: 'hours' },
   } satisfies SettingDef<number>,
 
+  speedRoundDurationSeconds: {
+    group: 'multiplayer',
+    label: 'Speed round time limit',
+    help: 'How long a speed round lasts before it ends on its own.',
+    schema: positiveInt(5, 60),
+    default: 15,
+    control: { kind: 'number', min: 5, max: 60, unit: 's' },
+  } satisfies SettingDef<number>,
+
+  speedSnippetSeconds: {
+    group: 'multiplayer',
+    label: 'Speed snippet length',
+    help: 'How many seconds of the preview play in speed mode.',
+    schema: positiveInt(5, 30),
+    default: 30,
+    control: { kind: 'number', min: 5, max: 30, unit: 's' },
+  } satisfies SettingDef<number>,
+
+  speedPoints: {
+    group: 'multiplayer',
+    label: 'Speed scoring (by order)',
+    help: 'Points awarded by answer order in speed mode. First correct gets the first value, second gets the second, and so on. Everyone past the last entry gets that value.',
+    schema: z
+      .array(positiveInt(1, 20))
+      .min(1)
+      .max(10)
+      .refine(
+        (pts) => pts.every((p, i) => i === 0 || p <= pts[i - 1]!),
+        'Points must not increase — earlier is better',
+      ),
+    default: [3, 2, 1],
+    control: { kind: 'numberList', minLength: 1, maxLength: 10, min: 1, max: 20, unit: 'pts' },
+  } satisfies SettingDef<number[]>,
+
   abandonedChallengeTtlDays: {
     group: 'housekeeping',
     label: 'Abandoned challenge TTL',

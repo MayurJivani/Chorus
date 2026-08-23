@@ -4,13 +4,19 @@ import { useSession } from '../hooks/useSession';
 import { OverviewPanel } from '../features/admin/OverviewPanel';
 import { SettingsPanel } from '../features/admin/SettingsPanel';
 import { SchedulePanel } from '../features/admin/SchedulePanel';
+import { UsersPanel } from '../features/admin/UsersPanel';
+import { MultiplayerPanel } from '../features/admin/MultiplayerPanel';
+import { SongsPanel } from '../features/admin/SongsPanel';
 
-type Tab = 'overview' | 'settings' | 'schedule';
+type Tab = 'overview' | 'settings' | 'schedule' | 'users' | 'multiplayer' | 'songs';
 
 const TABS: [Tab, string][] = [
   ['overview', 'Overview'],
   ['settings', 'Game settings'],
   ['schedule', 'Daily schedule'],
+  ['users', 'Users'],
+  ['multiplayer', 'Multiplayer'],
+  ['songs', 'Song bank'],
 ];
 
 /**
@@ -77,6 +83,9 @@ export function AdminPage() {
       {tab === 'overview' && <OverviewPanel />}
       {tab === 'settings' && <SettingsPanel />}
       {tab === 'schedule' && <SchedulePanel />}
+      {tab === 'users' && <UsersPanel />}
+      {tab === 'multiplayer' && <MultiplayerPanel />}
+      {tab === 'songs' && <SongsPanel />}
     </div>
   );
 }

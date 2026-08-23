@@ -555,3 +555,39 @@ export interface AdminDashboard {
   topCategories: MostPlayedArtist[];
   liveRooms: { total: number; playing: number };
 }
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  displayName: string;
+  isAdmin: boolean;
+  rating: number;
+  ratedDuels: number;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface AdminRoom {
+  code: string;
+  sourceType: string;
+  sourceId: string;
+  label: string;
+  pictureUrl: string | null;
+  guessMode: string;
+  gameMode: string;
+  phase: string;
+  hostId: string;
+  currentRound: number;
+  totalRounds: number;
+  players: {
+    playerId: string;
+    displayName: string;
+    isHost: boolean;
+    score: number;
+    roundAnswered: boolean;
+    roundCorrect: boolean | null;
+    roundPoints: number;
+    stageIndex: number;
+    joinedAt: number;
+  }[];
+}

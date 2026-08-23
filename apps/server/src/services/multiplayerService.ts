@@ -60,10 +60,6 @@ export type MpGuessMode = 'search' | 'choice';
 /** Classic: progressive reveal, points by stage. Speed: full snippet, first correct wins. */
 export type MpGameMode = 'classic' | 'speed';
 
-const SPEED_ROUND_DURATION_MS = 15 * 1000;
-const SPEED_SNIPPET_SECONDS = 30;
-const SPEED_POINTS = [3, 2, 1] as const;
-
 interface MpRoom {
   code: string;
   /**
@@ -94,6 +90,9 @@ interface MpRoom {
   revealDurationMs: number;
   maxPlayers: number;
   revealSchedule: readonly number[];
+  speedRoundDurationMs: number;
+  speedSnippetSeconds: number;
+  speedPoints: readonly number[];
   /** Number of correct guesses so far this round in speed mode (for order-based scoring). */
   speedCorrectCount: number;
 }
@@ -170,6 +169,9 @@ export async function createRoom(
     revealDurationMs: settings.multiplayerRevealSeconds * 1000,
     maxPlayers: settings.multiplayerMaxPlayers,
     revealSchedule: settings.snippetScheduleSeconds,
+    speedRoundDurationMs: settings.speedRoundDurationSeconds * 1000,
+    speedSnippetSeconds: settings.speedSnippetSeconds,
+    speedPoints: settings.speedPoints,
     speedCorrectCount: 0,
   });
 
@@ -418,7 +420,7 @@ function startRound(room: MpRoom, roundIndex: number): void {
 
   const track = room.tracks[roundIndex];
   const isSpeed = room.gameMode === 'speed';
-  const roundDuration = isSpeed ? SPEED_ROUND_DURATION_MS : room.roundDurationMs;
+  const roundDuration = isSpeed ? room.speedRoundDurationMs : room.roundDurationMs;
 
   broadcast(room, {
     type: 'round_start',
@@ -426,7 +428,7 @@ function startRound(room: MpRoom, roundIndex: number): void {
     totalRounds: room.rounds,
     startedAt: room.roundStartedAt,
     roundDurationMs: roundDuration,
-    snippetSchedule: isSpeed ? [SPEED_SNIPPET_SECONDS] : room.revealSchedule,
+    snippetSchedule: isSpeed ? [room.speedSnippetSeconds] : room.revealSchedule,
     previewUrl: room.previewUrls[roundIndex] ?? null,
     albumArtUrl: track?.albumArtUrl ?? null,
     pictureUrl: room.source.pictureUrl,
@@ -476,7 +478,7 @@ function submitGuess(playerId: string, trackId: string): void {
   let points = 0;
   if (correct) {
     if (isSpeed) {
-      points = SPEED_POINTS[Math.min(room.speedCorrectCount, SPEED_POINTS.length - 1)] ?? 1;
+      points = room.speedPoints[Math.min(room.speedCorrectCount, room.speedPoints.length - 1)] ?? 1;
       room.speedCorrectCount += 1;
     } else {
       points = MP_REVEAL_POINTS[player.stageIndex] ?? 1;
@@ -685,6 +687,28 @@ export function activeRoomCount(): { total: number; playing: number } {
     if (room.phase === 'playing' || room.phase === 'round-reveal') playing += 1;
   }
   return { total: rooms.size, playing };
+}
+
+/** All live rooms, for the admin panel. */
+export function listRooms(): MpRoomSnapshot[] {
+  return [...rooms.values()].map(buildRoomSnapshot);
+}
+
+/** Force-close a room from the admin panel. Notifies all players. */
+export function forceCloseRoom(code: string): boolean {
+  const room = rooms.get(code);
+  if (!room) return false;
+  broadcast(room, { type: 'room_closed', reason: 'Closed by an admin.' });
+  for (const p of room.players.values()) {
+    playerRooms.delete(p.playerId);
+    try {
+      p.socket.close(1000, 'Room closed by admin');
+    } catch {
+      /* already gone */
+    }
+  }
+  destroyRoom(room);
+  return true;
 }
 
 export function __getRoom(code: string): MpRoomSnapshot | null {

@@ -2,7 +2,9 @@ import { apiRequest } from './client';
 import type {
   AdminDailyPuzzleList,
   AdminDashboard,
+  AdminRoom,
   AdminSong,
+  AdminUser,
   SettingDescriptor,
   UpcomingSchedule,
 } from '../types/api';
@@ -70,4 +72,35 @@ export function getUpcomingSchedule(days = 14): Promise<UpcomingSchedule> {
 /** Swaps a date onto a different random song. Never returns the one it already had. */
 export function randomizeDailyPuzzle(date: string): Promise<{ ok: true }> {
   return apiRequest(`/admin/daily-puzzles/${date}/randomize`, { method: 'POST' });
+}
+
+// --- Users -------------------------------------------------------------------------------
+
+export async function getAdminUsers(
+  q?: string,
+  limit = 50,
+  offset = 0,
+): Promise<{ users: AdminUser[]; total: number }> {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+  return apiRequest(`/admin/users?${params}`);
+}
+
+export async function updateAdminUser(
+  userId: string,
+  patch: { isAdmin?: boolean; displayName?: string },
+): Promise<{ user: AdminUser }> {
+  return apiRequest(`/admin/users/${userId}`, { method: 'PATCH', body: patch });
+}
+
+// --- Multiplayer rooms -------------------------------------------------------------------
+
+export async function getAdminRooms(): Promise<{ rooms: AdminRoom[] }> {
+  return apiRequest('/admin/rooms');
+}
+
+export async function closeAdminRoom(code: string): Promise<{ ok: true }> {
+  return apiRequest(`/admin/rooms/${code}`, { method: 'DELETE' });
 }
