@@ -158,7 +158,12 @@ export function RootLayout() {
                 {user ? (
                   <>
                     {user.isAdmin && <NavLink to="/admin">Admin</NavLink>}
-                    <span className="text-sm text-slate-300 font-medium">{user.displayName}</span>
+                    <Link
+                      to="/profile"
+                      className="text-sm text-slate-300 font-medium hover:text-white transition-colors duration-200"
+                    >
+                      {user.displayName}
+                    </Link>
                     <button
                       type="button"
                       onClick={handleLogout}
@@ -225,16 +230,18 @@ export function RootLayout() {
             {!loading &&
               (user ? (
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.03] px-3 py-2.5">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    {/* An initial rather than an avatar: there is no image to show, and a
-                        coloured disc reads as an account far better than a bare name does. */}
+                  <Link
+                    to="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex min-w-0 items-center gap-2.5 hover:opacity-80 transition-opacity"
+                  >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-chorusify-accent/25 text-sm font-bold text-white">
                       {user.displayName.charAt(0).toUpperCase()}
                     </span>
                     <span className="truncate text-sm font-medium text-slate-200">
                       {user.displayName}
                     </span>
-                  </div>
+                  </Link>
                   <button
                     type="button"
                     onClick={handleLogout}

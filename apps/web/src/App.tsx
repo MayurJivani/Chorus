@@ -22,6 +22,7 @@ import { MultiplayerHomePage } from './routes/MultiplayerHomePage';
 import { MultiplayerRoomPage } from './routes/MultiplayerRoomPage';
 import { FriendsPage } from './routes/FriendsPage';
 import { ForgotPasswordPage } from './routes/ForgotPasswordPage';
+import { ProfilePage } from './routes/ProfilePage';
 
 const router = createBrowserRouter([
   {
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
       { path: '/room/:code', element: <MultiplayerRoomPage /> },
       { path: '/friends', element: <FriendsPage /> },
       { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/profile', element: <ProfilePage /> },
       // Catch-all. Inside RootLayout so a mistyped URL still gets the nav and a way back,
       // rather than react-router's bare default error screen.
       { path: '*', element: <NotFoundPage /> },

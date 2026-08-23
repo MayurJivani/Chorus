@@ -28,3 +28,7 @@ export async function getOpenDuels(): Promise<DuelView[]> {
 export function getRatingLeaderboard(): Promise<RatingLeaderboard> {
   return apiRequest<RatingLeaderboard>('/duels/leaderboard');
 }
+
+export function matchmake(): Promise<DuelView> {
+  return apiRequest<DuelView>('/duels/matchmake', { method: 'POST' });
+}

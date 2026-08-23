@@ -10,6 +10,7 @@ interface SessionContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -48,8 +49,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setGuestId(me.guestId ?? null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const me = await authApi.getMe();
+    setUser(me.user);
+    setGuestId(me.guestId ?? null);
+  }, []);
+
   return (
-    <SessionContext.Provider value={{ user, guestId, loading, login, register, logout }}>
+    <SessionContext.Provider
+      value={{ user, guestId, loading, login, register, logout, refreshUser }}
+    >
       {children}
     </SessionContext.Provider>
   );

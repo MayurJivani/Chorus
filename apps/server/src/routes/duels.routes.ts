@@ -13,6 +13,7 @@ import {
   listDuelsForUser,
   listOpenDuels,
 } from '../services/duelService';
+import { findOrCreateMatch } from '../services/matchmakingService';
 import { resolveArtistSource, resolveCategorySource } from '../services/challengeSource';
 import { requireAuth } from '../middleware/requireAuth';
 import { validate } from '../middleware/validate';
@@ -45,6 +46,20 @@ duelsRouter.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     res.json({ duels: await listDuelsForUser(req.session.userId!) });
+  }),
+);
+
+duelsRouter.post(
+  '/matchmake',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    try {
+      const duel = await findOrCreateMatch(req.session.userId!);
+      res.json(duel);
+    } catch (err) {
+      if (err instanceof DuelError) throw new HttpError(400, err.message);
+      throw err;
+    }
   }),
 );
 

@@ -9,6 +9,7 @@ import {
   getMyDuels,
   getOpenDuels,
   getRatingLeaderboard,
+  matchmake,
 } from '../api/duels';
 import type { ArtistSearchResult, DuelView, RatingStanding } from '../types/api';
 
@@ -119,25 +120,59 @@ export function DuelsPage() {
           </div>
         </div>
       ) : (
-        <section className="glass flex flex-col gap-4 rounded-2xl p-5">
-          <div>
-            <h2 className="font-bold text-white">Challenge someone</h2>
-            <p className="text-xs text-slate-400">
-              Pick an artist, then send the link to whoever you want to beat.
-            </p>
-          </div>
-          <ArtistSearchInput onSelect={setArtist} />
-          {artist && (
+        <>
+          <section className="glass flex flex-col gap-4 rounded-2xl p-5">
+            <div>
+              <h2 className="font-bold text-white">Quick Match</h2>
+              <p className="text-xs text-slate-400">
+                Get matched with a random opponent on a popular artist. No setup needed.
+              </p>
+            </div>
             <button
               type="button"
-              onClick={() => void challenge()}
+              onClick={async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  const duel = await matchmake();
+                  if (duel.opponent) {
+                    navigate(playHref(duel));
+                  } else {
+                    await refresh();
+                  }
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Matchmaking failed.');
+                } finally {
+                  setBusy(false);
+                }
+              }}
               disabled={busy}
               className="btn-primary w-full disabled:opacity-50"
             >
-              {busy ? 'Starting…' : `Duel over ${artist.name}`}
+              {busy ? 'Finding opponent…' : 'Find a match'}
             </button>
-          )}
-        </section>
+          </section>
+
+          <section className="glass flex flex-col gap-4 rounded-2xl p-5">
+            <div>
+              <h2 className="font-bold text-white">Challenge someone</h2>
+              <p className="text-xs text-slate-400">
+                Pick an artist, then send the link to whoever you want to beat.
+              </p>
+            </div>
+            <ArtistSearchInput onSelect={setArtist} />
+            {artist && (
+              <button
+                type="button"
+                onClick={() => void challenge()}
+                disabled={busy}
+                className="btn-primary w-full disabled:opacity-50"
+              >
+                {busy ? 'Starting…' : `Duel over ${artist.name}`}
+              </button>
+            )}
+          </section>
+        </>
       )}
 
       {user && open.length > 0 && (
