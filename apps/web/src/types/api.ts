@@ -211,6 +211,7 @@ export interface MultiplayerScoreEntry {
 }
 
 export type MultiplayerGuessMode = 'search' | 'choice';
+export type MultiplayerGameMode = 'classic' | 'speed';
 
 export interface MultiplayerRoomSnapshot {
   code: string;
@@ -220,6 +221,7 @@ export interface MultiplayerRoomSnapshot {
   label: string;
   pictureUrl: string | null;
   guessMode: MultiplayerGuessMode;
+  gameMode: MultiplayerGameMode;
   phase: MultiplayerPhase;
   hostId: string;
   currentRound: number;
@@ -234,6 +236,7 @@ export interface MultiplayerCreateRoomResponse {
   label: string;
   pictureUrl: string | null;
   guessMode: MultiplayerGuessMode;
+  gameMode: MultiplayerGameMode;
 }
 
 export interface GlobalLeaderboardEntry {

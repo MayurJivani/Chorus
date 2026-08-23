@@ -50,10 +50,11 @@ export function MultiplayerGame({
   const isHost = selfId === room.hostId;
   const you = room.players.find((p) => p.playerId === selfId);
   const answered = you?.roundAnswered ?? false;
+  const isSpeed = round.gameMode === 'speed';
 
   const clampedStage = Math.min(stageIndex, round.snippetSchedule.length - 1);
   const stageSeconds = round.snippetSchedule[clampedStage] ?? 1;
-  const atMaxStage = clampedStage >= round.snippetSchedule.length - 1;
+  const atMaxStage = isSpeed || clampedStage >= round.snippetSchedule.length - 1;
   const nextSeconds = round.snippetSchedule[clampedStage + 1];
   const roundEndsAt = round.startedAt + round.roundDurationMs;
   const nextRoundAt = roundEndsAt + round.revealDurationMs;
@@ -112,7 +113,7 @@ export function MultiplayerGame({
           </motion.div>
         ) : (
           <>
-            <SnippetProgressBar stageIndex={stageIndex} />
+            {!isSpeed && <SnippetProgressBar stageIndex={stageIndex} />}
 
             <SnippetPlayer
               previewUrl={round.previewUrl}
@@ -122,16 +123,18 @@ export function MultiplayerGame({
               artistPictureUrl={round.pictureUrl}
             />
 
-            <button
-              type="button"
-              onClick={onReveal}
-              disabled={answered || atMaxStage}
-              className="btn-ghost w-full max-w-md !rounded-xl"
-            >
-              {atMaxStage
-                ? 'Full snippet revealed. Go on, guess!'
-                : `Reveal more audio → ${nextSeconds}s`}
-            </button>
+            {!isSpeed && (
+              <button
+                type="button"
+                onClick={onReveal}
+                disabled={answered || atMaxStage}
+                className="btn-ghost w-full max-w-md !rounded-xl"
+              >
+                {atMaxStage
+                  ? 'Full snippet revealed. Go on, guess!'
+                  : `Reveal more audio → ${nextSeconds}s`}
+              </button>
+            )}
 
             {answered ? (
               <motion.div
@@ -142,10 +145,10 @@ export function MultiplayerGame({
                 {lastGuess?.correct ? (
                   <>
                     <p className="text-lg font-bold text-emerald-400">
-                      Locked in! +{lastGuess.points}
+                      {isSpeed ? 'First! +1' : `Locked in! +${lastGuess.points}`}
                     </p>
                     <p className="text-xs text-slate-400">
-                      Now wait for the reveal, no changing it!
+                      {isSpeed ? 'You got it first!' : 'Now wait for the reveal, no changing it!'}
                     </p>
                   </>
                 ) : (
@@ -156,8 +159,6 @@ export function MultiplayerGame({
                 )}
               </motion.div>
             ) : round.options && round.options.length > 0 ? (
-              /* Choice mode: everyone in the room is offered the same three answers, so the
-                 round stays a race on recognition rather than on typing speed. */
               <MultipleChoiceGuess
                 options={round.options}
                 onGuess={handleGuess}

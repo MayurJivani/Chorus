@@ -57,6 +57,12 @@ interface MpPlayer extends MpPlayerState {
 /** How players answer: type-to-search over the artist's catalog, or pick one of three. */
 export type MpGuessMode = 'search' | 'choice';
 
+/** Classic: progressive reveal, points by stage. Speed: full snippet, first correct wins. */
+export type MpGameMode = 'classic' | 'speed';
+
+const SPEED_ROUND_DURATION_MS = 15 * 1000;
+const SPEED_SNIPPET_SECONDS = 30;
+
 interface MpRoom {
   code: string;
   /**
@@ -68,6 +74,7 @@ interface MpRoom {
    */
   source: ChallengeSource;
   guessMode: MpGuessMode;
+  gameMode: MpGameMode;
   phase: MpRoomPhase;
   hostId: string;
   players: Map<string, MpPlayer>;
@@ -106,6 +113,7 @@ export interface MpRoomSnapshot {
   label: string;
   pictureUrl: string | null;
   guessMode: MpGuessMode;
+  gameMode: MpGameMode;
   phase: MpRoomPhase;
   hostId: string;
   currentRound: number;
@@ -130,6 +138,7 @@ function generateRoomCode(): string {
 export async function createRoom(
   source: ChallengeSource,
   guessMode: MpGuessMode = 'search',
+  gameMode: MpGameMode = 'classic',
 ): Promise<{ code: string }> {
   let code = '';
   do {
@@ -141,7 +150,8 @@ export async function createRoom(
   rooms.set(code, {
     code,
     source,
-    guessMode,
+    guessMode: gameMode === 'speed' ? 'choice' : guessMode,
+    gameMode,
     phase: 'lobby',
     hostId: '',
     players: new Map(),
@@ -402,27 +412,29 @@ function startRound(room: MpRoom, roundIndex: number): void {
   room.roundStartedAt = Date.now();
 
   const track = room.tracks[roundIndex];
+  const isSpeed = room.gameMode === 'speed';
+  const roundDuration = isSpeed ? SPEED_ROUND_DURATION_MS : room.roundDurationMs;
+
   broadcast(room, {
     type: 'round_start',
     roundIndex,
     totalRounds: room.rounds,
     startedAt: room.roundStartedAt,
-    roundDurationMs: room.roundDurationMs,
-    snippetSchedule: room.revealSchedule,
+    roundDurationMs: roundDuration,
+    snippetSchedule: isSpeed ? [SPEED_SNIPPET_SECONDS] : room.revealSchedule,
     previewUrl: room.previewUrls[roundIndex] ?? null,
     albumArtUrl: track?.albumArtUrl ?? null,
     pictureUrl: room.source.pictureUrl,
     revealDurationMs: room.revealDurationMs,
     guessMode: room.guessMode,
+    gameMode: room.gameMode,
     ...(room.guessMode === 'choice' ? { options: room.roundOptions[roundIndex] ?? [] } : {}),
   });
 
-  // A single timer caps the whole round. Each player reveals more audio at their own pace
-  // and the round resolves early once everyone has answered.
   room.timers.push(
     setTimeout(() => {
       endRound(room);
-    }, room.roundDurationMs),
+    }, roundDuration),
   );
 }
 
@@ -430,6 +442,7 @@ function startRound(room: MpRoom, roundIndex: number): void {
 function revealMore(playerId: string): void {
   const room = roomFor(playerId);
   if (!room) return;
+  if (room.gameMode === 'speed') return;
   if (room.phase !== 'playing') return sendError(playerId, 'No round is in progress.');
   const player = room.players.get(playerId);
   if (!player) return;
@@ -453,7 +466,8 @@ function submitGuess(playerId: string, trackId: string): void {
 
   const track = room.tracks[room.currentRound];
   const correct = track?.deezerTrackId === trackId;
-  const points = correct ? (MP_REVEAL_POINTS[player.stageIndex] ?? 1) : 0;
+  const isSpeed = room.gameMode === 'speed';
+  const points = correct ? (isSpeed ? 1 : (MP_REVEAL_POINTS[player.stageIndex] ?? 1)) : 0;
 
   player.score += points;
   player.roundAnswered = true;
@@ -467,6 +481,11 @@ function submitGuess(playerId: string, trackId: string): void {
     stageIndex: player.stageIndex,
   });
   broadcast(room, { type: 'scores', scores: buildScores(room) });
+
+  if (isSpeed && correct) {
+    endRound(room);
+    return;
+  }
 
   const remaining = [...room.players.values()].filter((p) => !p.roundAnswered);
   if (remaining.length === 0) endRound(room);
@@ -552,6 +571,7 @@ function buildRoomSnapshot(room: MpRoom): MpRoomSnapshot {
     label: room.source.label,
     pictureUrl: room.source.pictureUrl,
     guessMode: room.guessMode,
+    gameMode: room.gameMode,
     phase: room.phase,
     hostId: room.hostId,
     currentRound: room.currentRound,

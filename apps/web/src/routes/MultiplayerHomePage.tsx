@@ -4,7 +4,12 @@ import { motion } from 'framer-motion';
 import { ArtistSearchInput } from '../features/artist/ArtistSearchInput';
 import { createMultiplayerRoom } from '../api/multiplayer';
 import { getCategories } from '../api/categories';
-import type { ArtistSearchResult, Category, MultiplayerGuessMode } from '../types/api';
+import type {
+  ArtistSearchResult,
+  Category,
+  MultiplayerGameMode,
+  MultiplayerGuessMode,
+} from '../types/api';
 
 /** What a room races over. Rooms accept either; the game is identical. */
 type SourceKind = 'artist' | 'category';
@@ -15,8 +20,7 @@ export function MultiplayerHomePage() {
   const [artist, setArtist] = useState<ArtistSearchResult | null>(null);
   const [category, setCategory] = useState<Category | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  // Fixed for the whole room rather than per player: a race only means something if everyone
-  // is answering the same way.
+  const [gameMode, setGameMode] = useState<MultiplayerGameMode>('classic');
   const [guessMode, setGuessMode] = useState<MultiplayerGuessMode>('search');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,13 +45,13 @@ export function MultiplayerHomePage() {
         sourceKind === 'artist'
           ? { artistId: (selection as ArtistSearchResult).id }
           : { categoryId: (selection as Category).id };
-      const { code } = await createMultiplayerRoom(source, guessMode);
+      const { code } = await createMultiplayerRoom(source, guessMode, gameMode);
       navigate(`/room/${code}`, { state: { autoJoin: true } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create a room. Please try again.');
       setCreating(false);
     }
-  }, [selection, sourceKind, creating, guessMode, navigate]);
+  }, [selection, sourceKind, creating, guessMode, gameMode, navigate]);
 
   return (
     <div className="mx-auto flex min-h-full max-w-xl flex-col items-center gap-4 sm:gap-6 px-4 py-4 sm:py-8">
@@ -195,22 +199,22 @@ export function MultiplayerHomePage() {
 
           <div className="mt-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-              How does everyone guess?
+              Game mode
             </p>
             <div className="grid grid-cols-2 gap-2">
               {(
                 [
-                  ['search', 'Type to search', 'Search the full catalog'],
-                  ['choice', 'Multiple choice', 'Pick one of three'],
-                ] as [MultiplayerGuessMode, string, string][]
+                  ['classic', 'Classic', 'Progressive reveal, points by stage'],
+                  ['speed', 'Speed Round', 'Full snippet, first correct wins'],
+                ] as [MultiplayerGameMode, string, string][]
               ).map(([mode, label, hint]) => (
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => setGuessMode(mode)}
-                  aria-pressed={guessMode === mode}
+                  onClick={() => setGameMode(mode)}
+                  aria-pressed={gameMode === mode}
                   className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
-                    guessMode === mode
+                    gameMode === mode
                       ? 'border-chorusify-accent/60 bg-chorusify-accent/10 text-white'
                       : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/25'
                   }`}
@@ -223,6 +227,39 @@ export function MultiplayerHomePage() {
               ))}
             </div>
           </div>
+
+          {gameMode === 'classic' && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                How does everyone guess?
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ['search', 'Type to search', 'Search the full catalog'],
+                    ['choice', 'Multiple choice', 'Pick one of three'],
+                  ] as [MultiplayerGuessMode, string, string][]
+                ).map(([mode, label, hint]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setGuessMode(mode)}
+                    aria-pressed={guessMode === mode}
+                    className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                      guessMode === mode
+                        ? 'border-chorusify-accent/60 bg-chorusify-accent/10 text-white'
+                        : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/25'
+                    }`}
+                  >
+                    <span className="block text-sm font-semibold">{label}</span>
+                    <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
+                      {hint}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button
             type="button"

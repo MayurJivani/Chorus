@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { multiplayerSocketUrl } from '../../api/multiplayer';
 import type {
   ArtistRoundOption,
+  MultiplayerGameMode,
   MultiplayerGuessMode,
   MultiplayerRoomSnapshot,
   MultiplayerScoreEntry,
@@ -21,6 +22,7 @@ export interface MultiplayerRound {
   pictureUrl: string | null;
   revealDurationMs: number;
   guessMode?: MultiplayerGuessMode;
+  gameMode?: MultiplayerGameMode;
   /** Present in choice mode: the same three answers for every player in the room. */
   options?: ArtistRoundOption[];
 }
@@ -125,8 +127,7 @@ export function useMultiplayerGame(
           pictureUrl: raw.pictureUrl as string | null,
           revealDurationMs: raw.revealDurationMs as number,
           guessMode: raw.guessMode as MultiplayerGuessMode | undefined,
-          // Only present in choice mode; the round payload is whitelisted field by field, so
-          // anything not copied here never reaches the UI.
+          gameMode: raw.gameMode as MultiplayerGameMode | undefined,
           options: raw.options as ArtistRoundOption[] | undefined,
         });
         setStageIndex(0);
