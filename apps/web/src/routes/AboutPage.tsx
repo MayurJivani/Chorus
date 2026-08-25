@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 /** Every mode, in the same order the home page lists them. */
 const MODES: [string, string][] = [
@@ -77,6 +78,7 @@ const team = [
 ];
 
 export function AboutPage() {
+  usePageTitle('About');
   return (
     <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-4 sm:gap-6 px-4 py-4 sm:py-8">
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="mb-2">

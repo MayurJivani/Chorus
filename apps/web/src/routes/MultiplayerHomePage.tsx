@@ -10,11 +10,13 @@ import type {
   MultiplayerGameMode,
   MultiplayerGuessMode,
 } from '../types/api';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 /** What a room races over. Rooms accept either; the game is identical. */
 type SourceKind = 'artist' | 'category';
 
 export function MultiplayerHomePage() {
+  usePageTitle('Multiplayer');
   const navigate = useNavigate();
   const [sourceKind, setSourceKind] = useState<SourceKind>('artist');
   const [artist, setArtist] = useState<ArtistSearchResult | null>(null);

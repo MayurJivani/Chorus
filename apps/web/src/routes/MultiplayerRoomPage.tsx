@@ -6,8 +6,11 @@ import { useMultiplayerGame } from '../features/multiplayer/useMultiplayerGame';
 import { MultiplayerLobby } from '../features/multiplayer/MultiplayerLobby';
 import { MultiplayerGame } from '../features/multiplayer/MultiplayerGame';
 import { MultiplayerResults } from '../features/multiplayer/MultiplayerResults';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export function MultiplayerRoomPage() {
+  usePageTitle('Game Room');
+
   const { code: codeParam } = useParams<{ code: string }>();
   const code = (codeParam ?? '').toUpperCase();
   const navigate = useNavigate();

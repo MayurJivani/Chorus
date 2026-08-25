@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../../hooks/useSession';
+import { useToast } from '../../hooks/useToast';
 import { ApiError } from '../../api/client';
 
 export function LoginForm() {
   const { login } = useSession();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +19,7 @@ export function LoginForm() {
     setError(null);
     try {
       await login(email, password);
+      toast('Welcome back!', 'success');
       navigate('/');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');

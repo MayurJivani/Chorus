@@ -9,6 +9,7 @@ import {
   getRatingLeaderboard,
   matchmake,
 } from '../api/duels';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { DuelView, RatingStanding } from '../types/api';
 
 /** Where a duel's challenge is played, in whichever mode built it. */
@@ -31,6 +32,7 @@ function formatDelta(delta: number): string {
  * anything. Accounts only: a rating has to attach to something that survives clearing cookies.
  */
 export function DuelsPage() {
+  usePageTitle('Duels');
   const { user, loading } = useSession();
   const navigate = useNavigate();
 

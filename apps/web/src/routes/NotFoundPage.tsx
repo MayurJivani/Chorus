@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 /**
  * The catch-all route.
@@ -16,6 +17,7 @@ const DESTINATIONS = [
 ] as const;
 
 export function NotFoundPage() {
+  usePageTitle('Page Not Found');
   const { pathname } = useLocation();
 
   return (

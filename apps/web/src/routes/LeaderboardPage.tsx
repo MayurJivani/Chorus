@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getLeaderboard } from '../api/leaderboard';
 import { formatDuration } from '../features/stats/formatDuration';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { GlobalLeaderboardEntry, LeaderboardResponse, MostPlayedArtist } from '../types/api';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -10,6 +11,7 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 type Board = 'artist' | 'category';
 
 export function LeaderboardPage() {
+  usePageTitle('Leaderboard');
   const [data, setData] = useState<LeaderboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [board, setBoard] = useState<Board>('artist');

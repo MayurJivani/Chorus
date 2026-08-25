@@ -7,9 +7,12 @@ import { GuessDistributionChart } from '../features/stats/GuessDistributionChart
 import { ShareCard } from '../features/stats/ShareCard';
 import { formatDuration } from '../features/stats/formatDuration';
 import { ProgressPanel } from '../features/stats/ProgressPanel';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { StatsResponse } from '../types/api';
 
 export function StatsPage() {
+  usePageTitle('Stats');
+
   const { user, guestId } = useSession();
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);

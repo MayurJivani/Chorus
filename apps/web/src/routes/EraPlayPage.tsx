@@ -7,6 +7,7 @@ import { SnippetProgressBar } from '../features/game/SnippetProgressBar';
 import { ChallengeSummary } from '../features/challenge/ChallengeSummary';
 import { useGameConfig } from '../hooks/useGameConfig';
 import { getEraChallenge, getEraLeaderboard, submitEraGuess } from '../api/era';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { EraGuessResult, EraRound, RevealedSong } from '../types/api';
 
 type Status = 'loading' | 'playing' | 'round-ended' | 'completed' | 'error';
@@ -19,6 +20,7 @@ type Status = 'loading' | 'playing' | 'round-ended' | 'completed' | 'error';
  * rather than a judgement. Extending the snippet stays free.
  */
 export function EraPlayPage() {
+  usePageTitle('Guess the Year');
   const { snippetSchedule } = useGameConfig();
 
   const [status, setStatus] = useState<Status>('loading');

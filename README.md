@@ -19,9 +19,7 @@
 
 ## 🎶 Modes
 
-**Daily Puzzle** — One song. Dropped at midnight UTC. The whole world guesses the same track, at the same time.
-
-**Daily Challenge** — Ten songs drawn from across eras and genres. One attempt per day, same songs for everyone. The Wordle of music.
+**Daily** — One song. Dropped at midnight UTC. The whole world guesses the same track, at the same time. Did you nail it before your friends woke up?
 
 **Artist** — Pick a discography, any discography, and go 10 rounds deep. Type it out from memory or pick from the lineup. Real leaderboards, per artist, for the true completionists.
 

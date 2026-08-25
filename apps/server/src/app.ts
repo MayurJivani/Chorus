@@ -26,7 +26,6 @@ import { adminRouter } from './routes/admin.routes';
 import { friendsRouter } from './routes/friends.routes';
 import { profileRouter } from './routes/profile.routes';
 import { fandomRouter } from './routes/fandom.routes';
-import { dailyRouter } from './routes/daily.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -103,7 +102,6 @@ export function createApp(): Express {
   app.use('/api/friends', friendsRouter);
   app.use('/api/profile', profileRouter);
   app.use('/api/fandoms', fandomRouter);
-  app.use('/api/daily', dailyRouter);
 
   // Serve the built Vite frontend in production.
   // `public/` lives alongside `dist/` (i.e. at <server-root>/public).

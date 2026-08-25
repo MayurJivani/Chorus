@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { RegisterForm } from '../features/auth/RegisterForm';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export function RegisterPage() {
+  usePageTitle('Create Account');
+
   return (
     <div className="flex min-h-full flex-col items-center justify-center px-4 py-12">
       <motion.div

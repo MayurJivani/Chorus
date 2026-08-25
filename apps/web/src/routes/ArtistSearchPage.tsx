@@ -2,9 +2,11 @@ import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArtistSearchInput } from '../features/artist/ArtistSearchInput';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { ArtistSearchResult } from '../types/api';
 
 export function ArtistSearchPage() {
+  usePageTitle('Artist Mode');
   const navigate = useNavigate();
   const [artist, setArtist] = useState<ArtistSearchResult | null>(null);
 

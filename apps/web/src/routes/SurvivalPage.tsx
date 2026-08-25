@@ -17,6 +17,7 @@ import {
   searchSurvivalTracks,
   submitSurvivalGuess,
 } from '../api/survival';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { RevealedSong, SongSearchResult, SurvivalRound } from '../types/api';
 
 type Status = 'picking-mode' | 'loading' | 'playing' | 'over' | 'error';
@@ -29,6 +30,7 @@ type Status = 'picking-mode' | 'loading' | 'playing' | 'over' | 'error';
  * rule, so the screen says it once and then stays out of the way.
  */
 export function SurvivalPage() {
+  usePageTitle('Survival');
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('guessMode') === 'choice' ? 'choice' : 'search';
   const { snippetSchedule } = useGameConfig();

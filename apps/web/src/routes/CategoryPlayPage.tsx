@@ -12,6 +12,7 @@ import {
   searchCategoryTracks,
   submitCategoryGuess,
 } from '../api/categories';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 /**
  * The sender's score on a shared challenge, so the run can show what it is chasing.
@@ -53,6 +54,7 @@ function useDuel(challengeId: number | undefined) {
 }
 
 export function CategoryPlayPage() {
+  usePageTitle('Category Challenge');
   const { categoryId = '' } = useParams<{ categoryId: string }>();
   const [searchParams] = useSearchParams();
   const guessMode = searchParams.get('guessMode') === 'choice' ? 'choice' : 'search';

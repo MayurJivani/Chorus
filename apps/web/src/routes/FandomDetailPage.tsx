@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
+import { useToast } from '../hooks/useToast';
 import { getFandomDetail, getMembership, joinFandom, leaveFandom } from '../api/fandom';
 import { FandomCard } from '../features/fandom/FandomCard';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { FandomDetail, FandomInfo } from '../types/api';
 
 function tierBadgeClass(cardStyle: string): string {
@@ -28,9 +30,11 @@ function tierBadgeClass(cardStyle: string): string {
 }
 
 export function FandomDetailPage() {
+  usePageTitle('Fandom');
   const { deezerArtistId } = useParams<{ deezerArtistId: string }>();
   const { user } = useSession();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [detail, setDetail] = useState<FandomDetail | null>(null);
   const [membership, setMembership] = useState<FandomInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,8 +73,11 @@ export function FandomDetailPage() {
         detail.artistPictureUrl,
       );
       setMembership(m);
+      toast(`Joined ${detail.fandomName}!`, 'success');
       const d = await getFandomDetail(deezerArtistId).catch(() => null);
       if (d) setDetail(d);
+    } catch {
+      toast('Failed to join fandom. Please try again.', 'error');
     } finally {
       setActing(false);
     }
@@ -83,8 +90,11 @@ export function FandomDetailPage() {
       await leaveFandom(deezerArtistId);
       setMembership(null);
       setShowCard(false);
+      toast('Left the fandom.', 'info');
       const d = await getFandomDetail(deezerArtistId).catch(() => null);
       if (d) setDetail(d);
+    } catch {
+      toast('Failed to leave fandom. Please try again.', 'error');
     } finally {
       setActing(false);
     }

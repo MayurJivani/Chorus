@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LoginForm } from '../features/auth/LoginForm';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export function LoginPage() {
+  usePageTitle('Log In');
+
   return (
     <div className="flex min-h-full flex-col items-center justify-center px-4 py-12">
       <motion.div

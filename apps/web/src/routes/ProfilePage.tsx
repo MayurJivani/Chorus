@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
 import { getProfile, updateDisplayName, changePassword, type ProfileData } from '../api/profile';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export function ProfilePage() {
+  usePageTitle('Profile');
+
   const { user, loading, refreshUser } = useSession();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileData | null>(null);

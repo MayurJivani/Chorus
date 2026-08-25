@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../../hooks/useSession';
+import { useToast } from '../../hooks/useToast';
 import { ApiError } from '../../api/client';
 
 export function RegisterForm() {
   const { register } = useSession();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,6 +20,7 @@ export function RegisterForm() {
     setError(null);
     try {
       await register(email, password, displayName);
+      toast('Account created! Welcome to Chorusify.', 'success');
       navigate('/');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');

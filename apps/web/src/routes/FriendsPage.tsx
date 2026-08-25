@@ -13,8 +13,11 @@ import {
   type PendingRequest,
   type MessageView,
 } from '../api/friends';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export function FriendsPage() {
+  usePageTitle('Friends');
+
   const { user } = useSession();
   const [friends, setFriends] = useState<FriendView[]>([]);
   const [pending, setPending] = useState<PendingRequest[]>([]);

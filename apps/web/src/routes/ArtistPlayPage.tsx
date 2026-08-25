@@ -10,6 +10,7 @@ import {
   getChallengeLeaderboard,
   getArtistGuessDistribution,
 } from '../api/artists';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 /**
  * The sender's score on a shared challenge, so the run can show what it is chasing.
@@ -51,6 +52,7 @@ function useDuel(challengeId: number | undefined) {
 }
 
 export function ArtistPlayPage() {
+  usePageTitle('Artist Challenge');
   const { artistId: artistIdParam } = useParams<{ artistId: string }>();
   const artistId = Number(artistIdParam);
   const [searchParams] = useSearchParams();

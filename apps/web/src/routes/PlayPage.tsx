@@ -7,8 +7,11 @@ import { GuessHistory } from '../features/game/GuessHistory';
 import { GuessInput } from '../features/game/GuessInput';
 import { WinLoseOverlay } from '../features/game/WinLoseOverlay';
 import { useGameConfig } from '../hooks/useGameConfig';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export function PlayPage() {
+  usePageTitle('Daily Puzzle');
+
   const {
     status,
     puzzle,

@@ -4,9 +4,12 @@ import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
 import { getMyFandoms, getTopFandoms, joinFandom } from '../api/fandom';
 import { apiRequest } from '../api/client';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { FandomInfo, TopFandom, ArtistSearchResult } from '../types/api';
 
 export function FandomsPage() {
+  usePageTitle('Fandoms');
+
   const { user } = useSession();
   const navigate = useNavigate();
   const [myFandoms, setMyFandoms] = useState<FandomInfo[]>([]);

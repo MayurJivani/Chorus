@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useCountdownToNextPuzzle } from '../hooks/useCountdown';
 import { useSession } from '../hooks/useSession';
 import { getMyStats } from '../api/stats';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { StatsResponse } from '../types/api';
 
 function AnimatedWaveform({ isPlaying = true }: { isPlaying?: boolean }) {
@@ -33,12 +34,6 @@ function AnimatedWaveform({ isPlaying = true }: { isPlaying?: boolean }) {
  * nothing.
  */
 const MODES: { to: string; icon: string; title: string; blurb: string }[] = [
-  {
-    to: '/daily',
-    icon: '📆',
-    title: 'Daily Challenge',
-    blurb: 'Ten songs, one chance per day. Same for everyone.',
-  },
   {
     to: '/artist',
     icon: '🎤',
@@ -81,6 +76,7 @@ const MODES: { to: string; icon: string; title: string; blurb: string }[] = [
 const NUMBER_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
 
 export function HomePage() {
+  usePageTitle('');
   const countdown = useCountdownToNextPuzzle();
   const { user, guestId } = useSession();
   const [stats, setStats] = useState<StatsResponse | null>(null);

@@ -274,13 +274,16 @@ export function RootLayout() {
         )}
       </header>
 
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
         <Outlet />
       </main>
 
-      {/* Deezer attribution — required by Deezer API brand guidelines */}
       <footer className="shrink-0 border-t border-white/[0.06] py-4">
-        <div className="mx-auto flex max-w-6xl items-center justify-center px-4 sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 sm:flex-row sm:justify-between sm:px-6">
+          <span className="text-xs text-slate-500">
+            &copy; {new Date().getFullYear()} Chorusify
+          </span>
+          {/* Deezer attribution — required by Deezer API brand guidelines */}
           <a
             href="https://www.deezer.com"
             target="_blank"

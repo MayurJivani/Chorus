@@ -8,6 +8,7 @@ import { UsersPanel } from '../features/admin/UsersPanel';
 import { MultiplayerPanel } from '../features/admin/MultiplayerPanel';
 import { SongsPanel } from '../features/admin/SongsPanel';
 import { CardsPanel } from '../features/admin/CardsPanel';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 type Tab = 'overview' | 'settings' | 'schedule' | 'users' | 'multiplayer' | 'songs' | 'cards';
 
@@ -29,6 +30,7 @@ const TABS: [Tab, string][] = [
  * doesn't exist. Hiding the nav link is cosmetic.
  */
 export function AdminPage() {
+  usePageTitle('Admin');
   const { user, loading } = useSession();
   const [tab, setTab] = useState<Tab>('overview');
 

@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { forgotPassword, resetPassword } from '../api/auth';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export function ForgotPasswordPage() {
+  usePageTitle('Reset Password');
+
   const [params] = useSearchParams();
   const tokenFromUrl = params.get('token');
 

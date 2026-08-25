@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getCategories } from '../api/categories';
+import { usePageTitle } from '../hooks/usePageTitle';
 import type { Category, CategoryGroup } from '../types/api';
 
 const GROUP_LABELS: Record<CategoryGroup, { title: string; subtitle: string }> = {
@@ -22,6 +23,7 @@ const FILTERS: [CategoryGroup | 'all', string][] = [
 ];
 
 export function CategoryPickerPage() {
+  usePageTitle('Categories');
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
