@@ -7,8 +7,9 @@ import { SchedulePanel } from '../features/admin/SchedulePanel';
 import { UsersPanel } from '../features/admin/UsersPanel';
 import { MultiplayerPanel } from '../features/admin/MultiplayerPanel';
 import { SongsPanel } from '../features/admin/SongsPanel';
+import { CardsPanel } from '../features/admin/CardsPanel';
 
-type Tab = 'overview' | 'settings' | 'schedule' | 'users' | 'multiplayer' | 'songs';
+type Tab = 'overview' | 'settings' | 'schedule' | 'users' | 'multiplayer' | 'songs' | 'cards';
 
 const TABS: [Tab, string][] = [
   ['overview', 'Overview'],
@@ -17,6 +18,7 @@ const TABS: [Tab, string][] = [
   ['users', 'Users'],
   ['multiplayer', 'Multiplayer'],
   ['songs', 'Song bank'],
+  ['cards', 'Cards'],
 ];
 
 /**
@@ -86,6 +88,7 @@ export function AdminPage() {
       {tab === 'users' && <UsersPanel />}
       {tab === 'multiplayer' && <MultiplayerPanel />}
       {tab === 'songs' && <SongsPanel />}
+      {tab === 'cards' && <CardsPanel />}
     </div>
   );
 }
