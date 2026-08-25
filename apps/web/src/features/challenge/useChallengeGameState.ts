@@ -128,10 +128,7 @@ export function useChallengeGameState(
     if (startedSelectionRef.current === selection) return;
     startedSelectionRef.current = selection;
 
-    // Opening a challenge always begins a new run — picking something you abandoned halfway
-    // should not drop you back into that half-finished attempt. The one exception is a shared
-    // challenge link, whose whole purpose is to load one specific challenge.
-    void loadCurrentRound(sharedChallengeId == null, true);
+    void loadCurrentRound(false, true);
   }, [endpoints.key, guessMode, sharedChallengeId, loadCurrentRound]);
 
   const submit = useCallback(
