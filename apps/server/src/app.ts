@@ -54,6 +54,36 @@ export function createApp(): Express {
     res.json({ csrfToken: generateCsrfToken(req, res) });
   });
 
+  // Image proxy for card downloads — Deezer CDN doesn't send CORS headers,
+  // so the Canvas API can't fetch artist images directly from the browser.
+  app.get('/api/image-proxy', async (req, res, next) => {
+    try {
+      const url = req.query.url;
+      if (typeof url !== 'string' || !url.startsWith('https://')) {
+        res.status(400).json({ error: 'Invalid URL' });
+        return;
+      }
+      const allowed = ['e-cdns-images.dzcdn.net', 'cdns-images.dzcdn.net', 'api.deezer.com'];
+      const parsed = new URL(url);
+      if (!allowed.some((h) => parsed.hostname.endsWith(h))) {
+        res.status(403).json({ error: 'Domain not allowed' });
+        return;
+      }
+      const upstream = await fetch(url);
+      if (!upstream.ok) {
+        res.status(upstream.status).end();
+        return;
+      }
+      const ct = upstream.headers.get('content-type') ?? 'image/jpeg';
+      res.setHeader('Content-Type', ct);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      const buffer = Buffer.from(await upstream.arrayBuffer());
+      res.send(buffer);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   app.use(doubleCsrfProtection);
 
   app.use('/api/auth', authRouter);

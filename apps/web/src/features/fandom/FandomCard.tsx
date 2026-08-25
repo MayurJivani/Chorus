@@ -260,9 +260,12 @@ const CARD_STYLES: Record<string, CardStyleDef> = {
 
 // --- Canvas-based card download (avoids CORS/CSP issues) ---
 
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8888/api';
+
 async function loadImageAsDataUrl(url: string): Promise<string | null> {
   try {
-    const res = await fetch(url, { mode: 'cors' });
+    const proxyUrl = `${API_URL}/image-proxy?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxyUrl, { credentials: 'include' });
     const blob = await res.blob();
     return new Promise((resolve) => {
       const reader = new FileReader();
