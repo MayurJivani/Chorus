@@ -520,147 +520,150 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
           setMousePos({ x: 0.5, y: 0.5 });
         }}
       >
+        {/* Gradient border wrapper — borderImage kills border-radius, so we
+            use a background gradient on the outer shell and inset the card */}
         <div
-          ref={cardRef}
-          className={`relative w-72 overflow-hidden rounded-2xl ${style.border} p-5`}
+          className="rounded-2xl p-[2px]"
           style={{
-            aspectRatio: '3/4',
-            background: style.bg,
+            background: borderGradient ?? 'transparent',
             transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
             transition: isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out',
             boxShadow: isHovered
               ? `0 20px 60px ${style.glowColor}, 0 0 40px ${style.glowColor}`
               : `0 10px 30px rgba(0,0,0,0.5)`,
-            ...(borderGradient
-              ? {
-                  borderImage: borderGradient,
-                  borderImageSlice: 1,
-                }
-              : {}),
           }}
         >
-          {/* Holo rainbow overlay — follows mouse */}
-          {hasHoloEffect && (
-            <div
-              className="absolute inset-0 pointer-events-none z-[1] mix-blend-overlay"
-              style={{
-                background: `radial-gradient(circle at ${holoX}% ${holoY}%,
+          <div
+            ref={cardRef}
+            className={`relative w-72 overflow-hidden rounded-2xl ${borderGradient ? '' : style.border} p-5`}
+            style={{
+              aspectRatio: '3/4',
+              background: style.bg,
+            }}
+          >
+            {/* Holo rainbow overlay — follows mouse */}
+            {hasHoloEffect && (
+              <div
+                className="absolute inset-0 pointer-events-none z-[1] mix-blend-overlay"
+                style={{
+                  background: `radial-gradient(circle at ${holoX}% ${holoY}%,
                   rgba(255,0,255,${isHovered ? 0.25 : 0.08}) 0%,
                   rgba(0,255,255,${isHovered ? 0.2 : 0.06}) 25%,
                   rgba(255,255,0,${isHovered ? 0.15 : 0.04}) 50%,
                   rgba(255,0,255,${isHovered ? 0.1 : 0.02}) 75%,
                   transparent 100%)`,
-                opacity: isHovered ? 1 : 0.5,
-                transition: 'opacity 0.3s',
-              }}
-            />
-          )}
+                  opacity: isHovered ? 1 : 0.5,
+                  transition: 'opacity 0.3s',
+                }}
+              />
+            )}
 
-          {/* Rainbow shimmer band — sweeps across on hover */}
-          {hasHoloEffect && isHovered && (
-            <div
-              className="absolute inset-0 pointer-events-none z-[1]"
-              style={{
-                background: `linear-gradient(${rainbowAngle}deg,
+            {/* Rainbow shimmer band — sweeps across on hover */}
+            {hasHoloEffect && isHovered && (
+              <div
+                className="absolute inset-0 pointer-events-none z-[1]"
+                style={{
+                  background: `linear-gradient(${rainbowAngle}deg,
                   transparent 0%,
                   rgba(255,255,255,0.08) 40%,
                   rgba(255,255,255,0.15) 50%,
                   rgba(255,255,255,0.08) 60%,
                   transparent 100%)`,
-                backgroundSize: '200% 200%',
-                backgroundPosition: `${holoX}% ${holoY}%`,
-              }}
-            />
-          )}
+                  backgroundSize: '200% 200%',
+                  backgroundPosition: `${holoX}% ${holoY}%`,
+                }}
+              />
+            )}
 
-          {/* Artist image holo background for top 3 tiers */}
-          {style.useArtistHolo && membership.artistPictureUrl && (
-            <div
-              className="absolute inset-0 pointer-events-none z-[0]"
-              style={{
-                backgroundImage: `url(${membership.artistPictureUrl})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                opacity: isHovered ? 0.18 : 0.08,
-                filter: `blur(2px) saturate(1.5) hue-rotate(${mousePos.x * 60 - 30}deg)`,
-                mixBlendMode: 'luminosity',
-                transition: 'opacity 0.3s, filter 0.2s',
-              }}
-            />
-          )}
+            {/* Artist image holo background for top 3 tiers */}
+            {style.useArtistHolo && membership.artistPictureUrl && (
+              <div
+                className="absolute inset-0 pointer-events-none z-[0]"
+                style={{
+                  backgroundImage: `url(${membership.artistPictureUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  opacity: isHovered ? 0.18 : 0.08,
+                  filter: `blur(2px) saturate(1.5) hue-rotate(${mousePos.x * 60 - 30}deg)`,
+                  mixBlendMode: 'luminosity',
+                  transition: 'opacity 0.3s, filter 0.2s',
+                }}
+              />
+            )}
 
-          {/* Sparkle overlay */}
-          {style.sparkleCount > 0 && <SparkleOverlay intensity={style.sparkleCount} />}
+            {/* Sparkle overlay */}
+            {style.sparkleCount > 0 && <SparkleOverlay intensity={style.sparkleCount} />}
 
-          {/* Media decoration (vinyl/cassette/CD/ticket) */}
-          {mediaDecoration(membership.cardStyle)}
+            {/* Media decoration (vinyl/cassette/CD/ticket) */}
+            {mediaDecoration(membership.cardStyle)}
 
-          {/* Content */}
-          <div className="relative z-10 flex h-full flex-col items-center justify-between text-center">
-            {/* Top badge */}
-            <div className="flex items-center gap-1.5 self-start">
-              <span
-                className={
-                  'rounded-full px-2.5 py-1 text-[10px] font-bold shadow-lg ' + style.badge
-                }
-              >
-                {membership.rarity}
-              </span>
-              <span className="text-[10px] font-medium text-white/50">{membership.tier}</span>
-            </div>
+            {/* Content */}
+            <div className="relative z-10 flex h-full flex-col items-center justify-between text-center">
+              {/* Top badge */}
+              <div className="flex items-center gap-1.5 self-start">
+                <span
+                  className={
+                    'rounded-full px-2.5 py-1 text-[10px] font-bold shadow-lg ' + style.badge
+                  }
+                >
+                  {membership.rarity}
+                </span>
+                <span className="text-[10px] font-medium text-white/50">{membership.tier}</span>
+              </div>
 
-            {/* Artist image */}
-            <div className="my-3 flex flex-col items-center gap-2">
-              {membership.artistPictureUrl ? (
-                <div className="relative">
-                  <img
-                    src={membership.artistPictureUrl}
-                    alt=""
-                    className="h-24 w-24 rounded-full object-cover ring-2 ring-white/30 shadow-xl"
-                    crossOrigin="anonymous"
-                  />
-                  {hasHoloEffect && (
-                    <div
-                      className="absolute inset-0 rounded-full pointer-events-none"
-                      style={{
-                        background: `radial-gradient(circle at ${holoX}% ${holoY}%, rgba(255,255,255,0.2) 0%, transparent 60%)`,
-                      }}
+              {/* Artist image */}
+              <div className="my-3 flex flex-col items-center gap-2">
+                {membership.artistPictureUrl ? (
+                  <div className="relative">
+                    <img
+                      src={membership.artistPictureUrl}
+                      alt=""
+                      className="h-24 w-24 rounded-full object-cover ring-2 ring-white/30 shadow-xl"
+                      crossOrigin="anonymous"
                     />
-                  )}
-                </div>
-              ) : (
-                <span className="flex h-24 w-24 items-center justify-center rounded-full bg-white/10 text-3xl font-bold text-white/60 ring-2 ring-white/30 shadow-xl">
-                  {membership.artistName.charAt(0)}
-                </span>
-              )}
-              <h3 className="text-lg font-extrabold text-white drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)]">
-                {membership.fandomName}
-              </h3>
-              <span className="text-xs text-white/50">{membership.artistName}</span>
-            </div>
+                    {hasHoloEffect && (
+                      <div
+                        className="absolute inset-0 rounded-full pointer-events-none"
+                        style={{
+                          background: `radial-gradient(circle at ${holoX}% ${holoY}%, rgba(255,255,255,0.2) 0%, transparent 60%)`,
+                        }}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <span className="flex h-24 w-24 items-center justify-center rounded-full bg-white/10 text-3xl font-bold text-white/60 ring-2 ring-white/30 shadow-xl">
+                    {membership.artistName.charAt(0)}
+                  </span>
+                )}
+                <h3 className="text-lg font-extrabold text-white drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)]">
+                  {membership.fandomName}
+                </h3>
+                <span className="text-xs text-white/50">{membership.artistName}</span>
+              </div>
 
-            {/* Stats */}
-            <div className="w-full space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-white/50">Player</span>
-                <span className="font-semibold text-white">{displayName}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-white/50">Rank</span>
-                <span className="font-semibold text-white">
-                  #{membership.rank} / {membership.memberCount}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-white/50">Fan Score</span>
-                <span className="font-semibold text-white">{membership.fanScore}</span>
-              </div>
-              <div className="h-px bg-white/10" />
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-medium uppercase tracking-widest text-white/30">
-                  Chorusify
-                </span>
-                <span className="font-mono text-[8px] text-white/25">{membership.fanCode}</span>
+              {/* Stats */}
+              <div className="w-full space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Player</span>
+                  <span className="font-semibold text-white">{displayName}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Rank</span>
+                  <span className="font-semibold text-white">
+                    #{membership.rank} / {membership.memberCount}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Fan Score</span>
+                  <span className="font-semibold text-white">{membership.fanScore}</span>
+                </div>
+                <div className="h-px bg-white/10" />
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-medium uppercase tracking-widest text-white/30">
+                    Chorusify
+                  </span>
+                  <span className="font-mono text-[8px] text-white/25">{membership.fanCode}</span>
+                </div>
               </div>
             </div>
           </div>
