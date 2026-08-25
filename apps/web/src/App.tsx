@@ -26,6 +26,8 @@ import { ProfilePage } from './routes/ProfilePage';
 import { FandomsPage } from './routes/FandomsPage';
 import { FandomDetailPage } from './routes/FandomDetailPage';
 import { ToastProvider } from './hooks/useToast';
+import { KonamiVinylPlayer } from './features/easter-eggs/KonamiVinylPlayer';
+import { SecretDJMode } from './features/easter-eggs/SecretDJMode';
 
 const router = createBrowserRouter([
   {
@@ -65,6 +67,8 @@ function App() {
     <SessionProvider>
       <GameConfigProvider>
         <ToastProvider>
+          <KonamiVinylPlayer />
+          <SecretDJMode />
           <RouterProvider router={router} />
         </ToastProvider>
       </GameConfigProvider>

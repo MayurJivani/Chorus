@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
+import { useLogoClickEasterEgg } from '../features/easter-eggs/LogoClickEasterEgg';
 
 /** The drawer's links. The home page is the mode picker, so there is no separate "play" entry. */
 const MOBILE_LINKS: { to: string; label: string }[] = [
@@ -72,6 +73,7 @@ export function RootLayout() {
   const { user, loading, logout } = useSession();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const handleLogoClick = useLogoClickEasterEgg();
 
   const handleLogout = async () => {
     await logout();
@@ -87,6 +89,7 @@ export function RootLayout() {
           {/* Logo with vinyl disc */}
           <Link
             to="/"
+            onClick={handleLogoClick}
             className="flex items-center gap-2.5 font-bold text-white text-xl tracking-tight group"
           >
             <span

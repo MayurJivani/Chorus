@@ -6,6 +6,7 @@ import { useToast } from '../hooks/useToast';
 import { getFandomDetail, getMembership, joinFandom, leaveFandom } from '../api/fandom';
 import { FandomCard } from '../features/fandom/FandomCard';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { VinylSpinner } from '../features/easter-eggs/VinylSpinner';
 import type { FandomDetail, FandomInfo } from '../types/api';
 
 function tierBadgeClass(cardStyle: string): string {
@@ -103,7 +104,7 @@ export function FandomDetailPage() {
   if (loading) {
     return (
       <div className="flex min-h-full items-center justify-center">
-        <span className="text-sm text-slate-400">Loading...</span>
+        <VinylSpinner />
       </div>
     );
   }

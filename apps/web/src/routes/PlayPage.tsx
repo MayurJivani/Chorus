@@ -8,6 +8,7 @@ import { GuessInput } from '../features/game/GuessInput';
 import { WinLoseOverlay } from '../features/game/WinLoseOverlay';
 import { useGameConfig } from '../hooks/useGameConfig';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { VinylSpinner } from '../features/easter-eggs/VinylSpinner';
 
 export function PlayPage() {
   usePageTitle('Daily Puzzle');
@@ -50,7 +51,11 @@ export function PlayPage() {
   }, []);
 
   if (status === 'loading') {
-    return <Centered>Loading today&apos;s puzzle…</Centered>;
+    return (
+      <Centered>
+        <VinylSpinner text="Loading today's puzzle…" />
+      </Centered>
+    );
   }
 
   if (status === 'error' || !puzzle) {

@@ -8,6 +8,7 @@ import { ShareCard } from '../features/stats/ShareCard';
 import { formatDuration } from '../features/stats/formatDuration';
 import { ProgressPanel } from '../features/stats/ProgressPanel';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { VinylSpinner } from '../features/easter-eggs/VinylSpinner';
 import type { StatsResponse } from '../types/api';
 
 export function StatsPage() {
@@ -29,8 +30,8 @@ export function StatsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-full items-center justify-center text-slate-400">
-        Loading stats…
+      <div className="flex min-h-full items-center justify-center">
+        <VinylSpinner text="Loading stats…" />
       </div>
     );
   }

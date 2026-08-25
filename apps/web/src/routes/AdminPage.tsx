@@ -9,6 +9,7 @@ import { MultiplayerPanel } from '../features/admin/MultiplayerPanel';
 import { SongsPanel } from '../features/admin/SongsPanel';
 import { CardsPanel } from '../features/admin/CardsPanel';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { VinylSpinner } from '../features/easter-eggs/VinylSpinner';
 
 type Tab = 'overview' | 'settings' | 'schedule' | 'users' | 'multiplayer' | 'songs' | 'cards';
 
@@ -34,7 +35,12 @@ export function AdminPage() {
   const { user, loading } = useSession();
   const [tab, setTab] = useState<Tab>('overview');
 
-  if (loading) return <Centered>Loading…</Centered>;
+  if (loading)
+    return (
+      <Centered>
+        <VinylSpinner />
+      </Centered>
+    );
 
   if (!user) {
     return (

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { getLeaderboard } from '../api/leaderboard';
 import { formatDuration } from '../features/stats/formatDuration';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { VinylSpinner } from '../features/easter-eggs/VinylSpinner';
 import type { GlobalLeaderboardEntry, LeaderboardResponse, MostPlayedArtist } from '../types/api';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -25,8 +26,8 @@ export function LeaderboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-full items-center justify-center text-slate-400">
-        Loading leaderboard…
+      <div className="flex min-h-full items-center justify-center">
+        <VinylSpinner text="Loading leaderboard…" />
       </div>
     );
   }
