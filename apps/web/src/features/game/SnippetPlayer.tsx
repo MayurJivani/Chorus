@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-const SILENT_WAV =
-  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
 let mediaUnlocked = false;
 
 function deterministicRandom(seed: string): number {
@@ -14,14 +12,19 @@ function deterministicRandom(seed: string): number {
 
 function unlockMedia() {
   if (mediaUnlocked) return;
-  const a = new Audio(SILENT_WAV);
-  a.volume = 0;
-  a.play()
-    .then(() => {
-      a.pause();
-      mediaUnlocked = true;
-    })
-    .catch(() => {});
+  try {
+    const ctx = new AudioContext();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    src.stop(0.001);
+    void ctx.close();
+    mediaUnlocked = true;
+  } catch {
+    // AudioContext unavailable — playback will still work on user tap
+  }
   document.removeEventListener('click', unlockMedia, true);
   document.removeEventListener('touchstart', unlockMedia, true);
   document.removeEventListener('keydown', unlockMedia, true);
