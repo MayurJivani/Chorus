@@ -146,17 +146,20 @@ function SparkleOverlay({ intensity }: { intensity: number }) {
 
 // --- Card style configs with vibrant colors ---
 
-const CARD_STYLES: Record<
-  string,
-  {
-    bg: string;
-    border: string;
-    badge: string;
-    glowColor: string;
-    sparkleCount: number;
-    useArtistHolo: boolean;
-  }
-> = {
+interface CardStyleDef {
+  bg: string;
+  border: string;
+  badge: string;
+  glowColor: string;
+  sparkleCount: number;
+  useArtistHolo: boolean;
+  canvasGrad: [string, string, string];
+  canvasBorder: string;
+  canvasBadgeBg: string;
+  canvasBadgeText: string;
+}
+
+const CARD_STYLES: Record<string, CardStyleDef> = {
   holographic: {
     bg: 'linear-gradient(135deg, #2d1b69 0%, #1a0a3e 20%, #0d2847 40%, #1b3a5c 60%, #2d1b69 80%, #3d1f8a 100%)',
     border: 'border-[2px] border-transparent',
@@ -164,6 +167,10 @@ const CARD_STYLES: Record<
     glowColor: 'rgba(168, 85, 247, 0.4)',
     sparkleCount: 20,
     useArtistHolo: true,
+    canvasGrad: ['#2d1b69', '#0d2847', '#3d1f8a'],
+    canvasBorder: '#a855f7',
+    canvasBadgeBg: '#d946ef',
+    canvasBadgeText: '#fff',
   },
   gold: {
     bg: 'linear-gradient(135deg, #4a3000 0%, #7a5500 30%, #9a7000 50%, #7a5500 70%, #4a3000 100%)',
@@ -172,6 +179,10 @@ const CARD_STYLES: Record<
     glowColor: 'rgba(245, 158, 11, 0.4)',
     sparkleCount: 15,
     useArtistHolo: true,
+    canvasGrad: ['#4a3000', '#9a7000', '#4a3000'],
+    canvasBorder: '#f59e0b',
+    canvasBadgeBg: '#fbbf24',
+    canvasBadgeText: '#000',
   },
   silver: {
     bg: 'linear-gradient(135deg, #1a2332 0%, #2a3a4d 30%, #3d4f63 50%, #2a3a4d 70%, #1a2332 100%)',
@@ -180,6 +191,10 @@ const CARD_STYLES: Record<
     glowColor: 'rgba(148, 163, 184, 0.3)',
     sparkleCount: 12,
     useArtistHolo: true,
+    canvasGrad: ['#1a2332', '#3d4f63', '#1a2332'],
+    canvasBorder: '#94a3b8',
+    canvasBadgeBg: '#cbd5e1',
+    canvasBadgeText: '#1e293b',
   },
   gradient: {
     bg: 'linear-gradient(135deg, #3b0764 0%, #581c87 30%, #7c3aed 50%, #581c87 70%, #3b0764 100%)',
@@ -188,6 +203,10 @@ const CARD_STYLES: Record<
     glowColor: 'rgba(139, 92, 246, 0.3)',
     sparkleCount: 8,
     useArtistHolo: false,
+    canvasGrad: ['#3b0764', '#7c3aed', '#3b0764'],
+    canvasBorder: '#8b5cf6',
+    canvasBadgeBg: '#8b5cf6',
+    canvasBadgeText: '#fff',
   },
   warm: {
     bg: 'linear-gradient(135deg, #431407 0%, #7c2d12 30%, #c2410c 50%, #7c2d12 70%, #431407 100%)',
@@ -196,6 +215,10 @@ const CARD_STYLES: Record<
     glowColor: 'rgba(249, 115, 22, 0.3)',
     sparkleCount: 6,
     useArtistHolo: false,
+    canvasGrad: ['#431407', '#c2410c', '#431407'],
+    canvasBorder: '#f97316',
+    canvasBadgeBg: '#f97316',
+    canvasBadgeText: '#fff',
   },
   shine: {
     bg: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
@@ -204,6 +227,10 @@ const CARD_STYLES: Record<
     glowColor: 'rgba(99, 102, 241, 0.2)',
     sparkleCount: 4,
     useArtistHolo: false,
+    canvasGrad: ['#1e1b4b', '#312e81', '#1e1b4b'],
+    canvasBorder: '#6366f1',
+    canvasBadgeBg: '#4f46e5',
+    canvasBadgeText: '#a5b4fc',
   },
   flat: {
     bg: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
@@ -212,6 +239,10 @@ const CARD_STYLES: Record<
     glowColor: 'transparent',
     sparkleCount: 0,
     useArtistHolo: false,
+    canvasGrad: ['#0f172a', '#1e293b', '#0f172a'],
+    canvasBorder: '#334155',
+    canvasBadgeBg: '#334155',
+    canvasBadgeText: '#cbd5e1',
   },
   basic: {
     bg: 'linear-gradient(135deg, #0c0a09 0%, #1c1917 50%, #0c0a09 100%)',
@@ -220,8 +251,196 @@ const CARD_STYLES: Record<
     glowColor: 'transparent',
     sparkleCount: 0,
     useArtistHolo: false,
+    canvasGrad: ['#0c0a09', '#1c1917', '#0c0a09'],
+    canvasBorder: '#292524',
+    canvasBadgeBg: '#292524',
+    canvasBadgeText: '#64748b',
   },
 };
+
+// --- Canvas-based card download (avoids CORS/CSP issues) ---
+
+async function loadImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+async function renderCardToCanvas(
+  membership: FandomInfo,
+  displayName: string,
+  cs: CardStyleDef,
+): Promise<HTMLCanvasElement> {
+  const W = 576;
+  const H = 768;
+  const S = 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = W * S;
+  canvas.height = H * S;
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(S, S);
+
+  // Background gradient
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, cs.canvasGrad[0]);
+  grad.addColorStop(0.5, cs.canvasGrad[1]);
+  grad.addColorStop(1, cs.canvasGrad[2]);
+  roundRect(ctx, 0, 0, W, H, 24);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Border
+  roundRect(ctx, 0, 0, W, H, 24);
+  ctx.strokeStyle = cs.canvasBorder;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Rarity badge
+  ctx.font = 'bold 16px Inter, system-ui, sans-serif';
+  const badgeText = membership.rarity;
+  const badgeW = ctx.measureText(badgeText).width + 24;
+  roundRect(ctx, 24, 24, badgeW, 30, 15);
+  ctx.fillStyle = cs.canvasBadgeBg;
+  ctx.fill();
+  ctx.fillStyle = cs.canvasBadgeText;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(badgeText, 36, 39);
+
+  // Tier label
+  ctx.font = '500 14px Inter, system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText(membership.tier, 24 + badgeW + 8, 39);
+
+  // Artist image (circular)
+  const imgSize = 120;
+  const imgX = W / 2 - imgSize / 2;
+  const imgY = 180;
+  let artistImg: HTMLImageElement | null = null;
+
+  if (membership.artistPictureUrl) {
+    const dataUrl = await loadImageAsDataUrl(membership.artistPictureUrl);
+    if (dataUrl) {
+      artistImg = new Image();
+      artistImg.src = dataUrl;
+      await new Promise<void>((resolve) => {
+        artistImg!.onload = () => resolve();
+        artistImg!.onerror = () => {
+          artistImg = null;
+          resolve();
+        };
+      });
+    }
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(W / 2, imgY + imgSize / 2, imgSize / 2, 0, Math.PI * 2);
+  ctx.clip();
+  if (artistImg) {
+    ctx.drawImage(artistImg, imgX, imgY, imgSize, imgSize);
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fill();
+    ctx.font = 'bold 48px Inter, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(membership.artistName.charAt(0), W / 2, imgY + imgSize / 2);
+  }
+  ctx.restore();
+
+  // Ring around image
+  ctx.beginPath();
+  ctx.arc(W / 2, imgY + imgSize / 2, imgSize / 2 + 2, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Fandom name
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font = 'bold 28px Inter, system-ui, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(membership.fandomName, W / 2, imgY + imgSize + 20);
+
+  // Artist name
+  ctx.font = '400 16px Inter, system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText(membership.artistName, W / 2, imgY + imgSize + 56);
+
+  // Stats section
+  ctx.textAlign = 'left';
+  const statsY = 480;
+  const statsX = 40;
+  const statsW = W - 80;
+
+  const drawRow = (label: string, value: string, y: number) => {
+    ctx.font = '400 16px Inter, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, statsX, y);
+    ctx.font = '600 16px Inter, system-ui, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'right';
+    ctx.fillText(value, statsX + statsW, y);
+  };
+
+  drawRow('Player', displayName, statsY);
+  drawRow('Rank', `#${membership.rank} / ${membership.memberCount}`, statsY + 36);
+  drawRow('Fan Score', String(membership.fanScore), statsY + 72);
+
+  // Divider
+  ctx.beginPath();
+  ctx.moveTo(statsX, statsY + 104);
+  ctx.lineTo(statsX + statsW, statsY + 104);
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Footer
+  ctx.textAlign = 'left';
+  ctx.font = '500 12px Inter, system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.letterSpacing = '2px';
+  ctx.fillText('CHORUSIFY', statsX, statsY + 128);
+
+  ctx.textAlign = 'right';
+  ctx.font = '400 11px monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillText(membership.fanCode, statsX + statsW, statsY + 128);
+
+  return canvas;
+}
 
 interface FandomCardProps {
   membership: FandomInfo;
@@ -254,41 +473,14 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
   }, []);
 
   const handleDownload = async () => {
-    const card = cardRef.current;
-    if (!card) return;
-
-    const savedTransform = card.style.transform;
-    const savedTransition = card.style.transition;
-    const parent = card.parentElement;
-    const savedPerspective = parent?.style.perspective ?? '';
-    const savedPreserve = parent?.style.transformStyle ?? '';
-
     try {
-      card.style.transform = 'none';
-      card.style.transition = 'none';
-      if (parent) {
-        parent.style.perspective = 'none';
-        parent.style.transformStyle = 'flat';
-      }
-
-      const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(card, {
-        pixelRatio: 2,
-        backgroundColor: '#0a0a1a',
-      });
+      const canvas = await renderCardToCanvas(membership, displayName, style);
       const link = document.createElement('a');
       link.download = `${membership.fandomName}-${membership.tier}-card.png`;
-      link.href = dataUrl;
+      link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) {
       console.error('Card download failed:', err);
-    } finally {
-      card.style.transform = savedTransform;
-      card.style.transition = savedTransition;
-      if (parent) {
-        parent.style.perspective = savedPerspective;
-        parent.style.transformStyle = savedPreserve;
-      }
     }
   };
 
