@@ -16,15 +16,16 @@ export function FandomsPage() {
   const [searching, setSearching] = useState(false);
   const [joining, setJoining] = useState<string | null>(null);
 
+  const userId = user?.id;
   useEffect(() => {
     getTopFandoms()
       .then(setTopFandoms)
       .catch(() => {});
-    if (user)
+    if (userId)
       getMyFandoms()
         .then(setMyFandoms)
         .catch(() => {});
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     if (!query.trim()) {

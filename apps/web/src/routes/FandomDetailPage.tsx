@@ -37,12 +37,13 @@ export function FandomDetailPage() {
   const [acting, setActing] = useState(false);
   const [showCard, setShowCard] = useState(false);
 
+  const userId = user?.id;
   useEffect(() => {
     if (!deezerArtistId) return;
     setLoading(true);
     Promise.all([
       getFandomDetail(deezerArtistId).catch(() => null),
-      user
+      userId
         ? getMembership(deezerArtistId)
             .then((r) => r.membership)
             .catch(() => null)
@@ -52,7 +53,7 @@ export function FandomDetailPage() {
       setMembership(m);
       setLoading(false);
     });
-  }, [deezerArtistId, user]);
+  }, [deezerArtistId, userId]);
 
   const handleJoin = async () => {
     if (!user) {

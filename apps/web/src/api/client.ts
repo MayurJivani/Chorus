@@ -36,6 +36,40 @@ export async function primeCsrfToken(): Promise<void> {
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
+  skipCache?: boolean;
+}
+
+const CACHE_TTL_MS = 5_000;
+const getCache = new Map<string, { promise: Promise<unknown>; expiresAt: number }>();
+
+export function invalidateApiCache(pathPrefix?: string) {
+  if (!pathPrefix) {
+    getCache.clear();
+    return;
+  }
+  for (const key of getCache.keys()) {
+    if (key.startsWith(pathPrefix)) getCache.delete(key);
+  }
+}
+
+async function doFetch<T>(
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  body?: string,
+): Promise<T> {
+  const res = await fetch(url, { method, headers, credentials: 'include', body });
+
+  const contentType = res.headers.get('content-type') ?? '';
+  const parsed = contentType.includes('application/json') ? await res.json() : undefined;
+
+  if (!res.ok) {
+    const message =
+      (parsed as { error?: string } | undefined)?.error ?? `Request failed (${res.status})`;
+    throw new ApiError(res.status, message, (parsed as { details?: unknown } | undefined)?.details);
+  }
+
+  return parsed as T;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -52,21 +86,22 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers,
-    credentials: 'include',
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  const url = `${API_URL}${path}`;
+  const bodyStr = options.body !== undefined ? JSON.stringify(options.body) : undefined;
 
-  const contentType = res.headers.get('content-type') ?? '';
-  const body = contentType.includes('application/json') ? await res.json() : undefined;
-
-  if (!res.ok) {
-    const message =
-      (body as { error?: string } | undefined)?.error ?? `Request failed (${res.status})`;
-    throw new ApiError(res.status, message, (body as { details?: unknown } | undefined)?.details);
+  if (method !== 'GET' || options.skipCache) {
+    if (method !== 'GET') invalidateApiCache();
+    return doFetch<T>(url, method, headers, bodyStr);
   }
 
-  return body as T;
+  const cached = getCache.get(path);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.promise as Promise<T>;
+  }
+
+  const promise = doFetch<T>(url, method, headers, bodyStr);
+  getCache.set(path, { promise, expiresAt: Date.now() + CACHE_TTL_MS });
+  promise.catch(() => getCache.delete(path));
+
+  return promise;
 }
