@@ -464,6 +464,44 @@ export interface SurvivalLeaderboard {
   myRuns: number;
 }
 
+// --- Fandoms -------------------------------------------------------------------------------
+
+export interface FandomInfo {
+  id: number;
+  deezerArtistId: string;
+  artistName: string;
+  artistPictureUrl: string | null;
+  fanScore: number;
+  tier: string;
+  rank: number;
+  memberCount: number;
+  joinedAt: string;
+}
+
+export interface FandomLeaderboardEntry {
+  rank: number;
+  userId: string;
+  displayName: string;
+  fanScore: number;
+  tier: string;
+  joinedAt: string;
+}
+
+export interface FandomDetail {
+  deezerArtistId: string;
+  artistName: string;
+  artistPictureUrl: string | null;
+  memberCount: number;
+  leaderboard: FandomLeaderboardEntry[];
+}
+
+export interface TopFandom {
+  deezerArtistId: string;
+  artistName: string;
+  artistPictureUrl: string | null;
+  memberCount: number;
+}
+
 // --- Admin ---------------------------------------------------------------------------------
 
 export interface AdminSong {

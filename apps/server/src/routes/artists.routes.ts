@@ -13,6 +13,7 @@ import {
   resolvePlayableRound,
 } from '../services/artistChallengeService';
 import { isFinalAttempt } from '../services/guessService';
+import { awardFanScore } from '../services/fandomService';
 import {
   getSnippetSchedule,
   snippetSecondsForGuess,
@@ -223,6 +224,11 @@ artistsRouter.post(
 
     const { sessionComplete, songsCorrect, totalGuessesUsed, timeTakenSeconds, totalRounds } =
       await recordArtistRoundResult(session.id, correct, guessNumber, snippetStageSeconds);
+
+    if (sessionComplete && identity.userId && challenge.sourceType === 'artist') {
+      const fanPoints = songsCorrect * 10;
+      void awardFanScore(identity.userId, challenge.deezerArtistId, fanPoints);
+    }
 
     res.json({
       correct,

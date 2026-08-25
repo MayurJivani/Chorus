@@ -23,6 +23,8 @@ import { MultiplayerRoomPage } from './routes/MultiplayerRoomPage';
 import { FriendsPage } from './routes/FriendsPage';
 import { ForgotPasswordPage } from './routes/ForgotPasswordPage';
 import { ProfilePage } from './routes/ProfilePage';
+import { FandomsPage } from './routes/FandomsPage';
+import { FandomDetailPage } from './routes/FandomDetailPage';
 
 const router = createBrowserRouter([
   {
@@ -45,6 +47,8 @@ const router = createBrowserRouter([
       { path: '/admin', element: <AdminPage /> },
       { path: '/multiplayer', element: <MultiplayerHomePage /> },
       { path: '/room/:code', element: <MultiplayerRoomPage /> },
+      { path: '/fandoms', element: <FandomsPage /> },
+      { path: '/fandom/:deezerArtistId', element: <FandomDetailPage /> },
       { path: '/friends', element: <FriendsPage /> },
       { path: '/forgot-password', element: <ForgotPasswordPage /> },
       { path: '/profile', element: <ProfilePage /> },

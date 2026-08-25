@@ -437,6 +437,33 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * A user's membership in an artist fandom.
+ *
+ * Joining a fandom is explicit and tracked per artist. Fan score accumulates from playing that
+ * artist's challenges; the tier is derived from the score at read time so threshold changes
+ * apply retroactively without a migration.
+ */
+export const fandomMemberships = pgTable(
+  'fandom_memberships',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deezerArtistId: text('deezer_artist_id').notNull(),
+    artistName: text('artist_name').notNull(),
+    artistPictureUrl: text('artist_picture_url'),
+    fanScore: integer('fan_score').notNull().default(0),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('fandom_memberships_user_artist_idx').on(table.userId, table.deezerArtistId),
+    index('fandom_memberships_artist_score_idx').on(table.deezerArtistId, table.fanScore),
+  ],
+);
+
 export type Song = typeof songs.$inferSelect;
 export type NewSong = typeof songs.$inferInsert;
 export type DailyPuzzle = typeof dailyPuzzles.$inferSelect;
@@ -460,3 +487,4 @@ export type Duel = typeof duels.$inferSelect;
 export type Friendship = typeof friendships.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type FandomMembership = typeof fandomMemberships.$inferSelect;

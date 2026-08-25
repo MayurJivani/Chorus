@@ -71,6 +71,13 @@
       "when": 1787438470380,
       "tag": "0009_magenta_tomorrow_man",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787617906175,
+      "tag": "0010_worried_warbound",
+      "breakpoints": true
     }
   ]
 }

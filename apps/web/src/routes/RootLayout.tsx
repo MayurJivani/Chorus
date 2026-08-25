@@ -8,6 +8,7 @@ const MOBILE_LINKS: { to: string; label: string }[] = [
   { to: '/', label: 'Home' },
   { to: '/leaderboard', label: 'Leaderboard' },
   { to: '/stats', label: 'Stats' },
+  { to: '/fandoms', label: 'Fandoms' },
   { to: '/friends', label: 'Friends' },
   { to: '/about', label: 'About' },
 ];
@@ -150,6 +151,7 @@ export function RootLayout() {
                 there. Listing the modes individually ran this bar to eight items. */}
             <NavLink to="/leaderboard">Leaderboard</NavLink>
             <NavLink to="/stats">Stats</NavLink>
+            <NavLink to="/fandoms">Fandoms</NavLink>
             <NavLink to="/friends">Friends</NavLink>
             <NavLink to="/about">About</NavLink>
 
