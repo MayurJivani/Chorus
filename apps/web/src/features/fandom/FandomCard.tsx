@@ -271,15 +271,14 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
         parent.style.transformStyle = 'flat';
       }
 
-      const { default: html2canvas } = await import('html2canvas');
-      const canvas = await html2canvas(card, {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(card, {
+        pixelRatio: 2,
         backgroundColor: '#0a0a1a',
-        scale: 2,
-        useCORS: true,
       });
       const link = document.createElement('a');
       link.download = `${membership.fandomName}-${membership.tier}-card.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = dataUrl;
       link.click();
     } catch (err) {
       console.error('Card download failed:', err);
