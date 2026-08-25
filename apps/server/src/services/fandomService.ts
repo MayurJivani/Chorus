@@ -35,7 +35,7 @@ export function tierForRank(rank: number, memberCount: number): TierInfo {
 
 const KNOWN_FANDOMS: Record<string, string> = {
   '347': 'Swifties', // Taylor Swift
-  '9761322': 'Zsquad', // Zayn
+  '9761322': 'Zquad', // Zayn
   '1562681': 'Army', // BTS
   '4050205': 'Blinks', // BLACKPINK
   '246791': 'Beliebers', // Justin Bieber
