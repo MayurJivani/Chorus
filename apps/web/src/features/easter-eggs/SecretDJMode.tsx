@@ -12,13 +12,22 @@ export function SecretDJMode() {
     style.id = 'dj-mode-style';
     style.textContent = `
       @keyframes dj-bounce {
-        0%, 100% { transform: scale(1) rotate(0deg); }
-        25% { transform: scale(1.02) rotate(-0.5deg); }
-        50% { transform: scale(0.98) rotate(0.5deg); }
-        75% { transform: scale(1.01) rotate(-0.3deg); }
+        0%, 100% { transform: translateY(0); }
+        25% { transform: translateY(-2px) rotate(-0.5deg); }
+        50% { transform: translateY(1px) rotate(0.5deg); }
+        75% { transform: translateY(-1px) rotate(-0.3deg); }
       }
-      .dj-mode > main > * {
-        animation: dj-bounce 0.6s ease-in-out infinite !important;
+      .dj-mode header nav a,
+      .dj-mode header nav button {
+        animation: dj-bounce 0.4s ease-in-out infinite !important;
+      }
+      .dj-mode header nav a:nth-child(even),
+      .dj-mode header nav button:nth-child(even) {
+        animation-delay: 0.1s !important;
+      }
+      .dj-mode header nav a:nth-child(3n),
+      .dj-mode header nav button:nth-child(3n) {
+        animation-delay: 0.2s !important;
       }
       .dj-mode header {
         background: linear-gradient(90deg,

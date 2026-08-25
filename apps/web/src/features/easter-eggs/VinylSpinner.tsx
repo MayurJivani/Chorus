@@ -16,12 +16,12 @@ export function VinylSpinner({ size = 40, text = 'Loading...' }: { size?: number
         <circle cx="20" cy="20" r="16" fill="none" stroke="#252525" strokeWidth="0.4" />
         <circle cx="20" cy="20" r="13" fill="none" stroke="#222" strokeWidth="0.4" />
         <circle cx="20" cy="20" r="10" fill="none" stroke="#252525" strokeWidth="0.4" />
-        {/* Shimmer */}
+        {/* Highlight */}
         <path
           d="M20 1 A19 19 0 0 1 39 20"
           fill="none"
-          stroke="rgba(255,255,255,0.04)"
-          strokeWidth="19"
+          stroke="rgba(255,255,255,0.06)"
+          strokeWidth="1"
         />
         {/* Center label */}
         <circle cx="20" cy="20" r="6" fill="#7c3aed" />

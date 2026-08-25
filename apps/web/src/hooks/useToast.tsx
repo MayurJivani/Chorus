@@ -41,13 +41,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.2 }}
               className={
-                'pointer-events-auto rounded-xl border px-4 py-3 text-sm font-medium shadow-lg backdrop-blur-md ' +
+                'pointer-events-auto rounded-2xl border px-5 py-3.5 text-sm font-medium shadow-2xl backdrop-blur-xl ' +
                 (t.type === 'success'
-                  ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200'
+                  ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200 shadow-emerald-500/5'
                   : t.type === 'error'
-                    ? 'border-red-500/30 bg-red-500/15 text-red-200'
-                    : 'border-white/10 bg-white/10 text-slate-200')
+                    ? 'border-red-400/20 bg-red-500/10 text-red-200 shadow-red-500/5'
+                    : 'border-white/[0.08] bg-white/[0.06] text-slate-200 shadow-black/20')
               }
+              style={{
+                backdropFilter: 'blur(20px) saturate(1.8)',
+                WebkitBackdropFilter: 'blur(20px) saturate(1.8)',
+              }}
             >
               {t.type === 'success' && '✓ '}
               {t.type === 'error' && '✕ '}

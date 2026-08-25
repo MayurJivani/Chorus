@@ -21,6 +21,7 @@ export function applySecurityMiddleware(app: Express): void {
           // prevent. Multiplayer's socket is attached to this same server, so same-origin is
           // all it ever needs — browsers match a same-origin ws://wss:// URL against 'self'.
           connectSrc: ["'self'"],
+          frameSrc: ["'self'", 'https://www.youtube.com'],
           objectSrc: ["'none'"],
           frameAncestors: ["'none'"],
           baseUri: ["'self'"],

@@ -5,6 +5,7 @@ import type { RevealedSong } from '../../types/api';
 import type { GuessAttempt } from './useGameState';
 import { SongPreviewButton } from './SongPreviewButton';
 import { buildShareText } from '../stats/shareText';
+import { renderResultCard, shareResultCard } from '../stats/resultCard';
 import { useGameConfig } from '../../hooks/useGameConfig';
 
 interface WinLoseOverlayProps {
@@ -38,6 +39,21 @@ export function WinLoseOverlay({
 
   const handleShare = async () => {
     const text = buildShareText(history, won, puzzleDate, maxGuesses);
+    const blob = await renderResultCard({
+      subject: `Daily ${puzzleDate}`,
+      headline: won ? `${history.length}/${maxGuesses}` : `X/${maxGuesses}`,
+      caption: won ? 'guesses' : 'better luck next time',
+      history: history.map((h) => h.correct),
+      totalRounds: maxGuesses,
+    });
+
+    if (blob) {
+      await shareResultCard(blob, `chorusify-${puzzleDate}.png`, text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      return;
+    }
+
     if (navigator.share) {
       try {
         await navigator.share({ text });

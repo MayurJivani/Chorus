@@ -30,6 +30,8 @@ function runNavbarCrash(logoEl: HTMLElement) {
   const logoDisc = logoEl.querySelector<HTMLElement>('span');
   if (!logoDisc) return;
 
+  const logoText = logoEl.querySelector<HTMLElement>(':scope > span:last-child');
+
   const logoRect = logoDisc.getBoundingClientRect();
 
   const clone = logoDisc.cloneNode(true) as HTMLElement;
@@ -45,6 +47,13 @@ function runNavbarCrash(logoEl: HTMLElement) {
   `;
   document.body.appendChild(clone);
   logoDisc.style.opacity = '0';
+
+  if (logoText) {
+    logoText.style.transition = 'all 0.5s ease-out';
+    logoText.style.opacity = '0';
+    logoText.style.transform = 'translateX(-20px) rotate(-5deg)';
+    logoText.style.filter = 'blur(4px)';
+  }
 
   let rotation = 0;
   let speed = 5;
@@ -127,6 +136,12 @@ function runNavbarCrash(logoEl: HTMLElement) {
       setTimeout(() => {
         clone.remove();
         logoDisc.style.opacity = '';
+        if (logoText) {
+          logoText.style.transition = 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+          logoText.style.transform = '';
+          logoText.style.opacity = '';
+          logoText.style.filter = '';
+        }
       }, 800);
     }, delay + 300);
   }, 700);

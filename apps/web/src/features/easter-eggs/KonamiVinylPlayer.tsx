@@ -92,7 +92,7 @@ export function KonamiVinylPlayer() {
               You've been rickrolled
             </motion.p>
 
-            <div className="rounded-2xl overflow-hidden shadow-2xl shadow-black/50">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-black/50">
               <iframe
                 width="560"
                 height="315"
@@ -102,22 +102,26 @@ export function KonamiVinylPlayer() {
                 referrerPolicy="strict-origin-when-cross-origin"
                 className="block"
               />
+              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }} />
             </div>
 
             <button
               onClick={handleClose}
-              className={`absolute flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white z-10 ${
+              className={`absolute flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white/80 hover:bg-black/80 hover:text-white backdrop-blur-sm border border-white/10 ${
                 dodgeCount < DODGE_POSITIONS.length
-                  ? `${DODGE_POSITIONS[dodgeCount]![0] === 'top-2' ? '-top-2' : '-bottom-2'} ${DODGE_POSITIONS[dodgeCount]![1] === 'right-2' ? '-right-2' : '-left-2'}`
-                  : '-top-2 -right-2'
+                  ? `${DODGE_POSITIONS[dodgeCount]![0] === 'top-2' ? '-top-6' : 'bottom-[-24px]'} ${DODGE_POSITIONS[dodgeCount]![1] === 'right-2' ? '-right-4' : '-left-4'}`
+                  : '-top-6 -right-4'
               }`}
-              style={{ transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+              style={{
+                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                zIndex: 20,
+              }}
             >
               {shaking ? (
                 <motion.span
                   animate={{ rotate: [0, 360, 720] }}
                   transition={{ duration: 0.4 }}
-                  className="text-xs"
+                  className="text-sm"
                 >
                   💿
                 </motion.span>
