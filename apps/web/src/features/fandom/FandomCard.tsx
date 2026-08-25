@@ -256,7 +256,21 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
   const handleDownload = async () => {
     const card = cardRef.current;
     if (!card) return;
+
+    const savedTransform = card.style.transform;
+    const savedTransition = card.style.transition;
+    const parent = card.parentElement;
+    const savedPerspective = parent?.style.perspective ?? '';
+    const savedPreserve = parent?.style.transformStyle ?? '';
+
     try {
+      card.style.transform = 'none';
+      card.style.transition = 'none';
+      if (parent) {
+        parent.style.perspective = 'none';
+        parent.style.transformStyle = 'flat';
+      }
+
       const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(card, {
         backgroundColor: '#0a0a1a',
@@ -267,8 +281,15 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
       link.download = `${membership.fandomName}-${membership.tier}-card.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-    } catch {
-      // html2canvas not available
+    } catch (err) {
+      console.error('Card download failed:', err);
+    } finally {
+      card.style.transform = savedTransform;
+      card.style.transition = savedTransition;
+      if (parent) {
+        parent.style.perspective = savedPerspective;
+        parent.style.transformStyle = savedPreserve;
+      }
     }
   };
 
