@@ -79,11 +79,12 @@ export function HomePage() {
   const { user, guestId } = useSession();
   const [stats, setStats] = useState<StatsResponse | null>(null);
 
+  const userId = user?.id;
   useEffect(() => {
     getMyStats()
       .then(setStats)
       .catch(() => setStats(null));
-  }, [user, guestId]);
+  }, [userId, guestId]);
 
   return (
     <div className="mx-auto flex min-h-full max-w-4xl flex-col items-center justify-center gap-8 px-4 py-10 text-center sm:py-14">

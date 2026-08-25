@@ -23,15 +23,16 @@ export function FriendsPage() {
   const [success, setSuccess] = useState('');
   const [chatWith, setChatWith] = useState<FriendView | null>(null);
 
+  const userId = user?.id;
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     getFriends()
       .then(setFriends)
       .catch(() => {});
     getPendingRequests()
       .then(setPending)
       .catch(() => {});
-  }, [user]);
+  }, [userId]);
 
   if (!user) {
     return (

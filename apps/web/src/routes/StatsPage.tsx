@@ -16,12 +16,13 @@ export function StatsPage() {
 
   // Re-fetch whenever the underlying identity changes (login/register/logout), not just once
   // on mount — otherwise stats from the previous session linger on screen.
+  const userId = user?.id;
   useEffect(() => {
     setLoading(true);
     getMyStats()
       .then(setStats)
       .finally(() => setLoading(false));
-  }, [user, guestId]);
+  }, [userId, guestId]);
 
   if (loading) {
     return (

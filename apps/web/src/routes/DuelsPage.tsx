@@ -40,17 +40,18 @@ export function DuelsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const userId = user?.id;
   const refresh = useCallback(async () => {
     const [ratings] = await Promise.all([getRatingLeaderboard().catch(() => null)]);
     if (ratings) setBoard(ratings.entries);
-    if (!user) return;
+    if (!userId) return;
     const [minesafe, opensafe] = await Promise.all([
       getMyDuels().catch(() => []),
       getOpenDuels().catch(() => []),
     ]);
     setMine(minesafe);
     setOpen(opensafe);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     if (loading) return;

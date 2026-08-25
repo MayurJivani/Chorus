@@ -9,16 +9,17 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileData | null>(null);
 
+  const userId = user?.id;
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !userId) {
       navigate('/login');
       return;
     }
-    if (user)
+    if (userId)
       getProfile()
         .then(setProfile)
         .catch(() => {});
-  }, [user, loading, navigate]);
+  }, [userId, loading, navigate]);
 
   if (loading || !user || !profile) {
     return (
