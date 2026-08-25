@@ -140,13 +140,52 @@ export async function leaveFandom(userId: string, deezerArtistId: string): Promi
 }
 
 export async function getUserFandoms(userId: string): Promise<FandomInfo[]> {
-  const rows = await db
-    .select()
-    .from(fandomMemberships)
-    .where(eq(fandomMemberships.userId, userId))
-    .orderBy(desc(fandomMemberships.fanScore));
+  const rows = await db.execute<{
+    id: number;
+    user_id: string;
+    deezer_artist_id: string;
+    artist_name: string;
+    artist_picture_url: string | null;
+    fan_score: number;
+    joined_at: Date;
+    rank: number;
+    member_count: number;
+  }>(sql`
+    SELECT
+      m.id,
+      m.user_id,
+      m.deezer_artist_id,
+      m.artist_name,
+      m.artist_picture_url,
+      m.fan_score,
+      m.joined_at,
+      (SELECT COUNT(*)::int + 1 FROM fandom_memberships o
+       WHERE o.deezer_artist_id = m.deezer_artist_id AND o.fan_score > m.fan_score) AS rank,
+      (SELECT COUNT(*)::int FROM fandom_memberships o
+       WHERE o.deezer_artist_id = m.deezer_artist_id) AS member_count
+    FROM fandom_memberships m
+    WHERE m.user_id = ${userId}
+    ORDER BY m.fan_score DESC
+  `);
 
-  return Promise.all(rows.map(buildFandomInfo));
+  return rows.map((r) => {
+    const t = tierForRank(r.rank, r.member_count);
+    return {
+      id: r.id,
+      deezerArtistId: r.deezer_artist_id,
+      artistName: r.artist_name,
+      artistPictureUrl: r.artist_picture_url,
+      fandomName: fandomName(r.deezer_artist_id, r.artist_name),
+      fanCode: fanCode(r.id, r.deezer_artist_id),
+      fanScore: r.fan_score,
+      tier: t.name,
+      rarity: t.rarity,
+      cardStyle: t.cardStyle,
+      rank: r.rank,
+      memberCount: r.member_count,
+      joinedAt: new Date(r.joined_at).toISOString(),
+    };
+  });
 }
 
 export async function getMembership(

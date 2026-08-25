@@ -19,27 +19,42 @@
 
 ## 🎶 Modes
 
-**Daily** — One song. Dropped at midnight UTC. The whole world guesses the same track, at the same time. Did you nail it before your friends woke up?
+**Daily Puzzle** — One song. Dropped at midnight UTC. The whole world guesses the same track, at the same time.
+
+**Daily Challenge** — Ten songs drawn from across eras and genres. One attempt per day, same songs for everyone. The Wordle of music.
 
 **Artist** — Pick a discography, any discography, and go 10 rounds deep. Type it out from memory or pick from the lineup. Real leaderboards, per artist, for the true completionists.
+
+**Categories** — Top hits by year (2000-2025), genre (Pop, Rock, Rap, K-Pop, Bollywood...), or the worldwide chart. Hundreds of playlists.
 
 **Multiplayer** — Up to 8 in a room, real-time, no sign-up. Songs unfold second by second (`1s → 2s → 4s → 7s → 11s → 16s`), and _you_ decide how much you need to hear before you buzz in.
 
 **Survival** — One song after another, no end in sight, until the one that finally gets you. How deep does your crate go?
 
-**Era** — Strip it back to a single decade. '60s soul, '90s grunge, 2000s pop, wherever your ear was raised.
+**Guess the Year** — Hear a song and place it in time. How well do you know your decades?
+
+**Duels** — Rated 1v1. Both players get the same ten songs. Elo ratings, global leaderboard.
 
 _Karaoke covers, live cuts, and remixes don't make the bank. Originals only!!_
+
+---
+
+## 🃏 Fandoms
+
+Join your favorite artist's fandom and earn your place on the leaderboard. Every challenge you complete earns fan score, which determines your tier — from Newcomer all the way up to Diamond.
+
+Collect interactive cards with holographic effects, media decorations, and download them as PNGs. Eight tiers: **Diamond** · **Platinum** · **Gold** · **Silver** · **Bronze** · **Fan** · **Listener** · **Newcomer**
 
 ---
 
 ## 🛠 Built With
 
 ```
-apps/web     React 19 · Vite 8 · TypeScript · Tailwind v4 · Framer Motion
+apps/web     React 18 · Vite · TypeScript · Tailwind CSS · Framer Motion
 apps/server  Express 5 · TypeScript · PostgreSQL · Drizzle ORM · postgres.js
 realtime     WebSockets (ws), same-origin, session-authenticated
 music data   Deezer API, 30s previews, thousands of tracks deep
+infra        Docker Compose · Caddy reverse proxy
 ```
 
 ---

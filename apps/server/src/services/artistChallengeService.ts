@@ -242,6 +242,9 @@ export async function getSessionOrStartNew(
   playAgain = false,
   /** If set, load this specific challenge (shared link flow) rather than the player's most recent one. */
   sharedChallengeId?: number,
+  /** If set, use this exact date string instead of generating a UUID-suffixed one. Used by the
+   *  daily challenge so every player shares the same challenge for a given calendar day. */
+  fixedChallengeDate?: string,
 ): Promise<ActiveSessionWithChallengeAndTracks> {
   // Shared-link flow: load a specific challenge by ID, create a fresh session for this player if needed.
   if (sharedChallengeId != null && !playAgain) {
@@ -298,8 +301,8 @@ export async function getSessionOrStartNew(
     }
   }
 
-  // Generate a unique challengeDate using Date + randomUUID so it's a completely new, randomized challenge every time.
-  const challengeDate = `${new Date().toISOString().split('T')[0]}_${crypto.randomUUID()}`;
+  const challengeDate =
+    fixedChallengeDate ?? `${new Date().toISOString().split('T')[0]}_${crypto.randomUUID()}`;
   const { challenge, tracks } = await getOrCreateChallenge(source, challengeDate);
   const session = await getOrCreateSessionProgress(challenge.id, identity);
 

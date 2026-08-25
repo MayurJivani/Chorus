@@ -34,6 +34,12 @@ function AnimatedWaveform({ isPlaying = true }: { isPlaying?: boolean }) {
  */
 const MODES: { to: string; icon: string; title: string; blurb: string }[] = [
   {
+    to: '/daily',
+    icon: '📆',
+    title: 'Daily Challenge',
+    blurb: 'Ten songs, one chance per day. Same for everyone.',
+  },
+  {
     to: '/artist',
     icon: '🎤',
     title: 'Artist Mode',

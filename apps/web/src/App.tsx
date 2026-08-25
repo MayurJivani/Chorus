@@ -25,6 +25,7 @@ import { ForgotPasswordPage } from './routes/ForgotPasswordPage';
 import { ProfilePage } from './routes/ProfilePage';
 import { FandomsPage } from './routes/FandomsPage';
 import { FandomDetailPage } from './routes/FandomDetailPage';
+import { DailyChallengePage } from './routes/DailyChallengePage';
 
 const router = createBrowserRouter([
   {
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
       { path: '/category/:categoryId/play', element: <CategoryPlayPage /> },
       { path: '/survival', element: <SurvivalPage /> },
       { path: '/era', element: <EraPlayPage /> },
+      { path: '/daily', element: <DailyChallengePage /> },
       { path: '/duels', element: <DuelsPage /> },
       { path: '/admin', element: <AdminPage /> },
       { path: '/multiplayer', element: <MultiplayerHomePage /> },

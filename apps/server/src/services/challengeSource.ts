@@ -16,7 +16,7 @@ import { getArtistCatalog } from './artistCatalogService';
 import { getCategoryCatalog } from './categoryCatalogService';
 import { findCategory } from './categories';
 
-export type ChallengeSourceType = 'artist' | 'category' | 'era';
+export type ChallengeSourceType = 'artist' | 'category' | 'era' | 'daily';
 
 export interface ChallengeSource {
   sourceType: ChallengeSourceType;
@@ -64,5 +64,41 @@ export function resolveCategorySource(categoryId: string): ChallengeSource {
     pictureUrl: null,
     includeFeatures: false,
     loadCatalog: () => getCategoryCatalog(category.id),
+  };
+}
+
+const DAILY_POOL_CATEGORIES = [
+  'now-worldwide',
+  'year-2025',
+  'year-2023',
+  'year-2020',
+  'year-2015',
+  'year-2010',
+  'year-2005',
+  'year-2000',
+];
+
+export function resolveDailySource(_dateStr: string): ChallengeSource {
+  return {
+    sourceType: 'daily',
+    sourceId: 'daily',
+    label: 'Daily Challenge',
+    pictureUrl: null,
+    includeFeatures: false,
+    loadCatalog: async () => {
+      const validIds = DAILY_POOL_CATEGORIES.filter((id) => findCategory(id));
+      const pools = await Promise.all(validIds.map((id) => getCategoryCatalog(id)));
+      const seen = new Set<string>();
+      const merged: ArtistTrack[] = [];
+      for (const pool of pools) {
+        for (const track of pool) {
+          if (!seen.has(track.deezerTrackId)) {
+            seen.add(track.deezerTrackId);
+            merged.push(track);
+          }
+        }
+      }
+      return merged;
+    },
   };
 }
