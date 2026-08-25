@@ -20,7 +20,7 @@ export function MultiplayerHomePage() {
   const [artist, setArtist] = useState<ArtistSearchResult | null>(null);
   const [category, setCategory] = useState<Category | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [gameMode, setGameMode] = useState<MultiplayerGameMode>('classic');
+  const [gameMode, setGameMode] = useState<MultiplayerGameMode>('speed');
   const [guessMode, setGuessMode] = useState<MultiplayerGuessMode>('search');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
