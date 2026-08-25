@@ -13,8 +13,8 @@ export interface TierInfo {
 
 const TIERS: TierInfo[] = [
   { name: 'Diamond', rarity: 'Holographic Vinyl', cardStyle: 'holographic', percentile: 0.01 },
-  { name: 'Platinum', rarity: 'Gold Vinyl', cardStyle: 'gold', percentile: 0.1 },
-  { name: 'Gold', rarity: 'Chrome Cassette', cardStyle: 'silver', percentile: 1 },
+  { name: 'Platinum', rarity: 'Chrome Cassette', cardStyle: 'silver', percentile: 0.1 },
+  { name: 'Gold', rarity: 'Gold Vinyl', cardStyle: 'gold', percentile: 1 },
   { name: 'Silver', rarity: 'Colored Vinyl', cardStyle: 'gradient', percentile: 5 },
   { name: 'Bronze', rarity: 'Cassette Tape', cardStyle: 'warm', percentile: 10 },
   { name: 'Fan', rarity: 'CD Disc', cardStyle: 'shine', percentile: 25 },

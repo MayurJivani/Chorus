@@ -116,13 +116,15 @@ function mediaDecoration(cardStyle: string) {
 
 // --- Sparkle overlay for higher tiers ---
 
-function SparkleOverlay({ intensity }: { intensity: number }) {
+function SparkleOverlay({ intensity, prismatic }: { intensity: number; prismatic?: boolean }) {
+  const colors = ['#fff', '#f0abfc', '#67e8f9', '#fde047', '#4ade80', '#fb923c'];
   const sparkles = Array.from({ length: intensity }, (_, i) => ({
     id: i,
     left: `${(i * 37 + 13) % 100}%`,
     top: `${(i * 53 + 7) % 100}%`,
     delay: `${(i * 0.4) % 3}s`,
-    size: 2 + (i % 3),
+    size: prismatic ? 2 + (i % 4) : 2 + (i % 3),
+    color: prismatic ? colors[i % colors.length] : '#fff',
   }));
 
   return (
@@ -137,6 +139,8 @@ function SparkleOverlay({ intensity }: { intensity: number }) {
             width: s.size,
             height: s.size,
             animationDelay: s.delay,
+            background: s.color,
+            boxShadow: `0 0 4px 1px ${s.color}99`,
           }}
         />
       ))}
@@ -161,14 +165,14 @@ interface CardStyleDef {
 
 const CARD_STYLES: Record<string, CardStyleDef> = {
   holographic: {
-    bg: 'linear-gradient(135deg, #2d1b69 0%, #1a0a3e 20%, #0d2847 40%, #1b3a5c 60%, #2d1b69 80%, #3d1f8a 100%)',
+    bg: 'linear-gradient(135deg, #1a0533 0%, #0f0a2e 15%, #120d3a 30%, #0a1628 45%, #0d0b2f 60%, #1a0533 75%, #0f0a2e 90%, #1a0533 100%)',
     border: 'border-[2px] border-transparent',
     badge: 'bg-gradient-to-r from-fuchsia-500 via-cyan-400 to-yellow-400 text-white',
-    glowColor: 'rgba(168, 85, 247, 0.4)',
-    sparkleCount: 20,
+    glowColor: 'rgba(192, 132, 252, 0.6)',
+    sparkleCount: 30,
     useArtistHolo: true,
-    canvasGrad: ['#2d1b69', '#0d2847', '#3d1f8a'],
-    canvasBorder: '#a855f7',
+    canvasGrad: ['#1a0533', '#0d0b2f', '#1a0533'],
+    canvasBorder: '#c084fc',
     canvasBadgeBg: '#d946ef',
     canvasBadgeText: '#fff',
   },
@@ -487,10 +491,12 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
     }
   };
 
+  const isDiamond = membership.cardStyle === 'holographic';
   const holoX = mousePos.x * 100;
   const holoY = mousePos.y * 100;
-  const rotateX = isHovered ? (mousePos.y - 0.5) * -15 : 0;
-  const rotateY = isHovered ? (mousePos.x - 0.5) * 15 : 0;
+  const tiltStrength = isDiamond ? 20 : 15;
+  const rotateX = isHovered ? (mousePos.y - 0.5) * -tiltStrength : 0;
+  const rotateY = isHovered ? (mousePos.x - 0.5) * tiltStrength : 0;
 
   const hasHoloEffect = ['holographic', 'gold', 'silver', 'gradient', 'warm'].includes(
     membership.cardStyle,
@@ -499,7 +505,7 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
 
   const borderGradient =
     membership.cardStyle === 'holographic'
-      ? `linear-gradient(${rainbowAngle + 90}deg, #f0abfc, #67e8f9, #fde047, #f0abfc)`
+      ? `linear-gradient(${rainbowAngle + 90}deg, #f0abfc, #67e8f9, #4ade80, #fde047, #fb923c, #f0abfc)`
       : membership.cardStyle === 'gold'
         ? `linear-gradient(${rainbowAngle + 90}deg, #fbbf24, #f59e0b, #d97706, #fbbf24)`
         : membership.cardStyle === 'silver'
@@ -529,8 +535,12 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
             transform: `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
             transition: isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out',
             boxShadow: isHovered
-              ? `0 20px 60px ${style.glowColor}, 0 0 40px ${style.glowColor}`
-              : `0 10px 30px rgba(0,0,0,0.5)`,
+              ? isDiamond
+                ? `0 25px 80px ${style.glowColor}, 0 0 60px ${style.glowColor}, 0 0 120px rgba(168,85,247,0.15)`
+                : `0 20px 60px ${style.glowColor}, 0 0 40px ${style.glowColor}`
+              : isDiamond
+                ? `0 12px 40px rgba(0,0,0,0.6), 0 0 20px rgba(192,132,252,0.15)`
+                : `0 10px 30px rgba(0,0,0,0.5)`,
           }}
         >
           <div
@@ -546,13 +556,38 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
               <div
                 className="absolute inset-0 pointer-events-none z-[1] mix-blend-overlay"
                 style={{
-                  background: `radial-gradient(circle at ${holoX}% ${holoY}%,
-                  rgba(255,0,255,${isHovered ? 0.25 : 0.08}) 0%,
-                  rgba(0,255,255,${isHovered ? 0.2 : 0.06}) 25%,
-                  rgba(255,255,0,${isHovered ? 0.15 : 0.04}) 50%,
-                  rgba(255,0,255,${isHovered ? 0.1 : 0.02}) 75%,
-                  transparent 100%)`,
+                  background: isDiamond
+                    ? `radial-gradient(circle at ${holoX}% ${holoY}%,
+                      rgba(255,0,255,${isHovered ? 0.4 : 0.12}) 0%,
+                      rgba(0,255,255,${isHovered ? 0.35 : 0.1}) 20%,
+                      rgba(255,255,0,${isHovered ? 0.3 : 0.08}) 40%,
+                      rgba(0,255,128,${isHovered ? 0.2 : 0.05}) 60%,
+                      rgba(255,0,255,${isHovered ? 0.15 : 0.03}) 80%,
+                      transparent 100%)`
+                    : `radial-gradient(circle at ${holoX}% ${holoY}%,
+                      rgba(255,0,255,${isHovered ? 0.25 : 0.08}) 0%,
+                      rgba(0,255,255,${isHovered ? 0.2 : 0.06}) 25%,
+                      rgba(255,255,0,${isHovered ? 0.15 : 0.04}) 50%,
+                      rgba(255,0,255,${isHovered ? 0.1 : 0.02}) 75%,
+                      transparent 100%)`,
                   opacity: isHovered ? 1 : 0.5,
+                  transition: 'opacity 0.3s',
+                }}
+              />
+            )}
+
+            {/* Diamond prismatic sweep — extra layer of iridescence */}
+            {isDiamond && (
+              <div
+                className="absolute inset-0 pointer-events-none z-[1] mix-blend-color-dodge"
+                style={{
+                  background: `conic-gradient(from ${rainbowAngle}deg at ${holoX}% ${holoY}%,
+                    rgba(255,0,128,${isHovered ? 0.12 : 0.03}),
+                    rgba(0,200,255,${isHovered ? 0.12 : 0.03}),
+                    rgba(255,220,0,${isHovered ? 0.12 : 0.03}),
+                    rgba(0,255,128,${isHovered ? 0.12 : 0.03}),
+                    rgba(200,0,255,${isHovered ? 0.12 : 0.03}),
+                    rgba(255,0,128,${isHovered ? 0.12 : 0.03}))`,
                   transition: 'opacity 0.3s',
                 }}
               />
@@ -563,12 +598,19 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
               <div
                 className="absolute inset-0 pointer-events-none z-[1]"
                 style={{
-                  background: `linear-gradient(${rainbowAngle}deg,
-                  transparent 0%,
-                  rgba(255,255,255,0.08) 40%,
-                  rgba(255,255,255,0.15) 50%,
-                  rgba(255,255,255,0.08) 60%,
-                  transparent 100%)`,
+                  background: isDiamond
+                    ? `linear-gradient(${rainbowAngle}deg,
+                      transparent 0%,
+                      rgba(255,255,255,0.12) 35%,
+                      rgba(255,255,255,0.25) 50%,
+                      rgba(255,255,255,0.12) 65%,
+                      transparent 100%)`
+                    : `linear-gradient(${rainbowAngle}deg,
+                      transparent 0%,
+                      rgba(255,255,255,0.08) 40%,
+                      rgba(255,255,255,0.15) 50%,
+                      rgba(255,255,255,0.08) 60%,
+                      transparent 100%)`,
                   backgroundSize: '200% 200%',
                   backgroundPosition: `${holoX}% ${holoY}%`,
                 }}
@@ -583,16 +625,20 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
                   backgroundImage: `url(${membership.artistPictureUrl})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
-                  opacity: isHovered ? 0.18 : 0.08,
-                  filter: `blur(2px) saturate(1.5) hue-rotate(${mousePos.x * 60 - 30}deg)`,
-                  mixBlendMode: 'luminosity',
+                  opacity: isDiamond ? (isHovered ? 0.25 : 0.12) : isHovered ? 0.18 : 0.08,
+                  filter: isDiamond
+                    ? `blur(1px) saturate(2) hue-rotate(${mousePos.x * 80 - 40}deg) brightness(1.2)`
+                    : `blur(2px) saturate(1.5) hue-rotate(${mousePos.x * 60 - 30}deg)`,
+                  mixBlendMode: isDiamond ? 'hard-light' : 'luminosity',
                   transition: 'opacity 0.3s, filter 0.2s',
                 }}
               />
             )}
 
             {/* Sparkle overlay */}
-            {style.sparkleCount > 0 && <SparkleOverlay intensity={style.sparkleCount} />}
+            {style.sparkleCount > 0 && (
+              <SparkleOverlay intensity={style.sparkleCount} prismatic={isDiamond} />
+            )}
 
             {/* Media decoration (vinyl/cassette/CD/ticket) */}
             {mediaDecoration(membership.cardStyle)}
@@ -679,9 +725,7 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
 
       <style>{`
         .sparkle-dot {
-          background: white;
           animation: sparkle-pulse 2s ease-in-out infinite;
-          box-shadow: 0 0 4px 1px rgba(255,255,255,0.6);
         }
         @keyframes sparkle-pulse {
           0%, 100% { opacity: 0; transform: scale(0); }
