@@ -4,6 +4,14 @@ const SILENT_WAV =
   'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
 let mediaUnlocked = false;
 
+function deterministicRandom(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
+  }
+  return ((h >>> 0) % 10000) / 10000;
+}
+
 function unlockMedia() {
   if (mediaUnlocked) return;
   const a = new Audio(SILENT_WAV);
@@ -109,7 +117,7 @@ export function SnippetPlayer({
             ? Math.min(fixedOffsetSeconds, Math.max(0, duration - 1))
             : fixedOffsetSeconds;
       } else if (isFinite(duration) && duration > 16) {
-        seekOffsetRef.current = Math.random() * (duration - 16);
+        seekOffsetRef.current = deterministicRandom(previewUrl) * (duration - 16);
       } else {
         seekOffsetRef.current = 0;
       }

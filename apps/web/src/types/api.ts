@@ -471,8 +471,12 @@ export interface FandomInfo {
   deezerArtistId: string;
   artistName: string;
   artistPictureUrl: string | null;
+  fandomName: string;
+  fanCode: string;
   fanScore: number;
   tier: string;
+  rarity: string;
+  cardStyle: string;
   rank: number;
   memberCount: number;
   joinedAt: string;
@@ -484,6 +488,8 @@ export interface FandomLeaderboardEntry {
   displayName: string;
   fanScore: number;
   tier: string;
+  rarity: string;
+  cardStyle: string;
   joinedAt: string;
 }
 
@@ -491,6 +497,7 @@ export interface FandomDetail {
   deezerArtistId: string;
   artistName: string;
   artistPictureUrl: string | null;
+  fandomName: string;
   memberCount: number;
   leaderboard: FandomLeaderboardEntry[];
 }
@@ -499,6 +506,7 @@ export interface TopFandom {
   deezerArtistId: string;
   artistName: string;
   artistPictureUrl: string | null;
+  fandomName: string;
   memberCount: number;
 }
 

@@ -150,13 +150,18 @@ export function FandomsPage() {
                   </span>
                 )}
                 <div className="flex flex-1 flex-col overflow-hidden">
-                  <span className="truncate text-sm font-semibold text-white">{f.artistName}</span>
+                  <span className="truncate text-sm font-semibold text-white">{f.fandomName}</span>
                   <span className="text-[11px] text-slate-400">
-                    {f.fanScore} pts &middot; #{f.rank} of {f.memberCount}
+                    {f.fanScore} pts &middot; {f.tier} &middot; #{f.rank}
                   </span>
                 </div>
-                <span className="shrink-0 rounded-full bg-chorus-accent/20 px-2 py-0.5 text-[10px] font-bold text-chorus-accent">
-                  {f.tier}
+                <span
+                  className={
+                    'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' +
+                    tierBadgeClass(f.cardStyle)
+                  }
+                >
+                  {f.rarity}
                 </span>
               </Link>
             ))}
@@ -189,9 +194,10 @@ export function FandomsPage() {
                   </span>
                 )}
                 <div className="flex flex-1 flex-col overflow-hidden">
-                  <span className="truncate text-sm font-semibold text-white">{f.artistName}</span>
+                  <span className="truncate text-sm font-semibold text-white">{f.fandomName}</span>
                   <span className="text-[11px] text-slate-400">
-                    {f.memberCount} {f.memberCount === 1 ? 'member' : 'members'}
+                    {f.artistName} &middot; {f.memberCount}{' '}
+                    {f.memberCount === 1 ? 'member' : 'members'}
                   </span>
                 </div>
               </Link>
@@ -207,4 +213,25 @@ export function FandomsPage() {
       )}
     </div>
   );
+}
+
+function tierBadgeClass(cardStyle: string): string {
+  switch (cardStyle) {
+    case 'holographic':
+      return 'bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 text-white';
+    case 'gold':
+      return 'bg-gradient-to-r from-yellow-500 to-amber-400 text-black';
+    case 'silver':
+      return 'bg-gradient-to-r from-slate-300 to-slate-400 text-black';
+    case 'gradient':
+      return 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white';
+    case 'warm':
+      return 'bg-gradient-to-r from-orange-500 to-amber-600 text-white';
+    case 'shine':
+      return 'bg-chorus-accent/20 text-chorus-accent';
+    case 'flat':
+      return 'bg-white/10 text-slate-300';
+    default:
+      return 'bg-white/5 text-slate-400';
+  }
 }

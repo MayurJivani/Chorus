@@ -2,19 +2,80 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { fandomMemberships, users } from '../db/schema';
 
-// --- Percentile tiers --------------------------------------------------------------------
+// --- Tiers -------------------------------------------------------------------------------
 
-export function tierLabel(rank: number, memberCount: number): string {
-  if (memberCount <= 1) return 'Member';
+export interface TierInfo {
+  name: string;
+  rarity: string;
+  cardStyle: string;
+  percentile: number;
+}
+
+const TIERS: TierInfo[] = [
+  { name: 'Diamond', rarity: 'Holographic Vinyl', cardStyle: 'holographic', percentile: 0.01 },
+  { name: 'Platinum', rarity: 'Gold Vinyl', cardStyle: 'gold', percentile: 0.1 },
+  { name: 'Gold', rarity: 'Chrome Cassette', cardStyle: 'silver', percentile: 1 },
+  { name: 'Silver', rarity: 'Colored Vinyl', cardStyle: 'gradient', percentile: 5 },
+  { name: 'Bronze', rarity: 'Cassette Tape', cardStyle: 'warm', percentile: 10 },
+  { name: 'Fan', rarity: 'CD Disc', cardStyle: 'shine', percentile: 25 },
+  { name: 'Listener', rarity: 'Standard Vinyl', cardStyle: 'flat', percentile: 50 },
+  { name: 'Newcomer', rarity: 'Ticket Stub', cardStyle: 'basic', percentile: 100 },
+];
+
+export function tierForRank(rank: number, memberCount: number): TierInfo {
+  if (memberCount <= 1) return TIERS[TIERS.length - 1]!;
   const percentile = (rank / memberCount) * 100;
-  if (percentile <= 0.01) return 'Top 0.01%';
-  if (percentile <= 0.1) return 'Top 0.1%';
-  if (percentile <= 1) return 'Top 1%';
-  if (percentile <= 5) return 'Top 5%';
-  if (percentile <= 10) return 'Top 10%';
-  if (percentile <= 25) return 'Top 25%';
-  if (percentile <= 50) return 'Top 50%';
-  return 'Member';
+  for (const tier of TIERS) {
+    if (percentile <= tier.percentile) return tier;
+  }
+  return TIERS[TIERS.length - 1]!;
+}
+
+// --- Fandom names ------------------------------------------------------------------------
+
+const KNOWN_FANDOMS: Record<string, string> = {
+  '347': 'Swifties', // Taylor Swift
+  '9761322': 'Zsquad', // Zayn
+  '1562681': 'Army', // BTS
+  '4050205': 'Blinks', // BLACKPINK
+  '246791': 'Beliebers', // Justin Bieber
+  '268': 'Selenators', // Selena Gomez
+  '1188': 'Barbz', // Nicki Minaj
+  '288166': 'Directioners', // One Direction
+  '144227': 'Arianators', // Ariana Grande
+  '13': 'Navy', // Rihanna
+  '1': 'Beyhive', // Beyonce
+  '75': 'Monsters', // Lady Gaga
+  '12246': 'Swifties', // Taylor Swift
+  '239': 'Lovatics', // Demi Lovato
+  '4495513': 'Once', // TWICE
+  '5313805': 'Stays', // Stray Kids
+  '384236': 'Harries', // Harry Styles
+  '4523895': 'Midzy', // ITZY
+  '9635624': 'Engene', // ENHYPEN
+  '5080602': 'Atiny', // ATEEZ
+  '5552611': 'Carats', // SEVENTEEN
+  '14890259': 'Moas', // TXT
+  '264': 'KatyCats', // Katy Perry
+  '145': 'Mixers', // Little Mix
+  '4403939': 'Exols', // EXO
+  '110': 'Lambs', // Mariah Carey
+  '16879': 'Echelon', // Thirty Seconds to Mars
+  '5': 'Deadheads', // Grateful Dead
+  '15166': 'Beatlemaniacs', // The Beatles
+  '27': 'Stans', // Eminem
+  '130': 'The Hive', // Destiny's Child
+};
+
+export function fandomName(deezerArtistId: string, artistName: string): string {
+  return KNOWN_FANDOMS[deezerArtistId] ?? `${artistName} Fans`;
+}
+
+export function fanCode(membershipId: number, deezerArtistId: string): string {
+  const base = (membershipId * 2654435761) >>> 0;
+  const hex = base.toString(16).toUpperCase().padStart(8, '0');
+  const prefix = deezerArtistId.slice(-3).padStart(3, '0');
+  return `CHR-${prefix}-${hex}`;
 }
 
 // --- Membership --------------------------------------------------------------------------
@@ -24,8 +85,12 @@ export interface FandomInfo {
   deezerArtistId: string;
   artistName: string;
   artistPictureUrl: string | null;
+  fandomName: string;
+  fanCode: string;
   fanScore: number;
   tier: string;
+  rarity: string;
+  cardStyle: string;
   rank: number;
   memberCount: number;
   joinedAt: string;
@@ -110,6 +175,8 @@ export interface FandomLeaderboardEntry {
   displayName: string;
   fanScore: number;
   tier: string;
+  rarity: string;
+  cardStyle: string;
   joinedAt: string;
 }
 
@@ -117,6 +184,7 @@ export interface FandomDetail {
   deezerArtistId: string;
   artistName: string;
   artistPictureUrl: string | null;
+  fandomName: string;
   memberCount: number;
   leaderboard: FandomLeaderboardEntry[];
 }
@@ -154,15 +222,21 @@ export async function getFandomDetail(
     deezerArtistId,
     artistName: first.artistName,
     artistPictureUrl: first.artistPictureUrl,
+    fandomName: fandomName(deezerArtistId, first.artistName),
     memberCount: total,
-    leaderboard: rows.map((r, i) => ({
-      rank: i + 1,
-      userId: r.userId,
-      displayName: r.displayName,
-      fanScore: r.fanScore,
-      tier: tierLabel(i + 1, total),
-      joinedAt: r.joinedAt.toISOString(),
-    })),
+    leaderboard: rows.map((r, i) => {
+      const t = tierForRank(i + 1, total);
+      return {
+        rank: i + 1,
+        userId: r.userId,
+        displayName: r.displayName,
+        fanScore: r.fanScore,
+        tier: t.name,
+        rarity: t.rarity,
+        cardStyle: t.cardStyle,
+        joinedAt: r.joinedAt.toISOString(),
+      };
+    }),
   };
 }
 
@@ -195,6 +269,7 @@ export interface TopFandom {
   deezerArtistId: string;
   artistName: string;
   artistPictureUrl: string | null;
+  fandomName: string;
   memberCount: number;
 }
 
@@ -211,7 +286,10 @@ export async function getTopFandoms(limit = 20): Promise<TopFandom[]> {
     .orderBy(sql`COUNT(*) DESC`)
     .limit(limit);
 
-  return rows;
+  return rows.map((r) => ({
+    ...r,
+    fandomName: fandomName(r.deezerArtistId, r.artistName),
+  }));
 }
 
 // --- Helpers -----------------------------------------------------------------------------
@@ -235,13 +313,19 @@ async function buildFandomInfo(row: typeof fandomMemberships.$inferSelect): Prom
   const rank = rankRow?.rank ?? 1;
   const members = countRow?.count ?? 1;
 
+  const t = tierForRank(rank, members);
+
   return {
     id: row.id,
     deezerArtistId: row.deezerArtistId,
     artistName: row.artistName,
     artistPictureUrl: row.artistPictureUrl,
+    fandomName: fandomName(row.deezerArtistId, row.artistName),
+    fanCode: fanCode(row.id, row.deezerArtistId),
     fanScore: row.fanScore,
-    tier: tierLabel(rank, members),
+    tier: t.name,
+    rarity: t.rarity,
+    cardStyle: t.cardStyle,
     rank,
     memberCount: members,
     joinedAt: row.joinedAt.toISOString(),

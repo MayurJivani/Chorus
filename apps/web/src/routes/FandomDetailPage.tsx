@@ -3,7 +3,29 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
 import { getFandomDetail, getMembership, joinFandom, leaveFandom } from '../api/fandom';
+import { FandomCard } from '../features/fandom/FandomCard';
 import type { FandomDetail, FandomInfo } from '../types/api';
+
+function tierBadgeClass(cardStyle: string): string {
+  switch (cardStyle) {
+    case 'holographic':
+      return 'bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 text-white';
+    case 'gold':
+      return 'bg-gradient-to-r from-yellow-500 to-amber-400 text-black';
+    case 'silver':
+      return 'bg-gradient-to-r from-slate-300 to-slate-400 text-black';
+    case 'gradient':
+      return 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white';
+    case 'warm':
+      return 'bg-gradient-to-r from-orange-500 to-amber-600 text-white';
+    case 'shine':
+      return 'bg-chorus-accent/25 text-chorus-accent';
+    case 'flat':
+      return 'bg-white/10 text-slate-300';
+    default:
+      return 'bg-white/5 text-slate-400';
+  }
+}
 
 export function FandomDetailPage() {
   const { deezerArtistId } = useParams<{ deezerArtistId: string }>();
@@ -13,6 +35,7 @@ export function FandomDetailPage() {
   const [membership, setMembership] = useState<FandomInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
+  const [showCard, setShowCard] = useState(false);
 
   useEffect(() => {
     if (!deezerArtistId) return;
@@ -58,6 +81,7 @@ export function FandomDetailPage() {
     try {
       await leaveFandom(deezerArtistId);
       setMembership(null);
+      setShowCard(false);
       const d = await getFandomDetail(deezerArtistId).catch(() => null);
       if (d) setDetail(d);
     } finally {
@@ -111,10 +135,11 @@ export function FandomDetailPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-xl font-extrabold text-white"
           >
-            {detail.artistName}
+            {detail.fandomName}
           </motion.h1>
           <span className="text-sm text-slate-400">
-            {detail.memberCount} {detail.memberCount === 1 ? 'member' : 'members'}
+            {detail.artistName} &middot; {detail.memberCount}{' '}
+            {detail.memberCount === 1 ? 'member' : 'members'}
           </span>
         </div>
       </div>
@@ -125,22 +150,37 @@ export function FandomDetailPage() {
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-white">
-                You're #{membership.rank} of {membership.memberCount}
+                {membership.tier} &middot; #{membership.rank} of {membership.memberCount}
               </span>
               <span className="text-xs text-slate-400">
                 {membership.fanScore} fan points &middot;{' '}
-                <span className="text-chorus-accent">{membership.tier}</span>
+                <span
+                  className={
+                    'inline-block rounded-full px-1.5 py-0.5 text-[9px] font-bold ' +
+                    tierBadgeClass(membership.cardStyle)
+                  }
+                >
+                  {membership.rarity}
+                </span>
               </span>
             </div>
-            <button
-              onClick={handleLeave}
-              disabled={acting}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-red-400 hover:border-red-400/30"
-            >
-              {acting ? '...' : 'Leave'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCard((v) => !v)}
+                className="rounded-lg border border-chorus-accent/30 px-3 py-1.5 text-xs font-medium text-chorus-accent transition-colors hover:bg-chorus-accent/10"
+              >
+                {showCard ? 'Hide card' : 'View card'}
+              </button>
+              <button
+                onClick={handleLeave}
+                disabled={acting}
+                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:text-red-400 hover:border-red-400/30"
+              >
+                {acting ? '...' : 'Leave'}
+              </button>
+            </div>
           </div>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
             <Link
               to={`/artist/${deezerArtistId}/play`}
               className="inline-block rounded-lg bg-chorus-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-chorus-accent/80"
@@ -155,8 +195,19 @@ export function FandomDetailPage() {
           disabled={acting}
           className="rounded-xl bg-chorus-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-chorus-accent/80 disabled:opacity-50"
         >
-          {acting ? 'Joining...' : 'Join this fandom'}
+          {acting ? 'Joining...' : `Join ${detail.fandomName}`}
         </button>
+      )}
+
+      {/* Shareable collectible card */}
+      {showCard && membership && user && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex justify-center"
+        >
+          <FandomCard membership={membership} displayName={user.displayName} />
+        </motion.div>
       )}
 
       {/* Leaderboard */}
@@ -185,14 +236,17 @@ export function FandomDetailPage() {
                         <span className="ml-1.5 text-chorus-accent text-[10px]">(you)</span>
                       )}
                     </span>
-                    <span className="text-[11px] text-slate-500">
-                      Joined {new Date(entry.joinedAt).toLocaleDateString()}
-                    </span>
+                    <span className="text-[11px] text-slate-500">{entry.tier}</span>
                   </div>
                   <div className="flex flex-col items-end shrink-0">
                     <span className="text-sm font-semibold text-white">{entry.fanScore}</span>
-                    <span className="rounded-full bg-chorus-accent/20 px-1.5 py-0.5 text-[9px] font-bold text-chorus-accent">
-                      {entry.tier}
+                    <span
+                      className={
+                        'rounded-full px-1.5 py-0.5 text-[9px] font-bold ' +
+                        tierBadgeClass(entry.cardStyle)
+                      }
+                    >
+                      {entry.rarity}
                     </span>
                   </div>
                 </div>
