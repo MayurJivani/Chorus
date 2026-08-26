@@ -15,7 +15,7 @@ const GROUP_LABELS: Record<CategoryGroup, { title: string; subtitle: string }> =
   bollywood: { title: 'Bollywood', subtitle: 'Hindi film music, romance, and party anthems' },
 };
 
-const GROUP_ORDER: CategoryGroup[] = ['now', 'bollywood', 'year', 'genre'];
+const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'bollywood', 'genre'];
 
 const FILTERS: [CategoryGroup | 'all', string][] = [
   ['all', 'All'],
