@@ -102,7 +102,7 @@ export function KonamiVinylPlayer() {
                 referrerPolicy="strict-origin-when-cross-origin"
                 className="block"
               />
-              <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }} />
+              <div className="absolute inset-0" style={{ zIndex: 10 }} />
             </div>
 
             <button

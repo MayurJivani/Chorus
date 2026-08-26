@@ -64,6 +64,7 @@ export function SnippetPlayer({
   stageSeconds,
   disabled,
   artistPictureUrl,
+  onSnippetEnd,
   autoPlay,
   playSignal,
   fixedOffsetSeconds,
@@ -73,7 +74,11 @@ export function SnippetPlayer({
   const seekOffsetRef = useRef<number>(0);
   /** Audio position at which the current play must stop; null when not playing. */
   const playUntilRef = useRef<number | null>(null);
+  /** Wall-clock time when playback started, for the countdown display. */
+  const playStartedAtRef = useRef<number>(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
   /** The browser refused to start playback without a gesture. */
   const [blocked, setBlocked] = useState(false);
   const [volume, setVolume] = useState(() => {
@@ -143,7 +148,7 @@ export function SnippetPlayer({
   const prevAutoPlayRef = useRef(autoPlay);
   useEffect(() => {
     if (autoPlay && !prevAutoPlayRef.current && !disabled) {
-      handlePlay();
+      handlePlayPause();
     }
     prevAutoPlayRef.current = autoPlay;
   }, [autoPlay, disabled]);
@@ -155,23 +160,26 @@ export function SnippetPlayer({
     if (playSignal == null) return;
     if (playSignal !== lastPlaySignalRef.current) {
       lastPlaySignalRef.current = playSignal;
-      if (!disabled) handlePlay();
+      if (!disabled) handlePlayPause();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playSignal, disabled]);
 
-  const handlePlay = () => {
+  const handlePlayPause = () => {
     const audio = audioRef.current;
     if (!audio || disabled) return;
+
+    if (isPlaying) {
+      stopPlayback();
+      return;
+    }
 
     if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
 
     const startAt = seekOffsetRef.current;
     audio.currentTime = startAt;
-    // The hard limit is a position in the clip, not a wall-clock delay. A timer alone is only
-    // as reliable as its scheduling — anything that cleared it (an unmount, a re-render) left
-    // playback running to the end of the preview, handing the player the entire song.
     playUntilRef.current = startAt + stageSeconds;
+    playStartedAtRef.current = Date.now();
 
     setBlocked(false);
     void audio
@@ -182,10 +190,31 @@ export function SnippetPlayer({
         setBlocked(true);
       });
 
-    stopTimeoutRef.current = setTimeout(() => stopPlayback(), stageSeconds * 1000);
+    stopTimeoutRef.current = setTimeout(() => stopPlayback(true), stageSeconds * 1000);
   };
 
-  const stopPlayback = () => {
+  useEffect(() => {
+    if (isPlaying) {
+      const tick = () => {
+        const elapsed = (Date.now() - playStartedAtRef.current) / 1000;
+        const remaining = Math.max(0, Math.ceil(stageSeconds - elapsed));
+        setTimeLeft(remaining);
+      };
+      tick();
+      countdownRef.current = setInterval(tick, 200);
+      return () => {
+        if (countdownRef.current) clearInterval(countdownRef.current);
+      };
+    } else {
+      setTimeLeft(null);
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+    }
+  }, [isPlaying, stageSeconds]);
+
+  const stopPlayback = (natural = false) => {
     const audio = audioRef.current;
     if (stopTimeoutRef.current) {
       clearTimeout(stopTimeoutRef.current);
@@ -194,6 +223,7 @@ export function SnippetPlayer({
     playUntilRef.current = null;
     audio?.pause();
     setIsPlaying(false);
+    if (natural) onSnippetEnd?.();
   };
 
   /** Backstop for the timer: whatever happens to the scheduled stop, playback can never run
@@ -202,7 +232,7 @@ export function SnippetPlayer({
     const audio = audioRef.current;
     const limit = playUntilRef.current;
     if (!audio || limit == null) return;
-    if (audio.currentTime >= limit) stopPlayback();
+    if (audio.currentTime >= limit) stopPlayback(true);
   };
 
   return (
@@ -226,7 +256,7 @@ export function SnippetPlayer({
           />
         )}
         <div
-          onClick={handlePlay}
+          onClick={handlePlayPause}
           className={
             'relative cursor-pointer select-none ' +
             // Stepped down on small screens: at 192px the record plus the transport, pips,
@@ -279,7 +309,7 @@ export function SnippetPlayer({
       <div className="flex items-center gap-4 bg-white/[0.04] border border-white/[0.08] rounded-full pl-3 pr-5 py-2 backdrop-blur-md shadow-lg">
         <button
           type="button"
-          onClick={handlePlay}
+          onClick={handlePlayPause}
           disabled={disabled}
           className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-950 shadow-md transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
         >
@@ -319,7 +349,11 @@ export function SnippetPlayer({
           })}
         </div>
 
-        <span className="text-xs font-mono font-semibold text-slate-400">{stageSeconds}s</span>
+        <span
+          className={`text-xs font-mono font-semibold ${isPlaying ? 'text-chorusify-accent2' : 'text-slate-400'}`}
+        >
+          {timeLeft != null ? `${timeLeft}s` : `${stageSeconds}s`}
+        </span>
       </div>
 
       {/* Autoplay refusals used to be invisible: the record span and the state said "playing"

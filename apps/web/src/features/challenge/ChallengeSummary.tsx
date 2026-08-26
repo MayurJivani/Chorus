@@ -103,12 +103,16 @@ export function ChallengeSummary({
       className="glass flex w-full max-w-md flex-col items-center gap-6 rounded-2xl p-6 text-center border border-white/10"
     >
       <div>
-        <h2 className="text-2xl font-extrabold text-white">Challenge Complete!</h2>
-        <p className="mt-2 text-base text-slate-300">
-          {songsCorrect}/{totalRounds} songs · {totalGuessesUsed} guesses
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Complete</p>
+        <p className="mt-1 text-4xl font-black text-white">
+          {songsCorrect}/{totalRounds}
+        </p>
+        <p className="mt-1 text-sm text-slate-400">
+          {totalGuessesUsed} guesses
           {timeTakenSeconds != null && (
-            <span className="block text-purple-400 font-semibold font-mono text-sm mt-1">
-              ⏱ {formatTime(timeTakenSeconds)}
+            <span className="text-purple-400 font-semibold font-mono">
+              {' '}
+              · {formatTime(timeTakenSeconds)}
             </span>
           )}
         </p>

@@ -73,16 +73,14 @@ export function DuelsPage() {
   };
 
   return (
-    <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-6 px-4 py-6 sm:py-10">
+    <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 px-4 py-6 sm:py-10">
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center gap-2 text-center"
+        className="flex flex-col items-center gap-1 text-center"
       >
-        <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Duels</h1>
-        <p className="max-w-md text-sm text-slate-400">
-          One challenge, two players, the same ten songs. Win and your rating goes up.
-        </p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white">Duels</h1>
+        <p className="text-sm text-slate-500">Same ten songs, two players, rated results</p>
       </motion.div>
 
       {error && (

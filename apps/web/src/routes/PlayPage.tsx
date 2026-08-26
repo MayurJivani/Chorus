@@ -73,8 +73,9 @@ export function PlayPage() {
           game, record, transport, pips, input and guess list, still fits a phone viewport
           without the page scrolling. */}
       <div className="glass w-full rounded-2xl p-4 sm:p-6 flex flex-col items-center gap-3 sm:gap-4">
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold text-white">Daily Challenge</h1>
+        <div className="flex items-center gap-2.5 text-center">
+          <h1 className="text-xl font-bold text-white">Daily</h1>
+          <span className="h-4 w-px bg-white/15" />
           <p className="text-xs text-slate-500 font-mono">{puzzle.puzzleDate}</p>
         </div>
 

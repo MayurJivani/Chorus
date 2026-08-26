@@ -75,17 +75,14 @@ export function MultiplayerHomePage() {
   ]);
 
   return (
-    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center gap-4 sm:gap-6 px-4 py-4 sm:py-8">
+    <div className="mx-auto flex min-h-full max-w-xl flex-col items-center gap-5 px-4 py-6 sm:py-10">
       <motion.div
-        initial={{ opacity: 0, y: -16 }}
+        initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center gap-2 text-center"
+        className="flex flex-col items-center gap-1 text-center"
       >
-        <h1 className="text-4xl font-extrabold tracking-tight text-white">Multiplayer</h1>
-        <p className="max-w-md text-sm leading-relaxed text-slate-400">
-          Pick an artist or a category, create a room, and race your friends in real time. Everyone
-          hears the same growing snippet on a shared timer.
-        </p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white">Multiplayer</h1>
+        <p className="text-sm text-slate-500">Race friends in real time on shared snippets</p>
       </motion.div>
 
       <div

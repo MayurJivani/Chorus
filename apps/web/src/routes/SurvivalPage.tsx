@@ -134,30 +134,53 @@ export function SurvivalPage() {
   if (status === 'picking-mode') {
     return (
       <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-5 px-4 py-6">
-        <div className="glass flex w-full flex-col items-center gap-6 rounded-2xl border border-white/10 p-6 text-center">
+        <div className="glass flex w-full flex-col items-center gap-5 rounded-2xl border border-white/10 p-6 text-center">
           <div>
             <h1 className="text-2xl font-bold text-white">Survival</h1>
-            <p className="mt-1 text-sm text-slate-400">One wrong answer ends the run</p>
+            <p className="mt-1 text-sm text-slate-500">One wrong answer ends the run</p>
           </div>
-          <div className="flex w-full flex-col gap-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Choose your mode
-            </p>
+          <div className="grid w-full grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => startGame('search')}
-              className="w-full rounded-xl border border-white/10 bg-chorusify-surface/80 px-4 py-4 text-left transition-all hover:border-white/30 hover:bg-white/5"
+              className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-5 transition-all hover:bg-white/[0.07] hover:border-white/20 active:scale-[0.97]"
             >
-              <p className="font-bold text-white">Type Answer</p>
-              <p className="mt-0.5 text-xs text-slate-400">Search and pick the correct song</p>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-6 w-6 text-slate-400"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+                />
+              </svg>
+              <p className="font-semibold text-white">Type Answer</p>
+              <p className="text-[11px] text-slate-500">Search and pick</p>
             </button>
             <button
               type="button"
               onClick={() => startGame('choice')}
-              className="w-full rounded-xl border border-white/10 bg-chorusify-surface/80 px-4 py-4 text-left transition-all hover:border-white/30 hover:bg-white/5"
+              className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-5 transition-all hover:bg-white/[0.07] hover:border-white/20 active:scale-[0.97]"
             >
-              <p className="font-bold text-white">Multiple Choice</p>
-              <p className="mt-0.5 text-xs text-slate-400">Pick from four options</p>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-6 w-6 text-slate-400"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+                />
+              </svg>
+              <p className="font-semibold text-white">Multiple Choice</p>
+              <p className="text-[11px] text-slate-500">Pick from four</p>
             </button>
           </div>
         </div>
