@@ -2,12 +2,22 @@ import { useRef, useCallback } from 'react';
 import { useToast } from '../../hooks/useToast';
 
 const CLICK_MESSAGES = [
-  { count: 3, message: 'You really like clicking that vinyl...', type: 'info' as const },
-  { count: 7, message: 'Fun fact: the Konami code works here.', type: 'info' as const },
-  { count: 10, message: 'The vinyl is getting dizzy...', type: 'info' as const, spin: true },
+  {
+    count: 5,
+    message: 'You really like clicking that vinyl...',
+    type: 'info' as const,
+    spin: true,
+  },
+  {
+    count: 10,
+    message: 'Fun fact: the Konami code works here.',
+    type: 'info' as const,
+    spin: true,
+  },
+  { count: 15, message: 'The vinyl is getting dizzy...', type: 'info' as const, spin: true },
 ];
 
-const CRASH_THRESHOLD = 15;
+const CRASH_THRESHOLD = 21;
 
 function runNavbarCrash(logoEl: HTMLElement) {
   const header = logoEl.closest('header');
