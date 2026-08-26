@@ -269,7 +269,10 @@ export async function getSessionOrStartNew(
     return { session, challenge: sharedChallenge, tracks };
   }
 
-  // If not explicitly requesting a new challenge, look for the most recent session (completed or not)
+  // If not explicitly requesting a new challenge, look for the most recent session.
+  // A completed session is only resumed for the daily challenge (where the answer is shared
+  // and replaying the same puzzle is the point); for artist/category modes, completing a run
+  // means the next visit automatically gets fresh songs.
   if (!playAgain) {
     const existingRows = await db
       .select({
@@ -291,7 +294,7 @@ export async function getSessionOrStartNew(
       .limit(1);
     const existing = existingRows[0];
 
-    if (existing) {
+    if (existing && !existing.session.completed) {
       const tracks = await loadChallengeTracks(existing.challenge.id);
       return {
         session: existing.session,
@@ -299,6 +302,7 @@ export async function getSessionOrStartNew(
         tracks,
       };
     }
+    // Completed session found — fall through to create a fresh challenge with new songs.
   }
 
   const challengeDate =

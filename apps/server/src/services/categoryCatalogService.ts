@@ -65,6 +65,13 @@ function buildCategoryPool(
   return [...bestByKey.values()].sort((a, b) => a.deezerTrackId.localeCompare(b.deezerTrackId));
 }
 
+async function fetchMultiplePlaylists(
+  playlistIds: string[],
+): Promise<Parameters<typeof buildCategoryPool>[0]> {
+  const results = await Promise.all(playlistIds.map((id) => fetchPlaylistTracks(id)));
+  return results.flat();
+}
+
 async function readPool(categoryId: string) {
   const rows = await db
     .select()
@@ -121,12 +128,13 @@ export async function getCategoryCatalog(categoryId: string): Promise<ArtistTrac
 
   if (stored && stored.trackCount >= MIN_CATEGORY_TRACKS) {
     if (Date.now() - stored.fetchedAt.getTime() > (await refreshAfterMs())) {
-      void refreshInBackground(category.id, category.label, category.playlistId);
+      void refreshInBackground(category.id, category.label, category.playlistIds);
     }
     return stored.tracks;
   }
 
-  const tracks = buildCategoryPool(await fetchPlaylistTracks(category.playlistId));
+  const allRaw = await fetchMultiplePlaylists(category.playlistIds);
+  const tracks = buildCategoryPool(allRaw);
   if (tracks.length < MIN_CATEGORY_TRACKS) {
     throw new Error(`Not enough playable tracks in ${category.label}`);
   }
@@ -141,11 +149,11 @@ export async function getCategoryCatalog(categoryId: string): Promise<ArtistTrac
 
 const refreshing = new Set<string>();
 
-function refreshInBackground(categoryId: string, label: string, playlistId: string): void {
+function refreshInBackground(categoryId: string, label: string, playlistIds: string[]): void {
   if (refreshing.has(categoryId)) return;
   refreshing.add(categoryId);
 
-  void fetchPlaylistTracks(playlistId)
+  void fetchMultiplePlaylists(playlistIds)
     .then(async (raw) => {
       const tracks = buildCategoryPool(raw);
       if (tracks.length < MIN_CATEGORY_TRACKS) return;
