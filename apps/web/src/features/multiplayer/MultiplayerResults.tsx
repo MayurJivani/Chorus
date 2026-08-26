@@ -10,6 +10,7 @@ interface MultiplayerResultsProps {
   label: string;
   canPlayAgain: boolean;
   onPlayAgain: () => void;
+  onNewRoom: () => void;
   onLeave: () => void;
 }
 
@@ -19,6 +20,7 @@ export function MultiplayerResults({
   label,
   canPlayAgain,
   onPlayAgain,
+  onNewRoom,
   onLeave,
 }: MultiplayerResultsProps) {
   const iWon = gameOver.winner?.playerId === selfId;
@@ -68,6 +70,11 @@ export function MultiplayerResults({
         {canPlayAgain && (
           <button type="button" onClick={onPlayAgain} className="btn-primary w-full !rounded-xl">
             Play again (new songs)
+          </button>
+        )}
+        {canPlayAgain && (
+          <button type="button" onClick={onNewRoom} className="btn-secondary w-full !rounded-xl">
+            New room (different artist/category)
           </button>
         )}
         <button type="button" onClick={onLeave} className="btn-ghost w-full !rounded-xl">

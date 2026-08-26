@@ -7,6 +7,7 @@ import { MultiplayerLobby } from '../features/multiplayer/MultiplayerLobby';
 import { MultiplayerGame } from '../features/multiplayer/MultiplayerGame';
 import { MultiplayerResults } from '../features/multiplayer/MultiplayerResults';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { ensureMediaUnlocked } from '../features/game/SnippetPlayer';
 
 export function MultiplayerRoomPage() {
   usePageTitle('Game Room');
@@ -16,9 +17,9 @@ export function MultiplayerRoomPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const autoJoin = location.state?.autoJoin === true;
+  const hostName = typeof location.state?.hostName === 'string' ? location.state.hostName : '';
   const [name, setName] = useState('');
-  // `null` = not joined yet (the pre-join screen asks for a name); a string = join with it.
-  const [nickname, setNickname] = useState<string | null>(autoJoin ? '' : null);
+  const [nickname, setNickname] = useState<string | null>(autoJoin ? hostName : null);
 
   const {
     connectionStatus,
@@ -63,6 +64,7 @@ export function MultiplayerRoomPage() {
         <form
           onSubmit={(event) => {
             event.preventDefault();
+            ensureMediaUnlocked();
             setNickname(name.trim());
           }}
           className="glass flex w-full max-w-md flex-col items-center gap-4 rounded-2xl p-6 text-center"
@@ -118,6 +120,7 @@ export function MultiplayerRoomPage() {
         label={room.label}
         canPlayAgain={selfId === room.hostId}
         onPlayAgain={startGame}
+        onNewRoom={handleLeave}
         onLeave={handleLeave}
       />
     );

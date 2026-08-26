@@ -95,6 +95,8 @@ interface MpRoom {
   speedPoints: readonly number[];
   /** Number of correct guesses so far this round in speed mode (for order-based scoring). */
   speedCorrectCount: number;
+  hostOnlyAudio: boolean;
+  hostPlayable: boolean;
 }
 
 export interface MpScoreEntry {
@@ -121,6 +123,8 @@ export interface MpRoomSnapshot {
   currentRound: number;
   totalRounds: number;
   players: MpPlayerState[];
+  hostOnlyAudio: boolean;
+  hostPlayable: boolean;
 }
 
 const rooms = new Map<string, MpRoom>();
@@ -141,6 +145,8 @@ export async function createRoom(
   source: ChallengeSource,
   guessMode: MpGuessMode = 'search',
   gameMode: MpGameMode = 'classic',
+  hostOnlyAudio: boolean = false,
+  hostPlayable: boolean = true,
 ): Promise<{ code: string }> {
   let code = '';
   do {
@@ -173,6 +179,8 @@ export async function createRoom(
     speedSnippetSeconds: settings.speedSnippetSeconds,
     speedPoints: settings.speedPoints,
     speedCorrectCount: 0,
+    hostOnlyAudio,
+    hostPlayable,
   });
 
   logger.info(
@@ -407,7 +415,7 @@ function startRound(room: MpRoom, roundIndex: number): void {
   clearRoomTimers(room);
 
   for (const p of room.players.values()) {
-    p.roundAnswered = false;
+    p.roundAnswered = p.playerId === room.hostId && !room.hostPlayable;
     p.roundCorrect = null;
     p.roundPoints = 0;
     p.stageIndex = 0;
@@ -498,7 +506,9 @@ function submitGuess(playerId: string, trackId: string): void {
   });
   broadcast(room, { type: 'scores', scores: buildScores(room) });
 
-  const remaining = [...room.players.values()].filter((p) => !p.roundAnswered);
+  const remaining = [...room.players.values()].filter(
+    (p) => !p.roundAnswered && !(p.playerId === room.hostId && !room.hostPlayable),
+  );
   if (remaining.length === 0) endRound(room);
 }
 
@@ -598,6 +608,8 @@ function buildRoomSnapshot(room: MpRoom): MpRoomSnapshot {
       stageIndex: p.stageIndex,
       joinedAt: p.joinedAt,
     })),
+    hostOnlyAudio: room.hostOnlyAudio,
+    hostPlayable: room.hostPlayable,
   };
 }
 

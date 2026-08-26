@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 import type { MultiplayerRoomSnapshot, MultiplayerScoreEntry } from '../../types/api';
 import { MultiplayerScoreboard } from './MultiplayerScoreboard';
+import { ensureMediaUnlocked } from '../game/SnippetPlayer';
 
 interface MultiplayerLobbyProps {
   room: MultiplayerRoomSnapshot;
@@ -63,6 +65,11 @@ export function MultiplayerLobby({ room, selfId, onStart, onLeave }: Multiplayer
           </p>
         </div>
 
+        <div className="rounded-xl bg-white p-3">
+          <QRCodeSVG value={inviteUrl} size={160} level="M" />
+        </div>
+        <p className="text-[11px] text-slate-500">Scan to join on another device</p>
+
         <button type="button" onClick={copyInvite} className="btn-primary w-full !rounded-xl">
           {copied ? '✓ Copied invite link!' : 'Copy invite link'}
         </button>
@@ -81,7 +88,14 @@ export function MultiplayerLobby({ room, selfId, onStart, onLeave }: Multiplayer
         </div>
 
         {isHost ? (
-          <button type="button" onClick={onStart} className="btn-primary w-full !rounded-xl">
+          <button
+            type="button"
+            onClick={() => {
+              ensureMediaUnlocked();
+              onStart();
+            }}
+            className="btn-primary w-full !rounded-xl"
+          >
             Start game →
           </button>
         ) : (

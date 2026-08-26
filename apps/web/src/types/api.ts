@@ -227,6 +227,8 @@ export interface MultiplayerRoomSnapshot {
   currentRound: number;
   totalRounds: number;
   players: MultiplayerPlayer[];
+  hostOnlyAudio: boolean;
+  hostPlayable: boolean;
 }
 
 export interface MultiplayerCreateRoomResponse {
@@ -237,6 +239,8 @@ export interface MultiplayerCreateRoomResponse {
   pictureUrl: string | null;
   guessMode: MultiplayerGuessMode;
   gameMode: MultiplayerGameMode;
+  hostOnlyAudio: boolean;
+  hostPlayable: boolean;
 }
 
 export interface GlobalLeaderboardEntry {

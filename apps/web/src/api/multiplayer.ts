@@ -9,10 +9,12 @@ export function createMultiplayerRoom(
   source: { artistId: number } | { categoryId: string },
   guessMode: MultiplayerGuessMode = 'search',
   gameMode: MultiplayerGameMode = 'classic',
+  hostOnlyAudio: boolean = false,
+  hostPlayable: boolean = true,
 ): Promise<MultiplayerCreateRoomResponse> {
   return apiRequest<MultiplayerCreateRoomResponse>('/multiplayer/rooms', {
     method: 'POST',
-    body: { ...source, guessMode, gameMode },
+    body: { ...source, guessMode, gameMode, hostOnlyAudio, hostPlayable },
   });
 }
 

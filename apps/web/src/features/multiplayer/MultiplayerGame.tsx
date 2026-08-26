@@ -51,6 +51,8 @@ export function MultiplayerGame({
   const you = room.players.find((p) => p.playerId === selfId);
   const answered = you?.roundAnswered ?? false;
   const isSpeed = round.gameMode === 'speed';
+  const showPlayer = !room.hostOnlyAudio || isHost;
+  const canGuess = !isHost || room.hostPlayable;
 
   const clampedStage = Math.min(stageIndex, round.snippetSchedule.length - 1);
   const stageSeconds = round.snippetSchedule[clampedStage] ?? 1;
@@ -63,8 +65,8 @@ export function MultiplayerGame({
   const handleGuess = (song: SongSearchResult) => onSubmitGuess(String(song.id));
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center gap-4 sm:gap-6 px-4 py-4 sm:py-8">
-      <div className="glass flex w-full flex-col items-center gap-4 rounded-2xl p-4 sm:p-6">
+    <div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center gap-3 sm:gap-6 px-4 py-2 sm:py-8">
+      <div className="glass flex w-full flex-col items-center gap-3 sm:gap-4 rounded-2xl p-3 sm:p-6">
         {/* Header */}
         <div className="flex w-full flex-col items-center gap-1 text-center">
           <h1 className="text-xl font-bold text-white">{room.label}</h1>
@@ -113,17 +115,26 @@ export function MultiplayerGame({
           </motion.div>
         ) : (
           <>
-            {!isSpeed && <SnippetProgressBar stageIndex={stageIndex} />}
+            {showPlayer && !isSpeed && <SnippetProgressBar stageIndex={stageIndex} />}
 
-            <SnippetPlayer
-              previewUrl={round.previewUrl}
-              stageSeconds={stageSeconds}
-              playSignal={stageIndex + 1}
-              fixedOffsetSeconds={0}
-              artistPictureUrl={round.pictureUrl}
-            />
+            {showPlayer && (
+              <SnippetPlayer
+                previewUrl={round.previewUrl}
+                stageSeconds={stageSeconds}
+                playSignal={stageIndex + 1}
+                fixedOffsetSeconds={0}
+                artistPictureUrl={round.pictureUrl}
+              />
+            )}
 
-            {!isSpeed && (
+            {!showPlayer && (
+              <div className="flex flex-col items-center gap-2 py-4 text-center">
+                <span className="text-3xl">🔊</span>
+                <p className="text-sm text-slate-400">Music is playing on the host&apos;s device</p>
+              </div>
+            )}
+
+            {showPlayer && !isSpeed && (
               <button
                 type="button"
                 onClick={onReveal}
@@ -136,7 +147,14 @@ export function MultiplayerGame({
               </button>
             )}
 
-            {answered ? (
+            {!canGuess ? (
+              <div className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 w-full max-w-md">
+                <p className="text-sm font-medium text-slate-300">Streaming mode</p>
+                <p className="text-xs text-slate-500">
+                  You&apos;re the DJ — sit back and play the music
+                </p>
+              </div>
+            ) : answered ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}

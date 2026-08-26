@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 
 let mediaUnlocked = false;
 
+export function ensureMediaUnlocked(): void {
+  unlockMedia();
+}
+
 function deterministicRandom(seed: string): number {
   let h = 0;
   for (let i = 0; i < seed.length; i++) {

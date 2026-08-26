@@ -124,6 +124,11 @@ const BOLLYWOOD_DEFS: [label: string, playlistId: string, blurb: string][] = [
   ['Bollywood Romance', '10421653842', 'Love songs from the silver screen'],
   ['Bollywood Party', '9660774522', 'Dance floor anthems from Hindi films'],
   ['Bollywood 2026', '14922241343', 'The latest Bollywood hits'],
+  ['Bollywood 90s', '1996212882', 'Golden era classics from the 90s'],
+  ['Bollywood Sad Songs', '5855498562', 'Heartbreak anthems from Hindi cinema'],
+  ['Bollywood Retro', '4803995402', 'Timeless old-school Bollywood'],
+  ['Bollywood Unplugged', '6062891064', 'Acoustic and stripped-back renditions'],
+  ['Arijit Singh Hits', '3060498806', 'Best of the modern Bollywood voice'],
 ];
 
 const BOLLYWOOD: Category[] = BOLLYWOOD_DEFS.map(([label, playlistId, blurb]) => ({

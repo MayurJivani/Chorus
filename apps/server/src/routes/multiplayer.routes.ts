@@ -14,6 +14,8 @@ const createRoomSchema = z
     categoryId: z.string().min(1).max(64).optional(),
     guessMode: z.enum(['search', 'choice']).optional().default('search'),
     gameMode: z.enum(['classic', 'speed']).optional().default('classic'),
+    hostOnlyAudio: z.boolean().optional().default(false),
+    hostPlayable: z.boolean().optional().default(true),
   })
   // Exactly one, so a request naming both can't quietly race over whichever the code checks
   // first while the player who sent it expects the other.
@@ -31,9 +33,8 @@ multiplayerRouter.post(
   '/rooms',
   validate(createRoomSchema),
   asyncHandler(async (req, res) => {
-    const { artistId, categoryId, guessMode, gameMode } = req.body as z.infer<
-      typeof createRoomSchema
-    >;
+    const { artistId, categoryId, guessMode, gameMode, hostOnlyAudio, hostPlayable } =
+      req.body as z.infer<typeof createRoomSchema>;
 
     let source;
     try {
@@ -45,7 +46,7 @@ multiplayerRouter.post(
       throw new HttpError(404, artistId != null ? 'Artist not found' : 'Unknown category');
     }
 
-    const { code } = await createRoom(source, guessMode, gameMode);
+    const { code } = await createRoom(source, guessMode, gameMode, hostOnlyAudio, hostPlayable);
     res.status(201).json({
       code,
       sourceType: source.sourceType,
@@ -54,6 +55,8 @@ multiplayerRouter.post(
       pictureUrl: source.pictureUrl,
       guessMode: gameMode === 'speed' ? 'choice' : guessMode,
       gameMode,
+      hostOnlyAudio,
+      hostPlayable,
     });
   }),
 );

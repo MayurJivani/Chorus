@@ -24,6 +24,9 @@ export function MultiplayerHomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [gameMode, setGameMode] = useState<MultiplayerGameMode>('speed');
   const [guessMode, setGuessMode] = useState<MultiplayerGuessMode>('search');
+  const [hostOnlyAudio, setHostOnlyAudio] = useState(false);
+  const [hostPlayable, setHostPlayable] = useState(true);
+  const [hostName, setHostName] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [roomCode, setRoomCode] = useState('');
@@ -47,13 +50,29 @@ export function MultiplayerHomePage() {
         sourceKind === 'artist'
           ? { artistId: (selection as ArtistSearchResult).id }
           : { categoryId: (selection as Category).id };
-      const { code } = await createMultiplayerRoom(source, guessMode, gameMode);
-      navigate(`/room/${code}`, { state: { autoJoin: true } });
+      const { code } = await createMultiplayerRoom(
+        source,
+        guessMode,
+        gameMode,
+        hostOnlyAudio,
+        hostPlayable,
+      );
+      navigate(`/room/${code}`, { state: { autoJoin: true, hostName: hostName.trim() } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create a room. Please try again.');
       setCreating(false);
     }
-  }, [selection, sourceKind, creating, guessMode, gameMode, navigate]);
+  }, [
+    selection,
+    sourceKind,
+    creating,
+    guessMode,
+    gameMode,
+    hostOnlyAudio,
+    hostPlayable,
+    hostName,
+    navigate,
+  ]);
 
   return (
     <div className="mx-auto flex min-h-full max-w-xl flex-col items-center gap-4 sm:gap-6 px-4 py-4 sm:py-8">
@@ -263,11 +282,88 @@ export function MultiplayerHomePage() {
             </div>
           )}
 
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Audio playback
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  [false, 'Everyone', 'All players hear music on their device'],
+                  [true, 'Host only', 'Only the host device plays music (for speakers)'],
+                ] as [boolean, string, string][]
+              ).map(([val, label, hint]) => (
+                <button
+                  key={String(val)}
+                  type="button"
+                  onClick={() => setHostOnlyAudio(val)}
+                  aria-pressed={hostOnlyAudio === val}
+                  className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                    hostOnlyAudio === val
+                      ? 'border-chorusify-accent/60 bg-chorusify-accent/10 text-white'
+                      : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/25'
+                  }`}
+                >
+                  <span className="block text-sm font-semibold">{label}</span>
+                  <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
+                    {hint}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {hostOnlyAudio && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Host role
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    [true, 'Play + stream', 'Host guesses and plays music'],
+                    [false, 'Stream only', "Host only plays music, doesn't guess"],
+                  ] as [boolean, string, string][]
+                ).map(([val, label, hint]) => (
+                  <button
+                    key={String(val)}
+                    type="button"
+                    onClick={() => setHostPlayable(val)}
+                    aria-pressed={hostPlayable === val}
+                    className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                      hostPlayable === val
+                        ? 'border-chorusify-accent/60 bg-chorusify-accent/10 text-white'
+                        : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/25'
+                    }`}
+                  >
+                    <span className="block text-sm font-semibold">{label}</span>
+                    <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
+                      {hint}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Your name
+            </p>
+            <input
+              value={hostName}
+              onChange={(e) => setHostName(e.target.value)}
+              maxLength={24}
+              placeholder="Enter your name"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-chorusify-accent2"
+            />
+          </div>
+
           <button
             type="button"
             onClick={() => void createRoom()}
-            disabled={creating}
-            className="btn-primary mt-4 w-full !rounded-xl"
+            disabled={creating || !hostName.trim()}
+            className="btn-primary mt-3 w-full !rounded-xl"
           >
             {creating ? 'Creating room…' : 'Create room →'}
           </button>
