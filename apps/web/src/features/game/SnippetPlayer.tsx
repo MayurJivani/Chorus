@@ -144,35 +144,9 @@ export function SnippetPlayer({
     }
   }, [previewUrl, fixedOffsetSeconds]);
 
-  // Auto-play when the autoPlay prop becomes true (e.g. after a skip in choice mode).
-  const prevAutoPlayRef = useRef(autoPlay);
-  useEffect(() => {
-    if (autoPlay && !prevAutoPlayRef.current && !disabled) {
-      handlePlayPause();
-    }
-    prevAutoPlayRef.current = autoPlay;
-  }, [autoPlay, disabled]);
-
-  // Auto-play whenever a player reveals a new snippet stage (multiplayer). Each change
-  // in playSignal triggers exactly one play; disabled blocks it (e.g. during the reveal).
-  const lastPlaySignalRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (playSignal == null) return;
-    if (playSignal !== lastPlaySignalRef.current) {
-      lastPlaySignalRef.current = playSignal;
-      if (!disabled) handlePlayPause();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playSignal, disabled]);
-
-  const handlePlayPause = () => {
+  const forcePlay = () => {
     const audio = audioRef.current;
     if (!audio || disabled) return;
-
-    if (isPlaying) {
-      stopPlayback();
-      return;
-    }
 
     if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
 
@@ -191,6 +165,35 @@ export function SnippetPlayer({
       });
 
     stopTimeoutRef.current = setTimeout(() => stopPlayback(true), stageSeconds * 1000);
+  };
+
+  // Auto-play when the autoPlay prop becomes true (e.g. after a skip in choice mode).
+  const prevAutoPlayRef = useRef(autoPlay);
+  useEffect(() => {
+    if (autoPlay && !prevAutoPlayRef.current && !disabled) {
+      forcePlay();
+    }
+    prevAutoPlayRef.current = autoPlay;
+  }, [autoPlay, disabled]);
+
+  // Auto-play whenever a player reveals a new snippet stage (multiplayer). Each change
+  // in playSignal triggers exactly one play; disabled blocks it (e.g. during the reveal).
+  const lastPlaySignalRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (playSignal == null) return;
+    if (playSignal !== lastPlaySignalRef.current) {
+      lastPlaySignalRef.current = playSignal;
+      if (!disabled) forcePlay();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playSignal, disabled]);
+
+  const handlePlayPause = () => {
+    if (isPlaying) {
+      stopPlayback();
+    } else {
+      forcePlay();
+    }
   };
 
   useEffect(() => {

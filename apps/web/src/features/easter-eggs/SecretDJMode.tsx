@@ -17,12 +17,14 @@ export function SecretDJMode() {
         50% { transform: scale(0.98) rotate(0.5deg); }
         75% { transform: scale(1.01) rotate(-0.3deg); }
       }
+      .dj-mode { overflow: hidden !important; }
       .dj-mode main > * {
         animation: dj-bounce 0.6s ease-in-out infinite !important;
       }
       .dj-mode main {
         animation: dj-bounce 0.8s ease-in-out infinite !important;
         animation-delay: 0.1s !important;
+        overflow: hidden !important;
       }
       .dj-mode header {
         background: linear-gradient(90deg,
