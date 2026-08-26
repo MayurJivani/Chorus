@@ -7,7 +7,10 @@ import type { Category, CategoryGroup } from '../types/api';
 
 const GROUP_LABELS: Record<CategoryGroup, { title: string; subtitle: string }> = {
   now: { title: 'Right Now', subtitle: "Live charts and this year's biggest tracks" },
-  year: { title: 'By Year', subtitle: 'The songs that defined each year, back to 2000' },
+  year: {
+    title: 'By Year',
+    subtitle: 'Decades with 200+ songs, plus individual years back to 2000',
+  },
   genre: { title: 'By Genre', subtitle: 'Pop, rock, rap, K-pop and more' },
   bollywood: { title: 'Bollywood', subtitle: 'Hindi film music, romance, and party anthems' },
 };

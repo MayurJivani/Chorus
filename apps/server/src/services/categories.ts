@@ -44,10 +44,47 @@ const NOW: Category[] = [
   },
 ];
 
+/** Decade-level mega pools (200–700+ tracks each) so replays are always fresh. */
+const DECADES: Category[] = [
+  {
+    id: 'decade-2010s',
+    label: '2010s Hits',
+    group: 'year',
+    playlistIds: ['13382725943', '8033720842'],
+    blurb: '200+ songs from the 2010s decade',
+  },
+  {
+    id: 'decade-2000s',
+    label: '2000s Hits',
+    group: 'year',
+    playlistIds: ['15453873941', '10307642122'],
+    blurb: '200+ throwback hits from the 2000s',
+  },
+  {
+    id: 'decade-90s',
+    label: '90s Hits',
+    group: 'year',
+    playlistIds: ['2924710862'],
+    blurb: '270+ pop hits from the 1990s',
+  },
+  {
+    id: 'decade-80s',
+    label: '80s Hits',
+    group: 'year',
+    playlistIds: ['3403326002'],
+    blurb: '200+ classics from the 1980s',
+  },
+  {
+    id: 'greatest-hits',
+    label: 'Greatest Hits Radio 500',
+    group: 'year',
+    playlistIds: ['14500567763'],
+    blurb: '500 of the greatest songs ever',
+  },
+];
+
 /** "Top Hits <year>" retrospectives, newest first. Deezer publishes these back to 1976; the
- *  list starts at 2000 so every category is something most players could plausibly name.
- *  Each year carries multiple playlists (main + regional/genre variants) to push the pool
- *  well past 100 tracks, giving replays fresh songs each time. */
+ *  list starts at 2000 so every category is something most players could plausibly name. */
 const YEAR_PLAYLISTS: [year: number, playlistIds: string[]][] = [
   [2024, ['13154877883']],
   [2023, ['12345467671']],
@@ -122,15 +159,15 @@ const GENRES: Category[] = GENRE_DEFS.map(([label, playlistIds]) => ({
  * Hindi-language tracks with working previews.
  */
 const BOLLYWOOD_DEFS: [label: string, playlistIds: string[], blurb: string][] = [
-  ['Bollywood Top 50', ['5714603022'], 'The biggest Bollywood songs of all time'],
-  ['Bollywood 2000s', ['9598289882'], 'Nostalgia hits from 2000 to 2010'],
+  ['Bollywood All Time', ['15397365263'], '300+ of the best Bollywood songs ever'],
+  ['Bollywood 2010–2024', ['15608630823'], '700+ hits from the last fifteen years'],
+  ['Bollywood 2020s', ['15558969283'], '350+ songs from this decade'],
+  ['Bollywood Top 500', ['5510742242'], 'Hindi all-time top 500'],
   ['Bollywood Romance', ['10421653842'], 'Love songs from the silver screen'],
   ['Bollywood Party', ['9660774522'], 'Dance floor anthems from Hindi films'],
   ['Bollywood 2026', ['14922241343'], 'The latest Bollywood hits'],
-  ['Bollywood 90s', ['1996212882'], 'Golden era classics from the 90s'],
   ['Bollywood Sad Songs', ['5855498562'], 'Heartbreak anthems from Hindi cinema'],
   ['Bollywood Retro', ['4803995402'], 'Timeless old-school Bollywood'],
-  ['Bollywood Unplugged', ['6062891064'], 'Acoustic and stripped-back renditions'],
   ['Arijit Singh Hits', ['3060498806'], 'Best of the modern Bollywood voice'],
 ];
 
@@ -142,7 +179,7 @@ const BOLLYWOOD: Category[] = BOLLYWOOD_DEFS.map(([label, playlistIds, blurb]) =
   blurb,
 }));
 
-export const CATEGORIES: Category[] = [...NOW, ...YEARS, ...GENRES, ...BOLLYWOOD];
+export const CATEGORIES: Category[] = [...NOW, ...DECADES, ...YEARS, ...GENRES, ...BOLLYWOOD];
 
 const BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
 
