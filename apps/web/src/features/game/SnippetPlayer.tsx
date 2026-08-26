@@ -77,6 +77,8 @@ export function SnippetPlayer({
   /** Wall-clock time when playback started, for the countdown display. */
   const playStartedAtRef = useRef<number>(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Tracks intent to play so a `canplay` listener can retry after the source loads. */
+  const wantPlayRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   /** The browser refused to start playback without a gesture. */
@@ -115,6 +117,19 @@ export function SnippetPlayer({
     };
   }, []);
 
+  // Retry play when the audio source finishes loading, if a play attempt was pending.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onCanPlay = () => {
+      if (wantPlayRef.current && audio.paused) {
+        forcePlay();
+      }
+    };
+    audio.addEventListener('canplay', onCanPlay);
+    return () => audio.removeEventListener('canplay', onCanPlay);
+  }, [previewUrl]);
+
   // Pick the offset once per previewUrl change (i.e. per round). With fixedOffsetSeconds
   // set, everyone hears the same slice; otherwise a random offset is picked.
   useEffect(() => {
@@ -144,27 +159,37 @@ export function SnippetPlayer({
     }
   }, [previewUrl, fixedOffsetSeconds]);
 
+  const stageSecondsRef = useRef(stageSeconds);
+  stageSecondsRef.current = stageSeconds;
+
   const forcePlay = () => {
     const audio = audioRef.current;
     if (!audio || disabled) return;
 
     if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
 
+    const secs = stageSecondsRef.current;
     const startAt = seekOffsetRef.current;
     audio.currentTime = startAt;
-    playUntilRef.current = startAt + stageSeconds;
-    playStartedAtRef.current = Date.now();
+    playUntilRef.current = startAt + secs;
+    wantPlayRef.current = true;
 
     setBlocked(false);
     void audio
       .play()
-      .then(() => setIsPlaying(true))
-      .catch(() => {
-        setIsPlaying(false);
-        setBlocked(true);
+      .then(() => {
+        setIsPlaying(true);
+        playStartedAtRef.current = Date.now();
+        if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+        stopTimeoutRef.current = setTimeout(() => stopPlayback(true), secs * 1000);
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === 'NotAllowedError') {
+          setIsPlaying(false);
+          setBlocked(true);
+          wantPlayRef.current = false;
+        }
       });
-
-    stopTimeoutRef.current = setTimeout(() => stopPlayback(true), stageSeconds * 1000);
   };
 
   // Auto-play when the autoPlay prop becomes true (e.g. after a skip in choice mode).
@@ -224,6 +249,7 @@ export function SnippetPlayer({
       stopTimeoutRef.current = null;
     }
     playUntilRef.current = null;
+    wantPlayRef.current = false;
     audio?.pause();
     setIsPlaying(false);
     if (natural) onSnippetEnd?.();
