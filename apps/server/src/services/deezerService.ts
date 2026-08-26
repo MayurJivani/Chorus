@@ -18,6 +18,7 @@ import { logger } from '../logger';
 interface FreshPreview {
   previewUrl: string;
   durationSeconds: number;
+  artist?: string;
 }
 
 interface CacheEntry<T> {
@@ -114,7 +115,16 @@ const cache = new Map<string, CacheEntry<FreshPreview>>();
 interface DeezerTrackResponse {
   preview?: string;
   duration?: number;
+  artist?: { name: string };
+  contributors?: { name: string }[];
   error?: unknown;
+}
+
+function buildArtistString(body: DeezerTrackResponse): string | undefined {
+  if (body.contributors && body.contributors.length > 0) {
+    return body.contributors.map((c) => c.name).join(', ');
+  }
+  return body.artist?.name;
 }
 
 export async function getFreshPreviewUrl(deezerTrackId: string): Promise<FreshPreview | null> {
@@ -128,9 +138,46 @@ export async function getFreshPreviewUrl(deezerTrackId: string): Promise<FreshPr
   );
   if (!body?.preview || body.error) return null;
 
-  const value: FreshPreview = { previewUrl: body.preview, durationSeconds: body.duration ?? 0 };
+  const value: FreshPreview = {
+    previewUrl: body.preview,
+    durationSeconds: body.duration ?? 0,
+    artist: buildArtistString(body),
+  };
   cache.set(deezerTrackId, { value, expiresAt: Date.now() + CACHE_TTL_MS });
   return value;
+}
+
+/** Pre-seeds the preview cache from bulk track data that already includes preview URLs.
+ *  Avoids a per-track /track/{id} call when the data was just fetched. */
+function seedPreviewCache(tracks: DeezerAlbumTrack[]): void {
+  const expiresAt = Date.now() + CACHE_TTL_MS;
+  for (const t of tracks) {
+    if (!t.preview) continue;
+    const trackId = String(t.id);
+    if (cache.has(trackId)) continue;
+    const artist =
+      t.contributors && t.contributors.length > 0
+        ? t.contributors.map((c) => c.name).join(', ')
+        : t.artist?.name;
+    cache.set(trackId, {
+      value: { previewUrl: t.preview, durationSeconds: t.duration, artist },
+      expiresAt,
+    });
+  }
+}
+
+/** Pre-seeds preview cache from playlist tracks (which already carry preview URLs). */
+export function seedPreviewCacheFromPlaylist(
+  tracks: { deezerTrackId: string; previewUrl: string; durationSeconds: number; artist: string }[],
+): void {
+  const expiresAt = Date.now() + CACHE_TTL_MS;
+  for (const t of tracks) {
+    if (cache.has(t.deezerTrackId)) continue;
+    cache.set(t.deezerTrackId, {
+      value: { previewUrl: t.previewUrl, durationSeconds: t.durationSeconds, artist: t.artist },
+      expiresAt,
+    });
+  }
 }
 
 export function clearPreviewCache(): void {
@@ -217,6 +264,7 @@ interface DeezerAlbum {
   title: string;
   nb_tracks: number;
   cover_medium?: string;
+  record_type?: string;
 }
 
 interface DeezerAlbumListResponse {
@@ -230,6 +278,7 @@ interface DeezerAlbumTrack {
   duration: number;
   preview?: string;
   artist?: { name: string };
+  contributors?: { name: string }[];
   album?: { cover_medium?: string };
 }
 
@@ -377,10 +426,14 @@ function buildCatalog(
   const bestByBase = new Map<string, ArtistTrack>();
 
   for (const t of eligible) {
+    const artist =
+      t.contributors && t.contributors.length > 0
+        ? t.contributors.map((c) => c.name).join(', ')
+        : (t.artist?.name ?? 'Unknown');
     const candidate: ArtistTrack = {
       deezerTrackId: String(t.id),
       title: t.title,
-      artist: t.artist?.name ?? 'Unknown',
+      artist,
       albumArtUrl:
         t.album?.cover_medium ?? (t.albumId != null ? (albumCovers.get(t.albumId) ?? null) : null),
       durationSeconds: t.duration,
@@ -403,27 +456,11 @@ function buildCatalog(
   return [...bestByBase.values()].sort((a, b) => a.deezerTrackId.localeCompare(b.deezerTrackId));
 }
 
-async function fetchArtistTopTracks(
-  artistId: number,
-  includeFeatures: boolean,
-): Promise<ArtistTrack[]> {
-  logger.info(`Fetching full discography for artist ${artistId}...`);
-
-  const albums = await fetchAllAlbums(artistId);
-  logger.info(`Found ${albums.length} albums for artist ${artistId}`);
-
-  // Build a lookup from album id → cover art so tracks can inherit their parent album's art.
-  const albumCovers = new Map<number, string | null>();
-  for (const a of albums) {
-    albumCovers.set(a.id, a.cover_medium ?? null);
-  }
-
-  // Fetch each album's tracks with a fixed pool of workers (capped to avoid flooding Deezer).
-  // A pool rather than fixed batches: batching waited for the slowest request in each group of
-  // five before starting the next, so one slow album stalled four idle slots. Workers pull the
-  // next album as soon as they finish, which keeps every slot busy for the whole crawl.
+async function crawlAlbumTracks(
+  albums: DeezerAlbum[],
+): Promise<(DeezerAlbumTrack & { albumId: number })[]> {
   const CONCURRENCY = 8;
-  const allRawTracks: (DeezerAlbumTrack & { albumId?: number })[] = [];
+  const allRawTracks: (DeezerAlbumTrack & { albumId: number })[] = [];
   let nextAlbumIndex = 0;
 
   async function worker(): Promise<void> {
@@ -435,25 +472,34 @@ async function fetchArtistTopTracks(
         const tracks = await fetchAlbumTracks(album.id);
         for (const t of tracks) allRawTracks.push({ ...t, albumId: album.id });
       } catch (err) {
-        // One unreachable album shouldn't sink the whole discography.
         logger.warn({ err, albumId: album.id }, 'Album track fetch failed; skipping album');
       }
     }
   }
 
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, albums.length) }, () => worker()));
+  return allRawTracks;
+}
 
+/** Full album crawl, used either as the slow path or for background enrichment. */
+export async function fetchFullDiscography(
+  artistId: number,
+  includeFeatures: boolean,
+): Promise<ArtistTrack[]> {
+  const albums = await fetchAllAlbums(artistId);
+  logger.info(`Found ${albums.length} albums for artist ${artistId}`);
+
+  const albumCovers = new Map<number, string | null>();
+  for (const a of albums) albumCovers.set(a.id, a.cover_medium ?? null);
+
+  const allRawTracks = await crawlAlbumTracks(albums);
+  seedPreviewCache(allRawTracks);
   let tracks = buildCatalog(allRawTracks, includeFeatures, albumCovers);
 
-  // Artists who never release under their own name — composers, producers — have no albums at
-  // all, so the crawl above yields nothing and a challenge cannot be built. Fall back to their
-  // top tracks, which Deezer serves directly. Only on a shortfall: for a normal artist those
-  // tracks are already in the albums, and pulling them in unconditionally would also drag in
-  // records where the artist is merely credited rather than the performer.
   if (tracks.length < MIN_CATALOG_TRACKS) {
     logger.info(
       { artistId, fromAlbums: tracks.length },
-      'Album crawl came up short; falling back to top tracks',
+      'Album crawl came up short; merging top tracks',
     );
     const topChart = await fetchArtistTopChart(artistId);
     tracks = buildCatalog([...allRawTracks, ...topChart], includeFeatures, albumCovers);
@@ -462,8 +508,29 @@ async function fetchArtistTopTracks(
   logger.info(
     `Discography for artist ${artistId}: ${allRawTracks.length} raw → ${tracks.length} after filtering`,
   );
-
   return tracks;
+}
+
+async function fetchArtistTopTracks(
+  artistId: number,
+  includeFeatures: boolean,
+): Promise<ArtistTrack[]> {
+  logger.info(`Fetching catalog for artist ${artistId}...`);
+
+  const topChart = await fetchArtistTopChart(artistId);
+  seedPreviewCache(topChart);
+  const topTracks = buildCatalog(topChart, includeFeatures, new Map());
+
+  if (topTracks.length >= MIN_CATALOG_TRACKS) {
+    logger.info({ artistId, topTracks: topTracks.length }, 'Top tracks sufficient; returning fast');
+    return topTracks;
+  }
+
+  logger.info(
+    { artistId, topTracks: topTracks.length },
+    'Top tracks insufficient; falling back to full album crawl',
+  );
+  return fetchFullDiscography(artistId, includeFeatures);
 }
 
 export function clearArtistCaches(): void {

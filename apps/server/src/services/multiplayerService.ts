@@ -364,7 +364,7 @@ export async function startGame(playerId: string): Promise<void> {
       const p = candidatePreviews[i];
       const track = candidateTracks[i];
       if (p != null && track != null) {
-        chosen.push(track);
+        chosen.push(p.artist ? { ...track, artist: p.artist } : track);
         previews.push(p.previewUrl);
       }
     }
@@ -375,7 +375,7 @@ export async function startGame(playerId: string): Promise<void> {
         if (chosen.length >= room.rounds) break;
         const p = await getFreshPreviewUrl(track.deezerTrackId);
         if (p != null) {
-          chosen.push(track);
+          chosen.push(p.artist ? { ...track, artist: p.artist } : track);
           previews.push(p.previewUrl);
         }
       }

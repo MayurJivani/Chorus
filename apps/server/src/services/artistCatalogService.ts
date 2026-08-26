@@ -15,7 +15,7 @@
 import { and, eq, lt, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { artistTrackPools } from '../db/schema';
-import { getArtistTopTracks, type ArtistTrack } from './deezerService';
+import { getArtistTopTracks, fetchFullDiscography, type ArtistTrack } from './deezerService';
 import { getSettings } from './settingsService';
 import { logger } from '../logger';
 
@@ -104,7 +104,7 @@ function touchPool(deezerArtistId: string, includeFeatures: boolean, lastAccesse
     .catch((err) => logger.warn({ err, deezerArtistId }, 'Failed to touch artist pool'));
 }
 
-function refreshInBackground(
+function enrichOrRefreshInBackground(
   artistId: number,
   deezerArtistId: string,
   includeFeatures: boolean,
@@ -113,13 +113,18 @@ function refreshInBackground(
   if (refreshInFlight.has(key)) return;
   refreshInFlight.add(key);
 
-  void getArtistTopTracks(artistId, includeFeatures)
+  void fetchFullDiscography(artistId, includeFeatures)
     .then(async (tracks) => {
       if (tracks.length === 0) return;
       await writePool(deezerArtistId, includeFeatures, tracks[0]?.artist ?? '', tracks);
-      logger.info({ deezerArtistId, trackCount: tracks.length }, 'Refreshed artist pool');
+      logger.info(
+        { deezerArtistId, trackCount: tracks.length },
+        'Enriched artist pool with full discography',
+      );
     })
-    .catch((err) => logger.warn({ err, deezerArtistId }, 'Background artist pool refresh failed'))
+    .catch((err) =>
+      logger.warn({ err, deezerArtistId }, 'Background artist pool enrichment failed'),
+    )
     .finally(() => refreshInFlight.delete(key));
 }
 
@@ -144,7 +149,7 @@ export async function getArtistCatalog(
   if (stored && stored.trackCount > 0) {
     touchPool(deezerArtistId, includeFeatures, stored.lastAccessedAt);
     if (Date.now() - stored.fetchedAt.getTime() > REFRESH_AFTER_MS) {
-      refreshInBackground(artistId, deezerArtistId, includeFeatures);
+      enrichOrRefreshInBackground(artistId, deezerArtistId, includeFeatures);
     }
     return stored.tracks;
   }
@@ -156,6 +161,7 @@ export async function getArtistCatalog(
     } catch (err) {
       logger.warn({ err, deezerArtistId }, 'Failed to store artist pool');
     }
+    enrichOrRefreshInBackground(artistId, deezerArtistId, includeFeatures);
   }
   return tracks;
 }

@@ -84,21 +84,20 @@ artistsRouter.get(
       );
     }
 
-    const artistInfo = await getArtistById(artistId).catch(() => null);
     const snippetSchedule = await getSnippetSchedule();
-    const base = {
-      challengeId: challenge.id,
-      artistName: challenge.artistName,
-      artistPictureUrl: artistInfo?.pictureUrl ?? null,
-      totalRounds: challenge.totalRounds,
-      currentRound: session.currentRound,
-      songsCorrect: session.songsCorrect,
-      totalGuessesUsed: session.totalGuessesUsed,
-      completed: session.completed,
-    };
 
     if (session.completed) {
-      res.json(base);
+      const artistInfo = await getArtistById(artistId).catch(() => null);
+      res.json({
+        challengeId: challenge.id,
+        artistName: challenge.artistName,
+        artistPictureUrl: artistInfo?.pictureUrl ?? null,
+        totalRounds: challenge.totalRounds,
+        currentRound: session.currentRound,
+        songsCorrect: session.songsCorrect,
+        totalGuessesUsed: session.totalGuessesUsed,
+        completed: session.completed,
+      });
       return;
     }
 
@@ -107,28 +106,35 @@ artistsRouter.get(
       throw new HttpError(500, 'Challenge round is out of range');
     }
 
-    // Repairs the slot in place if this track turns out to have no playable preview, rather
-    // than leaving the challenge permanently stuck on an unplayable round.
-    const playable = await resolvePlayableRound(
-      storedTrack,
-      artistId,
-      includeFeatures,
-      tracks.map((t) => t.deezerTrackId),
-    );
+    const [artistInfo, playable] = await Promise.all([
+      getArtistById(artistId).catch(() => null),
+      resolvePlayableRound(
+        storedTrack,
+        artistId,
+        includeFeatures,
+        tracks.map((t) => t.deezerTrackId),
+      ),
+    ]);
+
     if (!playable) {
       throw new HttpError(503, 'This song is temporarily unavailable, please try again shortly');
     }
     const currentTrack = playable.track;
 
-    // Only fetch decoys and build multiple-choice options when the client is in 'choice' mode.
-    // In 'search' mode we skip the extra Deezer call and omit `options` from the response.
     const isChoiceMode = mode === 'choice';
     const options = isChoiceMode
       ? buildRoundOptions(currentTrack, await getArtistCatalog(artistId, includeFeatures))
       : undefined;
 
     res.json({
-      ...base,
+      challengeId: challenge.id,
+      artistName: challenge.artistName,
+      artistPictureUrl: artistInfo?.pictureUrl ?? null,
+      totalRounds: challenge.totalRounds,
+      currentRound: session.currentRound,
+      songsCorrect: session.songsCorrect,
+      totalGuessesUsed: session.totalGuessesUsed,
+      completed: session.completed,
       previewUrl: playable.previewUrl,
       snippetSchedule,
       maxGuesses: snippetSchedule.length,

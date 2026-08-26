@@ -10,7 +10,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { artistTrackPools } from '../db/schema';
 import { fetchPlaylistTracks } from './dailyPlaylistService';
-import { type ArtistTrack } from './deezerService';
+import { seedPreviewCacheFromPlaylist, type ArtistTrack } from './deezerService';
 import {
   isUnwantedVersion,
   normalizeTitle,
@@ -69,7 +69,9 @@ async function fetchMultiplePlaylists(
   playlistIds: string[],
 ): Promise<Parameters<typeof buildCategoryPool>[0]> {
   const results = await Promise.all(playlistIds.map((id) => fetchPlaylistTracks(id)));
-  return results.flat();
+  const flat = results.flat();
+  seedPreviewCacheFromPlaylist(flat);
+  return flat;
 }
 
 async function readPool(categoryId: string) {

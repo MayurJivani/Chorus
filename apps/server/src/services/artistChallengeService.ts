@@ -505,7 +505,16 @@ export async function resolvePlayableRoundForSource(
   usedTrackIds: readonly string[],
 ): Promise<{ track: ArtistChallengeTrack; previewUrl: string } | null> {
   const direct = await getFreshPreviewUrl(track.deezerTrackId);
-  if (direct) return { track, previewUrl: direct.previewUrl };
+  if (direct) {
+    if (direct.artist && direct.artist !== track.artist) {
+      await db
+        .update(artistChallengeTracks)
+        .set({ artist: direct.artist })
+        .where(eq(artistChallengeTracks.id, track.id));
+    }
+    const resolved = direct.artist ? { ...track, artist: direct.artist } : track;
+    return { track: resolved, previewUrl: direct.previewUrl };
+  }
 
   logger.warn(
     { deezerTrackId: track.deezerTrackId, title: track.title },
@@ -525,7 +534,7 @@ export async function resolvePlayableRoundForSource(
       .set({
         deezerTrackId: candidate.deezerTrackId,
         title: candidate.title,
-        artist: candidate.artist,
+        artist: fresh.artist ?? candidate.artist,
         albumArtUrl: candidate.albumArtUrl,
         durationSeconds: candidate.durationSeconds,
       })

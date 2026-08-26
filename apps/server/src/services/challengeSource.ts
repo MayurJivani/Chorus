@@ -40,6 +40,7 @@ export async function resolveArtistSource(
   artistId: number,
   includeFeatures: boolean,
 ): Promise<ChallengeSource> {
+  const catalogPromise = getArtistCatalog(artistId, includeFeatures);
   const artist = await getArtistById(artistId);
   if (!artist) throw new Error('Artist not found');
 
@@ -49,7 +50,7 @@ export async function resolveArtistSource(
     label: artist.name,
     pictureUrl: artist.pictureUrl,
     includeFeatures,
-    loadCatalog: () => getArtistCatalog(artistId, includeFeatures),
+    loadCatalog: () => catalogPromise,
   };
 }
 
