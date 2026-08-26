@@ -66,6 +66,7 @@ export function PlayPage() {
   const lastAttempt = history[history.length - 1];
   const previewUrl = puzzle.completed ? null : puzzle.previewUrl;
   const stageSeconds = snippetSchedule[Math.min(attemptNumber, snippetSchedule.length) - 1] ?? 1;
+  const canRevealMore = attemptNumber < snippetSchedule.length;
 
   return (
     <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center gap-3 sm:gap-5 px-4 py-3 sm:py-6">
@@ -101,6 +102,8 @@ export function PlayPage() {
           <GuessInput
             onGuess={guess}
             onSkip={skip}
+            onRevealMore={skip}
+            canRevealMore={canRevealMore}
             disabled={submitting}
             guessFeedback={guessFeedback}
           />
