@@ -49,8 +49,8 @@ const NOW: Category[] = [
  *  Each year carries multiple playlists (main + regional/genre variants) to push the pool
  *  well past 100 tracks, giving replays fresh songs each time. */
 const YEAR_PLAYLISTS: [year: number, playlistIds: string[]][] = [
-  [2024, ['13154877883', '13238299403', '13241781803']],
-  [2023, ['12345467671', '11906567121', '11924528781', '11903241081']],
+  [2024, ['13154877883']],
+  [2023, ['12345467671']],
   [2022, ['12345460211']],
   [2021, ['12345421311']],
   [2020, ['3185085222']],
