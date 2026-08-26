@@ -3,12 +3,11 @@ import { useToast } from '../../hooks/useToast';
 
 const CLICK_MESSAGES = [
   { count: 3, message: 'You really like clicking that vinyl...', type: 'info' as const },
-  { count: 5, message: 'Still going? You must really love music.', type: 'info' as const },
   { count: 7, message: 'Fun fact: the Konami code works here.', type: 'info' as const },
-  { count: 10, message: 'The vinyl is getting dizzy...', type: 'info' as const },
+  { count: 10, message: 'The vinyl is getting dizzy...', type: 'info' as const, spin: true },
 ];
 
-const CRASH_THRESHOLD = 12;
+const CRASH_THRESHOLD = 15;
 
 function runNavbarCrash(logoEl: HTMLElement) {
   const header = logoEl.closest('header');
@@ -165,6 +164,17 @@ export function useLogoClickEasterEgg() {
       const msg = CLICK_MESSAGES.find((m) => m.count === clickCount.current);
       if (msg) {
         toast(msg.message, msg.type);
+        if ('spin' in msg && msg.spin) {
+          const disc = e.currentTarget.querySelector<HTMLElement>('span');
+          if (disc) {
+            disc.style.transition = 'transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            disc.style.transform = 'rotate(720deg)';
+            setTimeout(() => {
+              disc.style.transition = 'transform 0.4s ease-out';
+              disc.style.transform = '';
+            }, 800);
+          }
+        }
       }
 
       if (clickCount.current >= CRASH_THRESHOLD && !crashingRef.current) {
