@@ -168,6 +168,15 @@ export const artistChallenges = pgTable(
     // featured/collaboration tracks changes which songs are eligible, so "with features" and
     // "without" are two distinct (still each shared/deterministic) daily challenges.
     includeFeatures: boolean('include_features').notNull().default(false),
+    /**
+     * Whether this run counts towards leaderboards.
+     *
+     * False for a challenge built from a catalogue too thin to fill the normal length — K/DA
+     * and similar have a handful of songs, and refusing to build anything at all meant they
+     * simply could not be played. A six-song run is a fine game but not a comparable score, so
+     * it is playable and excluded from ranking rather than blocked outright.
+     */
+    ranked: boolean('ranked').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

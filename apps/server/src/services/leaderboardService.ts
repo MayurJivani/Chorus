@@ -74,7 +74,10 @@ export async function getGlobalLeaderboard(
     FROM artist_session_results r
     JOIN artist_challenges c ON c.id = r.challenge_id
     JOIN users u ON u.id = r.user_id
+    -- c.ranked excludes short runs built from a thin catalogue: a six-song game is a
+    -- fine game but not a score comparable with a ten-song one.
     WHERE r.completed = true AND r.user_id IS NOT NULL AND c.source_type = ${sourceType}
+      AND c.ranked = true
     GROUP BY u.id, u.display_name
     ORDER BY
       "songsCorrect" DESC,

@@ -280,7 +280,7 @@ describe('multiplayerService start_game', () => {
     expect(messagesOf(guest, 'round_start')).toHaveLength(1);
   });
 
-  it('refuses to start when the artist does not have enough playable tracks', async () => {
+  it('refuses to start when the artist has nothing playable', async () => {
     catalogMocks.getArtistCatalog.mockResolvedValue([]);
     const { code } = await createRoom(queenSource());
     const host = register('host', 'hostaaaa');
@@ -288,7 +288,10 @@ describe('multiplayerService start_game', () => {
 
     handleClientMessage('host', { type: 'start_game' });
     await vi.advanceTimersByTimeAsync(0);
-    expect(lastOf(host, 'error')?.message).toContain('Not enough playable tracks');
+    // Wording changed with short runs: the message now names the catalogue size, because
+    // "not enough playable tracks" read as a fault in the game rather than a fact about
+    // the artist.
+    expect(lastOf(host, 'error')?.message).toContain('not enough for a game');
     expect(__getRoomPhase(code)).toBe('lobby');
   });
 });
@@ -460,6 +463,37 @@ describe('multiplayerService guess mode', () => {
     expect(start?.guessMode).toBe('search');
     expect(start?.options).toBeUndefined();
     expect(__getRoom(code)).toMatchObject({ guessMode: 'search' });
+  });
+
+  /*
+   * A catalogue too thin for the full length plays short instead of refusing.
+   *
+   * K/DA and similar have a handful of songs, and the old gate meant they simply could not be
+   * played — the error read like a fault in the game rather than a fact about the artist.
+   */
+  it('shortens the game to fit a thin catalogue', async () => {
+    catalogMocks.getArtistCatalog.mockResolvedValue(mockTracks(4));
+    const { code } = await createRoom(queenSource(), 'choice', 'speed', false, true, 10);
+    const host = register('host', 'hostaaaa');
+    await join('host', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lastOf(host, 'round_start')?.totalRounds).toBe(4);
+    expect(lastOf(host, 'error')).toBeUndefined();
+  });
+
+  it('still refuses a catalogue with almost nothing in it', async () => {
+    catalogMocks.getArtistCatalog.mockResolvedValue(mockTracks(2));
+    const { code } = await createRoom(queenSource(), 'choice', 'speed');
+    const host = register('host', 'hostaaaa');
+    await join('host', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(lastOf(host, 'error')?.message).toContain('not enough for a game');
   });
 
   it('substitutes a speed round when classic is disabled', async () => {

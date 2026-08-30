@@ -56,7 +56,13 @@ async function findChallenge(sourceId: string, challengeDate: string, includeFea
   return rows[0];
 }
 
-/** Builds (or returns) the ten-round challenge for a source on a given date. */
+/**
+ * Below this a run is not worth playing at all — one or two songs is a coin toss, not a game.
+ * Between here and the configured length the run happens but does not count.
+ */
+export const MIN_PLAYABLE_ROUNDS = 3;
+
+/** Builds (or returns) the challenge for a source on a given date. */
 export async function getOrCreateChallenge(
   source: ChallengeSource,
   challengeDate: string,
@@ -67,14 +73,25 @@ export async function getOrCreateChallenge(
     return { challenge: existing, tracks: await loadChallengeTracks(existing.id) };
   }
 
-  const totalRounds = (await getSettings()).challengeRounds;
+  const configuredRounds = (await getSettings()).challengeRounds;
 
   const pool = await source.loadCatalog();
-  if (pool.length < totalRounds) {
+  if (pool.length < MIN_PLAYABLE_ROUNDS) {
     throw new Error(
-      `Not enough playable tracks for ${source.label} to build a ${totalRounds}-song challenge`,
+      `${source.label} only has ${pool.length} playable ${pool.length === 1 ? 'song' : 'songs'} — not enough for a game`,
     );
   }
+
+  /*
+   * A thin catalogue plays short rather than not at all.
+   *
+   * K/DA and similar have a handful of tracks, and demanding the full length meant they could
+   * not be played — the error read like a bug rather than "this artist has six songs". A short
+   * run is a perfectly good game; it just is not a comparable score, so it is excluded from
+   * ranking instead of being refused.
+   */
+  const totalRounds = Math.min(configuredRounds, pool.length);
+  const ranked = totalRounds >= configuredRounds;
 
   const chosen = seededShuffle(pool, `${sourceId}:${challengeDate}:${includeFeatures}`).slice(
     0,
@@ -92,6 +109,7 @@ export async function getOrCreateChallenge(
         includeFeatures,
         sourceType: source.sourceType,
         totalRounds,
+        ranked,
       })
       .returning();
     const inserted = insertedRows[0];
@@ -737,7 +755,8 @@ export async function getSourceLeaderboard(
     FROM artist_session_results r
     JOIN artist_challenges c ON c.id = r.challenge_id
     JOIN users u ON u.id = r.user_id
-    WHERE c.deezer_artist_id = ${sourceId}
+    -- Short unranked runs are excluded: comparable scores need comparable lengths.
+    WHERE c.ranked = true AND c.deezer_artist_id = ${sourceId}
       AND c.source_type = ${sourceType}
       AND r.completed = true
       AND r.user_id IS NOT NULL
@@ -758,7 +777,8 @@ export async function getSourceLeaderboard(
     SELECT ${STANDING_COLUMNS}
     FROM artist_session_results r
     JOIN artist_challenges c ON c.id = r.challenge_id
-    WHERE c.deezer_artist_id = ${sourceId}
+    -- Short unranked runs are excluded: comparable scores need comparable lengths.
+    WHERE c.ranked = true AND c.deezer_artist_id = ${sourceId}
       AND c.source_type = ${sourceType}
       AND r.completed = true
       AND COALESCE(r.user_id, r.guest_id) = ${myKey}
@@ -845,7 +865,8 @@ export async function getSourceGuessDistribution(
     FROM artist_round_guesses g
     JOIN artist_session_results s ON s.id = g.session_id
     JOIN artist_challenges c ON c.id = s.challenge_id
-    WHERE c.deezer_artist_id = ${sourceId}
+    -- Short unranked runs are excluded: comparable scores need comparable lengths.
+    WHERE c.ranked = true AND c.deezer_artist_id = ${sourceId}
       AND c.source_type = ${sourceType}
       AND s.completed = true
       AND g.correct = true
@@ -857,7 +878,8 @@ export async function getSourceGuessDistribution(
     FROM artist_round_guesses g
     JOIN artist_session_results s ON s.id = g.session_id
     JOIN artist_challenges c ON c.id = s.challenge_id
-    WHERE c.deezer_artist_id = ${sourceId}
+    -- Short unranked runs are excluded: comparable scores need comparable lengths.
+    WHERE c.ranked = true AND c.deezer_artist_id = ${sourceId}
       AND c.source_type = ${sourceType}
       AND s.completed = true
       AND g.correct = true

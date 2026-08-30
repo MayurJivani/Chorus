@@ -1,0 +1,1 @@
+ALTER TABLE "artist_challenges" ADD COLUMN "ranked" boolean DEFAULT true NOT NULL;

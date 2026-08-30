@@ -48,6 +48,9 @@ export const MP_CHOICE_OPTIONS = 4;
  */
 export const MP_MAX_ROUNDS = 25;
 
+/** Below this there is no game to play, however thin the catalogue. */
+export const MP_MIN_ROUNDS = 3;
+
 /**
  * Classic (progressive reveal, points by stage) is switched off for now — every room plays a
  * Speed Round. The mode is disabled rather than deleted: all of its branches below are still
@@ -619,11 +622,18 @@ export async function startGame(playerId: string): Promise<void> {
 
   try {
     const pool = await room.source.loadCatalog();
-    if (pool.length < room.rounds) {
+    if (pool.length < MP_MIN_ROUNDS) {
       return sendError(
         playerId,
-        `Not enough playable tracks for ${room.source.label} to build a game.`,
+        `${room.source.label} only has ${pool.length} playable ${
+          pool.length === 1 ? 'song' : 'songs'
+        } — not enough for a game.`,
       );
+    }
+    // Play short rather than refusing. A thin catalogue (K/DA and similar) used to fail here
+    // with a message that read like a bug rather than "this artist has six songs".
+    if (pool.length < room.rounds) {
+      room.rounds = pool.length;
     }
 
     const seed = `${room.code}:${Date.now()}:${randomUUID()}`;
