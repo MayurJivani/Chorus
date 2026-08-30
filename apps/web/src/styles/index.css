@@ -25,6 +25,57 @@ body {
   color: #fff;
 }
 
+/* ── Scrollbars ────────────────────────────────────────────
+   Applied globally rather than per-container. The app scrolls in more places than the page
+   body — the main column, the category grid, the friends list, the fandom dropdown, the admin
+   song picker, the leaderboard's horizontal table — and every one of them was rendering the
+   browser's default light chrome against a near-black UI. A global rule also means a scroll
+   container added later is styled without anyone having to remember to do it.
+
+   Firefox only supports the two standard properties, so it gets a thin bar in the same colours;
+   WebKit/Blink get the fuller treatment below. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+/* Transparent so the bar reads as part of whatever panel it sits in, rather than cutting a
+   grey channel through a rounded card. */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  /* Transparent border + content-box clipping insets the thumb, so it floats with breathing
+     room instead of filling the gutter edge to edge. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.32);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: rgba(139, 92, 246, 0.65); /* chorusify accent */
+  background-clip: content-box;
+}
+
+/* Where a vertical and horizontal bar meet (the leaderboard table), the default corner is an
+   opaque grey square. */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* ── Spinning Vinyl Cursor ────────────────────────────── */
 @keyframes vinyl-spin {
   from {

@@ -3,9 +3,13 @@
  *
  * No decoding library is bundled: the lobby already renders a QR that a phone's native camera
  * app can open directly, so this only has to serve the case where someone is *already* in
- * Chorusify and doesn't want to leave it. Where `BarcodeDetector` is missing (Firefox, older
- * iOS) `isQrScanSupported()` reports false and the caller keeps the code field as the only
- * join path, rather than showing a button that cannot work.
+ * Chorusify and doesn't want to leave it.
+ *
+ * The entry point is deliberately *not* feature-gated. Hiding the button where
+ * `BarcodeDetector` is missing (Firefox, older iOS) meant most people never discovered that
+ * scanning existed — the control simply wasn't there to find. Opening the panel and saying
+ * plainly that this browser can't scan is a better trade than silently offering less, and the
+ * code field is right beside it either way.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -21,12 +25,6 @@ type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => BarcodeDete
 function barcodeDetectorCtor(): BarcodeDetectorCtor | null {
   const ctor = (globalThis as { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector;
   return typeof ctor === 'function' ? ctor : null;
-}
-
-export function isQrScanSupported(): boolean {
-  return (
-    barcodeDetectorCtor() !== null && typeof navigator !== 'undefined' && !!navigator.mediaDevices
-  );
 }
 
 /**

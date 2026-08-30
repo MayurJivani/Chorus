@@ -3,20 +3,43 @@ import { usePageTitle } from '../hooks/usePageTitle';
 
 /** Every mode, in the same order the home page lists them. */
 const MODES: [string, string][] = [
-  ['Daily Challenge', 'one shared song per day, the same for everyone. Keep your streak alive.'],
   ['Artist Mode', 'pick any artist and name ten songs from their discography.'],
+  [
+    'Multiplayer',
+    'share a room by QR or code and race friends on the same snippet — fastest correct answer scores most. The host picks how many songs, up to 25, and can switch to a different artist or category between games without anyone leaving the room.',
+  ],
   ['Categories', 'ten songs from one chart, year or genre, every track by a different artist.'],
   ['Survival', 'endless songs, one wrong answer ends the run. How far can you get?'],
   ['Guess the Year', 'hear a song and place it in time. Harder than it sounds.'],
-  ['Multiplayer', 'race friends in real time on a shared snippet timer.'],
   ['Duels', 'rated 1v1 over the same ten songs. Win and your rating climbs.'],
+  ['Daily Challenge', 'one shared song per day, the same for everyone. Keep your streak alive.'],
 ];
 
 const sections = [
   {
     icon: '🎵',
     title: 'How it works',
-    body: "You start with a one-second snippet of a song. If you don't know it, guess wrong or skip and the snippet grows: one second, then two, four, seven, and so on. Name it in as few listens as you can.",
+    body: null,
+    jsx: (
+      <div className="flex flex-col gap-2 leading-relaxed text-slate-400">
+        <p>
+          You start with a short snippet of a song. Name it in as few seconds of audio as you can —
+          the earlier you get it, the more the round is worth.
+        </p>
+        {/*
+          Spelled out because it is the single most misread thing in the game: "Hear more" and
+          "Skip" sat side by side looking identical, so players treated the free one as another
+          way of giving up and guessed off one second.
+        */}
+        <p>
+          <span className="font-medium text-slate-200">Hear more</span> stretches the clip — one
+          second, then two, four, seven, and so on. In every mode except the daily it is{' '}
+          <span className="font-medium text-slate-200">free</span> and costs you no guess, so there
+          is never a reason to guess blind. On the Daily Challenge an attempt is what grows the
+          snippet, so there it does use one of your tries.
+        </p>
+      </div>
+    ),
   },
   {
     icon: '🎤',

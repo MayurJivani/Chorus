@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { createMultiplayerRoom, MULTIPLAYER_MAX_ROUNDS } from '../api/multiplayer';
 import { SourcePicker, type PickedSource } from '../features/multiplayer/SourcePicker';
-import { QrScanner, isQrScanSupported } from '../features/multiplayer/QrScanner';
+import { QrScanner } from '../features/multiplayer/QrScanner';
 import { MultiplayerGuide } from '../features/game/ModeGuide';
 import type { MultiplayerGameMode, MultiplayerGuessMode } from '../types/api';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -101,8 +101,7 @@ export function MultiplayerHomePage() {
           <div>
             <h2 className="text-lg font-bold text-white">Join a room</h2>
             <p className="text-xs text-slate-400">
-              Have a code from a friend? Enter it below
-              {isQrScanSupported() ? ' or scan their QR' : ''}.
+              Scan your friend&apos;s QR, or type their code.
             </p>
           </div>
 
@@ -115,45 +114,66 @@ export function MultiplayerHomePage() {
               onClose={() => setScanning(false)}
             />
           ) : (
-            <>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (roomCode.trim()) {
-                    navigate(`/room/${roomCode.trim().toUpperCase()}`);
-                  }
-                }}
-                className="flex w-full gap-2"
-              >
-                <input
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  maxLength={12}
-                  placeholder="ROOM CODE"
-                  /* min-w-0 is the fix: a flex item defaults to min-width:auto, so this input refused
-                     to shrink below the width of its own "ROOM CODE" placeholder and shoved the button
-                     off the screen on a narrow phone. */
-                  className="w-full min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center font-mono text-base font-black tracking-widest text-chorusify-accent2 outline-none focus:border-chorusify-accent2 uppercase placeholder:font-sans placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-600"
-                />
-                <button
-                  type="submit"
-                  disabled={!roomCode.trim()}
-                  className="btn-primary shrink-0 !px-5 !py-2.5 !text-sm whitespace-nowrap"
-                >
-                  Join
-                </button>
-              </form>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (roomCode.trim()) {
+                  navigate(`/room/${roomCode.trim().toUpperCase()}`);
+                }
+              }}
+              className="flex w-full gap-2"
+            >
+              {/*
+                Scan sits in the same row as the code field, because it is the alternative to
+                typing one — as a separate full-width button underneath it read as a third,
+                unrelated action and the typing stayed the obvious path.
 
-              {isQrScanSupported() && (
-                <button
-                  type="button"
-                  onClick={() => setScanning(true)}
-                  className="btn-secondary w-full !rounded-xl !py-2.5 !text-sm"
+                Always rendered, never feature-gated. Hiding it where `BarcodeDetector` is
+                missing meant most people never learned scanning was an option at all; opening
+                the panel and saying so plainly is better than silently offering less.
+              */}
+              <button
+                type="button"
+                onClick={() => setScanning(true)}
+                aria-label="Scan a QR code to join"
+                title="Scan a QR code"
+                className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-chorusify-accent2/40 bg-chorusify-accent2/10 text-chorusify-accent2 transition-all duration-200 hover:border-chorusify-accent2/70 hover:bg-chorusify-accent2/20 active:scale-95"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  className="h-5 w-5"
+                  aria-hidden="true"
                 >
-                  Scan QR code
-                </button>
-              )}
-            </>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h3c.621 0 1.125.504 1.125 1.125v3c0 .621-.504 1.125-1.125 1.125h-3A1.125 1.125 0 0 1 3.75 7.875v-3Zm11.25 0c0-.621.504-1.125 1.125-1.125h3c.621 0 1.125.504 1.125 1.125v3c0 .621-.504 1.125-1.125 1.125h-3A1.125 1.125 0 0 1 15 7.875v-3ZM3.75 16.125c0-.621.504-1.125 1.125-1.125h3c.621 0 1.125.504 1.125 1.125v3c0 .621-.504 1.125-1.125 1.125h-3a1.125 1.125 0 0 1-1.125-1.125v-3Zm11.25 3v-3m0 0h2.25m-2.25 0h-.008m5.258 0H18m2.25 3v.008m0-3.008v-1.5m-5.25-1.5V15m0 0h1.5"
+                  />
+                </svg>
+              </button>
+
+              <input
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                maxLength={12}
+                placeholder="ROOM CODE"
+                aria-label="Room code"
+                /* min-w-0 is the fix: a flex item defaults to min-width:auto, so this input refused
+                   to shrink below the width of its own "ROOM CODE" placeholder and shoved the button
+                   off the screen on a narrow phone. */
+                className="w-full min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center font-mono text-base font-black tracking-widest text-chorusify-accent2 outline-none focus:border-chorusify-accent2 uppercase placeholder:font-sans placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-600"
+              />
+              <button
+                type="submit"
+                disabled={!roomCode.trim()}
+                className="btn-primary shrink-0 !px-5 !py-2.5 !text-sm whitespace-nowrap"
+              >
+                Join
+              </button>
+            </form>
           )}
         </motion.div>
       )}

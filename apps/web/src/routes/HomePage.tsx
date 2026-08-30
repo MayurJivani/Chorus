@@ -72,23 +72,23 @@ export function HomePage() {
 
   const streak = stats?.currentStreak ?? 0;
 
+  // Padding is deliberately top-light: the block still centres while it is short enough to fit,
+  // but the spare room sits underneath, so the hero rides nearer the top rather than floating in
+  // the middle of the viewport.
   return (
-    <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center gap-4 px-4 py-6 sm:gap-8 sm:py-10">
-      {/*
-        Hero, cut to the waveform and one line. The tagline paragraph that used to sit here
-        restated what the two demos below already show, and its only real effect was pushing
-        those demos off the first screen — which is the whole reason nobody found the modes.
-      */}
+    <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center gap-4 px-4 pt-2 pb-8 sm:gap-8 sm:pt-4 sm:pb-14">
+      {/* Hero kept at its original scale and wording — it is the page's anchor, and shrinking
+          it to buy vertical space made the whole page read as a settings screen. */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        className="flex flex-col items-center gap-2.5 text-center"
+        className="flex flex-col items-center gap-5 text-center"
       >
         <div className="animate-float">
           <AnimatedWaveform />
         </div>
-        <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
+        <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl">
           Guess your <span className="text-purple-400">favourite</span> music!
         </h1>
         <p className="max-w-md text-base leading-relaxed text-slate-400">
