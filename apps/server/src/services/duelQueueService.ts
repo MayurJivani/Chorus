@@ -177,7 +177,8 @@ export async function joinQueue(playerId: string, request: DuelQueueRequest): Pr
 
   try {
     const source = await resolveSource(request);
-    const { code } = await createDuelRoom(source, partner.userId, identity.userId);
+    // The queue kind *is* the rating ladder — you are rated on the thing you chose to race.
+    const { code } = await createDuelRoom(source, partner.userId, identity.userId, request.kind);
 
     for (const side of [partner.playerId, playerId]) {
       sendToPlayer(side, { type: 'duel_matched', code, label: source.label });

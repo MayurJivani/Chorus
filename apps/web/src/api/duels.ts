@@ -14,8 +14,11 @@ export async function getMyDuels(): Promise<DuelView[]> {
   return res.duels;
 }
 
-export function getRatingLeaderboard(): Promise<RatingLeaderboard> {
-  return apiRequest<RatingLeaderboard>('/duels/leaderboard');
+/** Ranked per mode — a combined board would compare numbers earned in different games. */
+export type DuelMode = 'artist' | 'category' | 'random';
+
+export function getRatingLeaderboard(mode: DuelMode = 'artist'): Promise<RatingLeaderboard> {
+  return apiRequest<RatingLeaderboard>(`/duels/leaderboard?mode=${mode}`);
 }
 
 /**

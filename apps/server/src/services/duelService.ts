@@ -17,12 +17,46 @@
  */
 import { and, desc, eq, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { artistChallenges, artistSessionResults, duels, users } from '../db/schema';
+import { artistChallenges, artistSessionResults, duelRatings, duels, users } from '../db/schema';
 import type { Duel } from '../db/schema';
 import { applyElo, STARTING_RATING, type DuelRun } from './eloService';
 import { logger } from '../logger';
 
 export class DuelError extends Error {}
+
+/**
+ * Which ladder a duel counts towards.
+ *
+ * Mirrors the matchmaker's queue kinds. Racing an artist you chose, a category, and "surprise
+ * me" reward different things — depth in a catalogue you know versus breadth across music you
+ * did not pick — so averaging them into one number described none of them.
+ */
+export type DuelMode = 'artist' | 'category' | 'random';
+
+export const DUEL_MODES: readonly DuelMode[] = ['artist', 'category', 'random'] as const;
+
+export function isDuelMode(value: string): value is DuelMode {
+  return (DUEL_MODES as readonly string[]).includes(value);
+}
+
+/**
+ * A player's rating in one mode, creating the row lazily.
+ *
+ * Absent means unplayed, not zero — everyone starts level, and a row is only written once
+ * somebody actually settles a duel in that mode.
+ */
+async function ratingFor(userId: string, mode: DuelMode) {
+  const rows = await db
+    .select()
+    .from(duelRatings)
+    .where(and(eq(duelRatings.userId, userId), eq(duelRatings.mode, mode)))
+    .limit(1);
+  const row = rows[0];
+  return {
+    rating: row?.rating ?? STARTING_RATING,
+    ratedDuels: row?.ratedDuels ?? 0,
+  };
+}
 
 export interface DuelPlayerView {
   userId: string;
@@ -172,6 +206,8 @@ export interface LiveDuelInput {
   sourceId: string;
   label: string;
   forfeited: boolean;
+  /** Which ladder this result counts towards. */
+  mode: DuelMode;
 }
 
 /**
@@ -189,13 +225,19 @@ export async function recordLiveDuel(input: LiveDuelInput): Promise<DuelView> {
   ]);
   if (!challenger || !opponent) throw new DuelError('Both players must have accounts');
 
+  // Elo is computed against this mode's ratings, not the account-wide ones.
+  const [challengerRating, opponentRating] = await Promise.all([
+    ratingFor(challenger.id, input.mode),
+    ratingFor(opponent.id, input.mode),
+  ]);
+
   const outcome =
     input.challengerScore > input.opponentScore
       ? 1
       : input.challengerScore < input.opponentScore
         ? 0
         : 0.5;
-  const change = applyElo(challenger, opponent, outcome);
+  const change = applyElo(challengerRating, opponentRating, outcome);
   const winnerId = outcome === 1 ? challenger.id : outcome === 0 ? opponent.id : null;
 
   const duelId = await db.transaction(async (tx) => {
@@ -206,6 +248,7 @@ export async function recordLiveDuel(input: LiveDuelInput): Promise<DuelView> {
         sourceType: input.sourceType,
         sourceId: input.sourceId,
         label: input.label,
+        mode: input.mode,
         challengerId: challenger.id,
         opponentId: opponent.id,
         status: 'complete',
@@ -221,14 +264,28 @@ export async function recordLiveDuel(input: LiveDuelInput): Promise<DuelView> {
       })
       .returning({ id: duels.id });
 
-    await tx
-      .update(users)
-      .set({ rating: change.challenger.after, ratedDuels: challenger.ratedDuels + 1 })
-      .where(eq(users.id, challenger.id));
-    await tx
-      .update(users)
-      .set({ rating: change.opponent.after, ratedDuels: opponent.ratedDuels + 1 })
-      .where(eq(users.id, opponent.id));
+    for (const side of [
+      { id: challenger.id, before: challengerRating, after: change.challenger.after },
+      { id: opponent.id, before: opponentRating, after: change.opponent.after },
+    ]) {
+      await tx
+        .insert(duelRatings)
+        .values({
+          userId: side.id,
+          mode: input.mode,
+          rating: side.after,
+          ratedDuels: side.before.ratedDuels + 1,
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: [duelRatings.userId, duelRatings.mode],
+          set: {
+            rating: side.after,
+            ratedDuels: side.before.ratedDuels + 1,
+            updatedAt: new Date(),
+          },
+        });
+    }
 
     return inserted[0]!.id;
   });
@@ -271,18 +328,20 @@ export interface RatingStanding {
  */
 export async function getRatingLeaderboard(
   userId: string | null,
+  mode: DuelMode = 'artist',
   limit = 50,
 ): Promise<RatingStanding[]> {
   const rows = await db
     .select({
       id: users.id,
       displayName: users.displayName,
-      rating: users.rating,
-      ratedDuels: users.ratedDuels,
+      rating: duelRatings.rating,
+      ratedDuels: duelRatings.ratedDuels,
     })
-    .from(users)
-    .where(sql`${users.ratedDuels} > 0`)
-    .orderBy(desc(users.rating), desc(users.ratedDuels))
+    .from(duelRatings)
+    .innerJoin(users, eq(users.id, duelRatings.userId))
+    .where(and(eq(duelRatings.mode, mode), sql`${duelRatings.ratedDuels} > 0`))
+    .orderBy(desc(duelRatings.rating), desc(duelRatings.ratedDuels))
     .limit(limit);
 
   return rows.map((row, index) => ({

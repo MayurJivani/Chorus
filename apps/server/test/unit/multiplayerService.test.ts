@@ -579,7 +579,7 @@ describe('multiplayerService guess mode', () => {
     });
 
     it('adds a bonus for answering first, on top of the time score', async () => {
-      const { code, host, guest } = await speedRoom();
+      const { code, host } = await speedRoom();
       // Both answer at the same instant, so only the order bonus can separate them.
       guessCorrect('host', code);
       guessCorrect('guest', code);
@@ -600,7 +600,7 @@ describe('multiplayerService guess mode', () => {
     });
 
     it('orders a tied scoreboard by who answered faster overall', async () => {
-      const { code, host, guest } = await speedRoom();
+      const { host } = await speedRoom();
       // Guest answers wrong immediately, host wrong much later: same score, different times.
       guessWrong('guest');
       await vi.advanceTimersByTimeAsync(9_000);

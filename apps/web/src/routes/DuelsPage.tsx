@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
-import { getMyDuels, getRatingLeaderboard } from '../api/duels';
+import { getMyDuels, getRatingLeaderboard, type DuelMode } from '../api/duels';
 import { SourcePicker, type PickedSource } from '../features/multiplayer/SourcePicker';
 import { useDuelQueue, queueKeyFor, type DuelQueueRequest } from '../features/duels/useDuelQueue';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -44,17 +44,19 @@ export function DuelsPage() {
   const [mine, setMine] = useState<DuelView[]>([]);
   const [board, setBoard] = useState<RatingStanding[]>([]);
   const [source, setSource] = useState<PickedSource | null>(null);
+  /** Which ladder the board is showing. Ratings are per mode, so it has to say which. */
+  const [boardMode, setBoardMode] = useState<DuelMode>('artist');
 
   const signedIn = !loading && user != null;
   const queue = useDuelQueue(signedIn);
 
   const userId = user?.id;
   const refresh = useCallback(async () => {
-    const ratings = await getRatingLeaderboard().catch(() => null);
+    const ratings = await getRatingLeaderboard(boardMode).catch(() => null);
     if (ratings) setBoard(ratings.entries);
     if (!userId) return;
     setMine(await getMyDuels().catch(() => []));
-  }, [userId]);
+  }, [userId, boardMode]);
 
   useEffect(() => {
     if (loading) return;
@@ -265,10 +267,37 @@ export function DuelsPage() {
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">Ratings</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">Ratings</h2>
+          {/* One ladder per mode: the skills are different, so the numbers are too. */}
+          <div className="flex gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-0.5">
+            {(
+              [
+                ['artist', 'Artist'],
+                ['category', 'Category'],
+                ['random', 'Any'],
+              ] as [DuelMode, string][]
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setBoardMode(value)}
+                aria-pressed={boardMode === value}
+                className={
+                  'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ' +
+                  (boardMode === value
+                    ? 'bg-white/10 text-white'
+                    : 'text-slate-400 hover:text-white')
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         {board.length === 0 ? (
           <p className="text-sm text-slate-400">
-            Nobody has finished a rated duel yet. Everyone starts on 1200.
+            Nobody has finished a rated duel in this mode yet. Everyone starts on 1200.
           </p>
         ) : (
           <ol className="flex flex-col gap-1.5">

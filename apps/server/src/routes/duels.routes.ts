@@ -12,7 +12,13 @@
  */
 import { Router } from 'express';
 import { z } from 'zod';
-import { getDuel, getRatingLeaderboard, listDuelsForUser } from '../services/duelService';
+import {
+  getDuel,
+  getRatingLeaderboard,
+  isDuelMode,
+  listDuelsForUser,
+  DUEL_MODES,
+} from '../services/duelService';
 import { getQueueCounts } from '../services/duelQueueService';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -21,12 +27,22 @@ import { requireAuth } from '../middleware/requireAuth';
 
 export const duelsRouter = Router();
 
-/** Public: the board is worth seeing before you have an account of your own. */
+/**
+ * The rating board for one mode. Public: worth seeing before you have an account of your own.
+ *
+ * Modes are ranked separately, so the board has to name which one it is showing — a combined
+ * board would rank a strong category player against a strong artist player on a number neither
+ * of them earned in the same game.
+ */
 duelsRouter.get(
   '/leaderboard',
   asyncHandler(async (req, res) => {
+    const requested = String(req.query.mode ?? 'artist');
+    const mode = isDuelMode(requested) ? requested : 'artist';
     res.json({
-      entries: await getRatingLeaderboard(req.session.userId ?? null),
+      mode,
+      modes: DUEL_MODES,
+      entries: await getRatingLeaderboard(req.session.userId ?? null, mode),
       isRegistered: req.session.userId != null,
     });
   }),

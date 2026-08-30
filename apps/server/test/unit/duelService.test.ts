@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../../src/db/client';
 import {
   artistChallenges,
   artistChallengeTracks,
   artistSessionResults,
+  duelRatings,
   duels,
   users,
 } from '../../src/db/schema';
@@ -52,17 +53,23 @@ function liveDuel(over: Partial<LiveDuelInput> = {}): LiveDuelInput {
     sourceId: '412',
     label: 'Queen',
     forfeited: false,
+    mode: 'artist',
     ...over,
   };
 }
 
-async function ratingOf(userId: string): Promise<number> {
-  const rows = await db.select({ rating: users.rating }).from(users).where(eq(users.id, userId));
-  return rows[0]!.rating;
+/** Ratings live per mode now, so a lookup has to name one. */
+async function ratingOf(userId: string, mode = 'artist'): Promise<number> {
+  const rows = await db
+    .select({ rating: duelRatings.rating })
+    .from(duelRatings)
+    .where(and(eq(duelRatings.userId, userId), eq(duelRatings.mode, mode)));
+  return rows[0]?.rating ?? STARTING_RATING;
 }
 
 beforeEach(async () => {
   await clearArtistPools();
+  await db.delete(duelRatings);
   await db.delete(duels);
   await db.delete(artistSessionResults);
   await db.delete(artistChallengeTracks);
@@ -101,7 +108,8 @@ describe('recordLiveDuel', () => {
 
   it('counts the duel against both players, so K-factor can settle down', async () => {
     await recordLiveDuel(liveDuel());
-    const rows = await db.select({ id: users.id, ratedDuels: users.ratedDuels }).from(users);
+    const rows = await db.select({ ratedDuels: duelRatings.ratedDuels }).from(duelRatings);
+    expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.ratedDuels === 1)).toBe(true);
   });
 
@@ -140,18 +148,37 @@ describe('recordLiveDuel', () => {
     expect(await listDuelsForUser('u1')).toHaveLength(1);
     expect(await listDuelsForUser('u2')).toHaveLength(1);
   });
+
+  /* Ratings are per mode: the same account can be strong at chosen artists and ordinary at
+     "surprise me", and one averaged number described neither. */
+  it('keeps each mode on its own ladder', async () => {
+    await recordLiveDuel(liveDuel({ mode: 'artist' }));
+    await recordLiveDuel(liveDuel({ mode: 'category', challengerScore: 0, opponentScore: 50 }));
+
+    // u1 won the artist duel and lost the category one.
+    expect(await ratingOf('u1', 'artist')).toBeGreaterThan(STARTING_RATING);
+    expect(await ratingOf('u1', 'category')).toBeLessThan(STARTING_RATING);
+    // A mode nobody has played is still level.
+    expect(await ratingOf('u1', 'random')).toBe(STARTING_RATING);
+  });
+
+  it('records which ladder a duel counted towards', async () => {
+    const view = await recordLiveDuel(liveDuel({ mode: 'random' }));
+    const rows = await db.select({ mode: duels.mode }).from(duels).where(eq(duels.id, view.id));
+    expect(rows[0]!.mode).toBe('random');
+  });
 });
 
 describe('getRatingLeaderboard', () => {
   it('leaves out players who have never finished a rated duel', async () => {
-    const board = await getRatingLeaderboard('u1');
+    const board = await getRatingLeaderboard('u1', 'artist');
     expect(board).toHaveLength(0);
   });
 
   it('ranks by rating once duels have been played', async () => {
     await recordLiveDuel(liveDuel());
 
-    const board = await getRatingLeaderboard('u1');
+    const board = await getRatingLeaderboard('u1', 'artist');
     expect(board.map((e) => e.displayName)).toEqual(['Ada', 'Blake']);
     expect(board[0]).toMatchObject({ rank: 1, isYou: true, ratedDuels: 1 });
   });

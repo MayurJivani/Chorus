@@ -341,6 +341,8 @@ export const duels = pgTable(
     opponentScore: integer('opponent_score'),
     /** True when the loss came from someone leaving rather than being outscored. */
     forfeited: boolean('forfeited').notNull().default(false),
+    /** Which rating this duel moved. Null on rows written before ratings were split. */
+    mode: text('mode'),
     /** Ratings as they stood at settlement, kept so a duel's history stays readable later. */
     challengerRatingBefore: integer('challenger_rating_before'),
     opponentRatingBefore: integer('opponent_rating_before'),
@@ -356,6 +358,32 @@ export const duels = pgTable(
     index('duels_challenger_idx').on(table.challengerId),
     index('duels_opponent_idx').on(table.opponentId),
   ],
+);
+
+/**
+ * Elo per duel mode, rather than one number for everything.
+ *
+ * Racing an artist you chose, a category, and "surprise me" are different skills — the first
+ * rewards depth in a catalogue you picked, the last rewards breadth across music you did not.
+ * A single rating averaged those into a number that described none of them, and meant a player
+ * strong in one mode looked mediocre after a run of another.
+ *
+ * `users.rating` stays for now as the legacy column; these rows are the live ratings.
+ */
+export const duelRatings = pgTable(
+  'duel_ratings',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Matches the matchmaker's queue kinds: 'artist' | 'category' | 'random'. */
+    mode: text('mode').notNull(),
+    rating: integer('rating').notNull().default(1200),
+    ratedDuels: integer('rated_duels').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('duel_ratings_user_mode_idx').on(table.userId, table.mode)],
 );
 
 export const artistSessionResults = pgTable(

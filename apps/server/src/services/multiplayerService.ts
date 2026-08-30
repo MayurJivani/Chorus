@@ -11,7 +11,7 @@ import {
   type ChallengeSource,
   type ChallengeSourceType,
 } from './challengeSource';
-import { recordLiveDuel } from './duelService';
+import { recordLiveDuel, type DuelMode } from './duelService';
 import * as duelQueue from './duelQueueService';
 import { seededShuffle } from '../utils/deterministic';
 import { getSettings } from './settingsService';
@@ -127,6 +127,8 @@ interface MpDuel {
   sourceType: string;
   sourceId: string;
   label: string;
+  /** Which rating ladder this duel counts towards — the queue the pair came from. */
+  mode: DuelMode;
   /** Guards against settling twice — a forfeit and a natural finish can race. */
   settled: boolean;
 }
@@ -301,6 +303,7 @@ export async function createDuelRoom(
   source: ChallengeSource,
   challengerUserId: string,
   opponentUserId: string,
+  mode: DuelMode,
 ): Promise<{ code: string }> {
   const { code } = await createRoom(source, 'choice', 'speed', false, true, DUEL_ROUNDS);
   const room = rooms.get(code);
@@ -313,6 +316,7 @@ export async function createDuelRoom(
     sourceType: source.sourceType,
     sourceId: source.sourceId,
     label: source.label,
+    mode,
     settled: false,
   };
 
@@ -973,6 +977,7 @@ async function settleDuelRoom(
       sourceId: duel.sourceId,
       label: duel.label,
       forfeited: outcome.forfeited,
+      mode: duel.mode,
     });
     broadcast(room, { type: 'duel_result', duel: settled });
   } catch (err) {
