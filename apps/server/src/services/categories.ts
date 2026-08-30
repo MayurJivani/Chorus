@@ -166,9 +166,15 @@ const BOLLYWOOD_DEFS: [label: string, playlistIds: string[], blurb: string][] = 
   ['Bollywood Romance', ['10421653842'], 'Love songs from the silver screen'],
   ['Bollywood Party', ['9660774522'], 'Dance floor anthems from Hindi films'],
   ['Bollywood 2026', ['14922241343'], 'The latest Bollywood hits'],
-  ['Bollywood Sad Songs', ['5855498562'], 'Heartbreak anthems from Hindi cinema'],
-  ['Bollywood Retro', ['4803995402'], 'Timeless old-school Bollywood'],
-  ['Arijit Singh Hits', ['3060498806'], 'Best of the modern Bollywood voice'],
+  // Repointed after the originals stopped resolving on Deezer: 5855498562 had shrunk to two
+  // tracks (under MIN_CATEGORY_TRACKS) and 4803995402 / 3060498806 both answer with
+  // {"error":"no data"}. Worth knowing the failure mode — a dead playlist id surfaces only when
+  // someone tries to start a game, as "not enough playable tracks", which reads like a bug in
+  // the game rather than a playlist that no longer exists. If a category refuses to start, check
+  // its id against https://api.deezer.com/playlist/<id> before looking anywhere else.
+  ['Bollywood Sad Songs', ['11485931584'], 'Heartbreak anthems from Hindi cinema'],
+  ['Bollywood Retro', ['11193162724'], 'Timeless old-school Bollywood'],
+  ['Arijit Singh Hits', ['14001087101'], 'Best of the modern Bollywood voice'],
 ];
 
 const BOLLYWOOD: Category[] = BOLLYWOOD_DEFS.map(([label, playlistIds, blurb]) => ({
