@@ -80,6 +80,8 @@ function snapshotScores(room: MultiplayerRoomSnapshot): MultiplayerScoreEntry[] 
     playerId: p.playerId,
     displayName: p.displayName,
     score: p.score,
+    // Lobby/snapshot rows have no answer times yet; the server fills these in once a round runs.
+    totalAnswerMs: 0,
     answered: p.roundAnswered,
     correctThisRound: p.roundCorrect,
     stageIndex: p.stageIndex,

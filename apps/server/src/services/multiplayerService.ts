@@ -97,6 +97,14 @@ interface MpPlayer extends MpPlayerState {
    * reveal is the point of a shared round.
    */
   scoreAtRoundStart: number;
+  /**
+   * Total milliseconds spent answering across the game, summed per round.
+   *
+   * The tie breaker. Two players on the same score have not necessarily played the same game —
+   * one may have been first to every answer and the other last — and leaving that as an
+   * arbitrary order made a drawn duel feel like a coin toss.
+   */
+  totalAnswerMs: number;
 }
 
 /** How players answer: type-to-search over the artist's catalog, or pick one of three. */
@@ -156,6 +164,8 @@ interface MpRoom {
   speedRoundDurationMs: number;
   speedSnippetSeconds: number;
   speedPoints: readonly number[];
+  speedMaxPoints: number;
+  speedMinPoints: number;
   /** Number of correct guesses so far this round in speed mode (for order-based scoring). */
   speedCorrectCount: number;
   hostOnlyAudio: boolean;
@@ -168,6 +178,8 @@ export interface MpScoreEntry {
   playerId: string;
   displayName: string;
   score: number;
+  /** Cumulative time spent answering. Lower wins a tie; shown so a draw is explicable. */
+  totalAnswerMs: number;
   answered: boolean;
   correctThisRound: boolean | null;
   /** This player's reveal stage for the current round (0 = heard only the first slice). */
@@ -254,6 +266,8 @@ export async function createRoom(
     speedRoundDurationMs: settings.speedRoundDurationSeconds * 1000,
     speedSnippetSeconds: settings.speedSnippetSeconds,
     speedPoints: settings.speedPoints,
+    speedMaxPoints: settings.speedMaxPoints,
+    speedMinPoints: settings.speedMinPoints,
     speedCorrectCount: 0,
     hostOnlyAudio,
     hostPlayable,
@@ -453,6 +467,7 @@ async function joinRoom(playerId: string, code: string, nickname?: string): Prom
     roundPoints: 0,
     stageIndex: 0,
     scoreAtRoundStart: 0,
+    totalAnswerMs: 0,
     joinedAt: Date.now(),
   };
 
@@ -660,6 +675,7 @@ export async function startGame(playerId: string): Promise<void> {
     for (const p of room.players.values()) {
       p.score = 0;
       p.scoreAtRoundStart = 0;
+      p.totalAnswerMs = 0;
       p.roundAnswered = false;
       p.roundCorrect = null;
       p.roundPoints = 0;
@@ -758,10 +774,18 @@ function submitGuess(playerId: string, trackId: string): void {
   const correct = track?.deezerTrackId === trackId;
   const isSpeed = room.gameMode === 'speed';
 
+  /*
+   * How long this answer took. Counted for everyone, right or wrong, so the tie breaker
+   * measures decisiveness across the whole game rather than only the rounds you got.
+   */
+  const roundDuration = isSpeed ? room.speedRoundDurationMs : room.roundDurationMs;
+  const elapsedMs = Math.max(0, Math.min(roundDuration, Date.now() - room.roundStartedAt));
+  player.totalAnswerMs += elapsedMs;
+
   let points = 0;
   if (correct) {
     if (isSpeed) {
-      points = room.speedPoints[Math.min(room.speedCorrectCount, room.speedPoints.length - 1)] ?? 1;
+      points = speedPointsFor(room, elapsedMs, roundDuration);
       room.speedCorrectCount += 1;
     } else {
       points = MP_REVEAL_POINTS[player.stageIndex] ?? 1;
@@ -794,6 +818,29 @@ function submitGuess(playerId: string, trackId: string): void {
     (p) => !p.roundAnswered && !(p.playerId === room.hostId && !room.hostPlayable),
   );
   if (remaining.length === 0) endRound(room);
+}
+
+/**
+ * What a correct speed answer is worth.
+ *
+ * Order alone was the whole score before, which made the round a race to click rather than a
+ * race to *know*: answering at one second and answering at fourteen paid the same as long as
+ * nobody beat you to it, and in a two-player room second place was second place no matter how
+ * close it was.
+ *
+ * So the bulk of the score decays with the clock, and being first adds a smaller bonus on top.
+ * Both matter, but the time you took matters more — which is the behaviour the mode is named
+ * after.
+ */
+function speedPointsFor(room: MpRoom, elapsedMs: number, roundDurationMs: number): number {
+  const fraction = roundDurationMs > 0 ? Math.min(1, elapsedMs / roundDurationMs) : 1;
+  const span = Math.max(0, room.speedMaxPoints - room.speedMinPoints);
+  const timeScore = Math.round(room.speedMaxPoints - span * fraction);
+
+  const orderIndex = Math.min(room.speedCorrectCount, room.speedPoints.length - 1);
+  const orderBonus = room.speedPoints[orderIndex] ?? 0;
+
+  return Math.max(0, timeScore + orderBonus);
 }
 
 function endRound(room: MpRoom): void {
@@ -851,17 +898,35 @@ function finishGame(room: MpRoom): void {
   }
 }
 
-/** Turns the room's final scores into a rated result. Higher score wins; equal is a draw. */
+/**
+ * Turns the room's final scores into a rated result.
+ *
+ * Higher score wins. A genuine draw — level on points *and* on total answer time — stays a
+ * draw; a tie on points alone goes to whoever was quicker across the game, because a duel that
+ * came down to reaction speed should not be recorded as if neither player edged it.
+ */
 async function settleDuelRoomFromScores(room: MpRoom): Promise<void> {
   const duel = room.duel;
   if (!duel) return;
 
-  const byUser = new Map<string, number>();
+  const byUser = new Map<string, { score: number; totalAnswerMs: number }>();
   for (const p of room.players.values()) {
-    if (p.identity.userId) byUser.set(p.identity.userId, p.score);
+    if (p.identity.userId) {
+      byUser.set(p.identity.userId, { score: p.score, totalAnswerMs: p.totalAnswerMs });
+    }
   }
-  const challengerScore = byUser.get(duel.challengerUserId) ?? 0;
-  const opponentScore = byUser.get(duel.opponentUserId) ?? 0;
+  const challenger = byUser.get(duel.challengerUserId) ?? { score: 0, totalAnswerMs: 0 };
+  const opponent = byUser.get(duel.opponentUserId) ?? { score: 0, totalAnswerMs: 0 };
+
+  let { score: challengerScore } = challenger;
+  let { score: opponentScore } = opponent;
+
+  // Nudge the reported score by one so the settlement, which only compares numbers, records
+  // the faster player as the winner rather than a draw.
+  if (challengerScore === opponentScore && challenger.totalAnswerMs !== opponent.totalAnswerMs) {
+    if (challenger.totalAnswerMs < opponent.totalAnswerMs) challengerScore += 1;
+    else opponentScore += 1;
+  }
 
   await settleDuelRoom(room, {
     challengerScore,
@@ -920,7 +985,11 @@ function computeWinner(
   scores: MpScoreEntry[],
 ): { playerId: string; displayName: string; score: number } | null {
   if (scores.length === 0) return null;
-  const top = scores.reduce((a, b) => (b.score > a.score ? b : a));
+  // Same rule as the scoreboard: level on points, the quicker player takes it.
+  const top = scores.reduce((a, b) => {
+    if (b.score !== a.score) return b.score > a.score ? b : a;
+    return b.totalAnswerMs < a.totalAnswerMs ? b : a;
+  });
   return { playerId: top.playerId, displayName: top.displayName, score: top.score };
 }
 
@@ -942,12 +1011,14 @@ function buildScores(room: MpRoom, reveal = false): MpScoreEntry[] {
         playerId: p.playerId,
         displayName: p.displayName,
         score: reveal ? p.score : p.scoreAtRoundStart,
+        totalAnswerMs: p.totalAnswerMs,
         answered: p.roundAnswered,
         correctThisRound: reveal ? p.roundCorrect : null,
         stageIndex: p.stageIndex,
       }))
       // Sorted on whatever score is being reported, so the order cannot jump a round early.
-      .sort((a, b) => b.score - a.score)
+      // Ties fall to whoever answered faster overall rather than to insertion order.
+      .sort((a, b) => b.score - a.score || a.totalAnswerMs - b.totalAnswerMs)
   );
 }
 

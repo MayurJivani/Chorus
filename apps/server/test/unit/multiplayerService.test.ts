@@ -149,6 +149,11 @@ beforeEach(() => {
     multiplayerRoundSeconds: MP_ROUND_DURATION_MS / 1000,
     multiplayerRevealSeconds: MP_REVEAL_DURATION_MS / 1000,
     multiplayerMaxPlayers: MP_MAX_PLAYERS,
+    speedMaxPoints: 100,
+    speedMinPoints: 20,
+    speedPoints: [15, 10, 5],
+    speedRoundDurationSeconds: 15,
+    speedSnippetSeconds: 30,
     dailyCuratedOnly: true,
     artistPoolRetentionDays: 30,
     categoryPoolRefreshHours: 24,
@@ -529,6 +534,83 @@ describe('multiplayerService guess mode', () => {
     const scores = lastOf(host, 'scores')?.scores as { playerId: string; answered: boolean }[];
     expect(scores.find((s) => s.playerId === 'host')?.answered).toBe(false);
     expect(scores.find((s) => s.playerId === 'guest')?.answered).toBe(false);
+  });
+
+  /*
+   * Speed scoring is time-first, order-second.
+   *
+   * Order alone made the round a race to click rather than a race to know: answering at one
+   * second and at fourteen paid the same as long as nobody beat you to it.
+   */
+  describe('speed scoring', () => {
+    async function speedRoom() {
+      const { code } = await createRoom(queenSource(), 'choice', 'speed');
+      const host = register('host', 'hostaaaa');
+      const guest = register('guest', 'guestbbb');
+      await join('host', code);
+      await join('guest', code);
+      handleClientMessage('host', { type: 'start_game' });
+      await vi.advanceTimersByTimeAsync(0);
+      return { code, host, guest };
+    }
+
+    function scoreOf(socket: FakeSocket, playerId: string): number {
+      const scores = lastOf(socket, 'round_end')!.scores as MpScoreEntry[];
+      return scores.find((s) => s.playerId === playerId)!.score;
+    }
+
+    it('pays an instant answer more than a slow one', async () => {
+      const fast = await speedRoom();
+      guessCorrect('host', fast.code);
+      await vi.advanceTimersByTimeAsync(60_000);
+      const fastScore = scoreOf(fast.host, 'host');
+
+      __resetForTests();
+      const slow = await speedRoom();
+      // Most of the round gone before answering.
+      await vi.advanceTimersByTimeAsync(12_000);
+      guessCorrect('host', slow.code);
+      await vi.advanceTimersByTimeAsync(60_000);
+      const slowScore = scoreOf(slow.host, 'host');
+
+      expect(fastScore).toBeGreaterThan(slowScore);
+      // Still worth something — being right late beats being wrong.
+      expect(slowScore).toBeGreaterThan(0);
+    });
+
+    it('adds a bonus for answering first, on top of the time score', async () => {
+      const { code, host, guest } = await speedRoom();
+      // Both answer at the same instant, so only the order bonus can separate them.
+      guessCorrect('host', code);
+      guessCorrect('guest', code);
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(scoreOf(host, 'host')).toBeGreaterThan(scoreOf(host, 'guest'));
+    });
+
+    it('records how long each answer took, for the tie breaker', async () => {
+      const { code, host } = await speedRoom();
+      await vi.advanceTimersByTimeAsync(4_000);
+      guessCorrect('host', code);
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      const scores = lastOf(host, 'round_end')!.scores as MpScoreEntry[];
+      const mine = scores.find((s) => s.playerId === 'host')!;
+      expect(mine.totalAnswerMs).toBeGreaterThanOrEqual(4_000);
+    });
+
+    it('orders a tied scoreboard by who answered faster overall', async () => {
+      const { code, host, guest } = await speedRoom();
+      // Guest answers wrong immediately, host wrong much later: same score, different times.
+      guessWrong('guest');
+      await vi.advanceTimersByTimeAsync(9_000);
+      guessWrong('host');
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      const scores = lastOf(host, 'round_end')!.scores as MpScoreEntry[];
+      expect(scores[0]!.score).toBe(scores[1]!.score);
+      expect(scores[0]!.playerId).toBe('guest');
+    });
   });
 
   /*

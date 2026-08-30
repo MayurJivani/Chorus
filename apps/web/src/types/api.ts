@@ -204,6 +204,8 @@ export interface MultiplayerScoreEntry {
   playerId: string;
   displayName: string;
   score: number;
+  /** Cumulative time spent answering; lower breaks a tie on points. */
+  totalAnswerMs: number;
   answered: boolean;
   correctThisRound: boolean | null;
   /** This player's reveal stage for the current round (0 = heard only the first slice). */

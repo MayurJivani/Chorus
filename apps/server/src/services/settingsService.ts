@@ -154,20 +154,38 @@ export const SETTING_DEFS = {
     control: { kind: 'number', min: 5, max: 30, unit: 's' },
   } satisfies SettingDef<number>,
 
+  speedMaxPoints: {
+    group: 'multiplayer',
+    label: 'Speed scoring — instant answer',
+    help: 'Points for a correct answer the moment the round starts. Falls away towards the minimum as the round runs on.',
+    schema: positiveInt(10, 500),
+    default: 100,
+    control: { kind: 'number', min: 10, max: 500, unit: 'pts' },
+  } satisfies SettingDef<number>,
+
+  speedMinPoints: {
+    group: 'multiplayer',
+    label: 'Speed scoring — answer at the buzzer',
+    help: 'Points for a correct answer as the round expires. Being right is still worth something.',
+    schema: positiveInt(0, 200),
+    default: 20,
+    control: { kind: 'number', min: 0, max: 200, unit: 'pts' },
+  } satisfies SettingDef<number>,
+
   speedPoints: {
     group: 'multiplayer',
-    label: 'Speed scoring (by order)',
-    help: 'Points awarded by answer order in speed mode. First correct gets the first value, second gets the second, and so on. Everyone past the last entry gets that value.',
+    label: 'Speed scoring — order bonus',
+    help: 'Added on top of the time score for being first, second, third to answer correctly. Everyone past the last entry gets that value.',
     schema: z
-      .array(positiveInt(1, 20))
+      .array(positiveInt(0, 100))
       .min(1)
       .max(10)
       .refine(
         (pts) => pts.every((p, i) => i === 0 || p <= pts[i - 1]!),
         'Points must not increase — earlier is better',
       ),
-    default: [3, 2, 1],
-    control: { kind: 'numberList', minLength: 1, maxLength: 10, min: 1, max: 20, unit: 'pts' },
+    default: [15, 10, 5],
+    control: { kind: 'numberList', minLength: 1, maxLength: 10, min: 0, max: 100, unit: 'pts' },
   } satisfies SettingDef<number[]>,
 
   abandonedChallengeTtlDays: {
