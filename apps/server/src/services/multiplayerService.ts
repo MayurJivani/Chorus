@@ -89,6 +89,14 @@ export interface MpPlayerState {
 interface MpPlayer extends MpPlayerState {
   socket: MpSocket;
   identity: Identity;
+  /**
+   * Score as it stood when the round began, reported in place of the live one until the reveal.
+   *
+   * Without it the total is a tell: a number going up the instant someone answers announces
+   * that they were right, to them and to everyone watching the scoreboard. Suspense until the
+   * reveal is the point of a shared round.
+   */
+  scoreAtRoundStart: number;
 }
 
 /** How players answer: type-to-search over the artist's catalog, or pick one of three. */
@@ -444,6 +452,7 @@ async function joinRoom(playerId: string, code: string, nickname?: string): Prom
     roundCorrect: null,
     roundPoints: 0,
     stageIndex: 0,
+    scoreAtRoundStart: 0,
     joinedAt: Date.now(),
   };
 
@@ -650,6 +659,7 @@ export async function startGame(playerId: string): Promise<void> {
 
     for (const p of room.players.values()) {
       p.score = 0;
+      p.scoreAtRoundStart = 0;
       p.roundAnswered = false;
       p.roundCorrect = null;
       p.roundPoints = 0;
@@ -672,6 +682,8 @@ function startRound(room: MpRoom, roundIndex: number): void {
     p.roundCorrect = null;
     p.roundPoints = 0;
     p.stageIndex = 0;
+    // Freeze the total the scoreboard shows for the duration of the round.
+    p.scoreAtRoundStart = p.score;
   }
 
   room.currentRound = roundIndex;
@@ -761,13 +773,19 @@ function submitGuess(playerId: string, trackId: string): void {
   player.roundCorrect = correct;
   player.roundPoints = points;
 
+  /*
+   * Deliberately does not say whether the guess was right.
+   *
+   * The answer arrives with the reveal, the same moment everyone else gets it — being told
+   * privately turns the rest of the round into either a formality or a wait you already know
+   * the result of, and in a room where people are talking it leaks to the others too.
+   *
+   * `guessedTrackId` is echoed so the client can keep the chosen option marked without having
+   * to remember what it sent across a reconnect.
+   */
   sendTo(playerId, {
     type: 'guess_result',
-    correct,
-    points,
     stageIndex: player.stageIndex,
-    // Echoed so the client can keep the chosen option marked while the round finishes, without
-    // having to remember what it sent across a reconnect.
     guessedTrackId: trackId,
   });
   broadcast(room, { type: 'scores', scores: buildScores(room) });
@@ -789,7 +807,7 @@ function endRound(room: MpRoom): void {
     correct: track
       ? { title: track.title, artist: track.artist, albumArtUrl: track.albumArtUrl }
       : null,
-    scores: buildScores(room),
+    scores: buildScores(room, true),
   });
 
   const isLastRound = room.currentRound >= room.rounds - 1;
@@ -821,7 +839,7 @@ function skipReveal(playerId: string): void {
 
 function finishGame(room: MpRoom): void {
   room.phase = 'finished';
-  const scores = buildScores(room);
+  const scores = buildScores(room, true);
   broadcast(room, {
     type: 'game_over',
     scores,
@@ -906,17 +924,31 @@ function computeWinner(
   return { playerId: top.playerId, displayName: top.displayName, score: top.score };
 }
 
-function buildScores(room: MpRoom): MpScoreEntry[] {
-  return [...room.players.values()]
-    .map((p) => ({
-      playerId: p.playerId,
-      displayName: p.displayName,
-      score: p.score,
-      answered: p.roundAnswered,
-      correctThisRound: p.roundCorrect,
-      stageIndex: p.stageIndex,
-    }))
-    .sort((a, b) => b.score - a.score);
+/**
+ * The scoreboard, with the round's outcome withheld until it is revealed.
+ *
+ * Whether a guess was right is deliberately not sent while the round is running — not to the
+ * player who made it, and not to anyone watching. Three things would otherwise give it away:
+ * the `correctThisRound` flag, the running total moving, and the ✓/✗ the client draws from
+ * them. Masking here rather than in the UI means no client can leak it, including a future one.
+ *
+ * `answered` stays truthful throughout: knowing *that* someone has locked in is part of the
+ * tension, and it is what the guess UI uses to stop you answering twice.
+ */
+function buildScores(room: MpRoom, reveal = false): MpScoreEntry[] {
+  return (
+    [...room.players.values()]
+      .map((p) => ({
+        playerId: p.playerId,
+        displayName: p.displayName,
+        score: reveal ? p.score : p.scoreAtRoundStart,
+        answered: p.roundAnswered,
+        correctThisRound: reveal ? p.roundCorrect : null,
+        stageIndex: p.stageIndex,
+      }))
+      // Sorted on whatever score is being reported, so the order cannot jump a round early.
+      .sort((a, b) => b.score - a.score)
+  );
 }
 
 function buildRoomSnapshot(room: MpRoom): MpRoomSnapshot {
@@ -932,13 +964,15 @@ function buildRoomSnapshot(room: MpRoom): MpRoomSnapshot {
     hostId: room.hostId,
     currentRound: room.currentRound,
     totalRounds: room.rounds,
+    // Same masking as buildScores — the snapshot carries the scoreboard too, so leaving it
+    // truthful mid-round would hand back exactly what the scores frame is withholding.
     players: [...room.players.values()].map((p) => ({
       playerId: p.playerId,
       displayName: p.displayName,
       isHost: p.isHost,
-      score: p.score,
+      score: room.phase === 'playing' ? p.scoreAtRoundStart : p.score,
       roundAnswered: p.roundAnswered,
-      roundCorrect: p.roundCorrect,
+      roundCorrect: room.phase === 'playing' ? null : p.roundCorrect,
       roundPoints: p.roundPoints,
       stageIndex: p.stageIndex,
       joinedAt: p.joinedAt,

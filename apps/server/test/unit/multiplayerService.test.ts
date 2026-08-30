@@ -17,6 +17,7 @@ import {
   MP_ROUNDS,
   MP_MAX_PLAYERS,
   MP_MAX_ROUNDS,
+  type MpScoreEntry,
   type MpSocket,
 } from '../../src/services/multiplayerService';
 
@@ -316,8 +317,11 @@ describe('multiplayerService round flow', () => {
     // costs them one point tier.
     guessCorrect('host', code);
     guessCorrect('guest', code);
-    expect(lastOf(host, 'guess_result')?.points).toBe(MP_REVEAL_POINTS[0]);
-    expect(lastOf(guest, 'guess_result')?.points).toBe(MP_REVEAL_POINTS[1]);
+    // Points are read off the revealed scores, not the guess acknowledgement: the outcome is
+    // withheld until the round ends, so guess_result deliberately carries neither.
+    const settled = lastOf(host, 'round_end')!.scores as MpScoreEntry[];
+    expect(settled.find((s) => s.playerId === 'host')?.score).toBe(MP_REVEAL_POINTS[0]);
+    expect(settled.find((s) => s.playerId === 'guest')?.score).toBe(MP_REVEAL_POINTS[1]);
 
     // Both players answered -> round ends early with a reveal.
     expect(__getRoomPhase(code)).toBe('round-reveal');
@@ -347,10 +351,13 @@ describe('multiplayerService round flow', () => {
     reveal('host');
     expect(messagesOf(host, 'stage')).toHaveLength(MP_REVEAL_SCHEDULE.length - 1);
     guessCorrect('host', code);
-    expect(lastOf(host, 'guess_result')?.points).toBe(
+    expect(__getRoomPhase(code)).toBe('round-reveal');
+    // Scored at the bottom tier for using every reveal, read off the revealed round_end scores
+    // since the guess acknowledgement no longer carries the outcome.
+    const scored = lastOf(host, 'round_end')!.scores as MpScoreEntry[];
+    expect(scored.find((s) => s.playerId === 'host')?.score).toBe(
       MP_REVEAL_POINTS[MP_REVEAL_SCHEDULE.length - 1],
     );
-    expect(__getRoomPhase(code)).toBe('round-reveal');
   });
 
   it('ends the round when the time limit expires even if nobody answered', async () => {
@@ -380,7 +387,8 @@ describe('multiplayerService round flow', () => {
     await vi.advanceTimersByTimeAsync(0);
 
     guessWrong('host');
-    expect(lastOf(host, 'guess_result')).toMatchObject({ correct: false, points: 0 });
+    // Acknowledged, but the acknowledgement says nothing about how it went.
+    expect(lastOf(host, 'guess_result')).toBeDefined();
 
     // A second guess in the same round is rejected.
     guessCorrect('host', code);
@@ -388,6 +396,11 @@ describe('multiplayerService round flow', () => {
 
     guessCorrect('guest', code);
     expect(__getRoomPhase(code)).toBe('round-reveal');
+    const settled = lastOf(host, 'round_end')!.scores as MpScoreEntry[];
+    expect(settled.find((s) => s.playerId === 'host')).toMatchObject({
+      correctThisRound: false,
+      score: 0,
+    });
   });
 
   it(`runs the full ${MP_ROUNDS}-round game and reports a winner`, async () => {
@@ -516,6 +529,68 @@ describe('multiplayerService guess mode', () => {
     const scores = lastOf(host, 'scores')?.scores as { playerId: string; answered: boolean }[];
     expect(scores.find((s) => s.playerId === 'host')?.answered).toBe(false);
     expect(scores.find((s) => s.playerId === 'guest')?.answered).toBe(false);
+  });
+
+  /*
+   * The outcome of a guess is withheld until the reveal, so the round keeps its suspense and
+   * nobody can read the answer off a neighbour's screen. Three separate channels would leak it,
+   * so all three are pinned here.
+   */
+  it('does not tell a player whether their guess was right', async () => {
+    const { code } = await createRoom(queenSource(), 'choice');
+    const host = register('host', 'hostaaaa');
+    register('guest', 'guestbbb');
+    await join('host', code);
+    await join('guest', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+    guessCorrect('host', code);
+
+    const result = lastOf(host, 'guess_result')!;
+    expect(result.guessedTrackId).toBeDefined();
+    expect(result.correct).toBeUndefined();
+    expect(result.points).toBeUndefined();
+  });
+
+  it('hides the outcome and the score change from the scoreboard mid-round', async () => {
+    const { code } = await createRoom(queenSource(), 'choice');
+    const host = register('host', 'hostaaaa');
+    register('guest', 'guestbbb');
+    await join('host', code);
+    await join('guest', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+    guessCorrect('host', code);
+
+    const mid = (lastOf(host, 'scores')!.scores as MpScoreEntry[]).find(
+      (s) => s.playerId === 'host',
+    )!;
+    // Answered is honest — that much is part of the tension — but not how it went.
+    expect(mid.answered).toBe(true);
+    expect(mid.correctThisRound).toBeNull();
+    // A total that jumps the moment someone answers announces the result just as loudly.
+    expect(mid.score).toBe(0);
+  });
+
+  it('reveals the outcome and the real score when the round ends', async () => {
+    const { code } = await createRoom(queenSource(), 'choice');
+    const host = register('host', 'hostaaaa');
+    register('guest', 'guestbbb');
+    await join('host', code);
+    await join('guest', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+    guessCorrect('host', code);
+    await vi.advanceTimersByTimeAsync(MP_ROUND_DURATION_MS);
+
+    const revealed = (lastOf(host, 'round_end')!.scores as MpScoreEntry[]).find(
+      (s) => s.playerId === 'host',
+    )!;
+    expect(revealed.correctThisRound).toBe(true);
+    expect(revealed.score).toBeGreaterThan(0);
   });
 
   /* Passes with or without the broadcast above — the server always accepted these. Kept as the

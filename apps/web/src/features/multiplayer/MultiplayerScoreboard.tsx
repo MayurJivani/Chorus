@@ -72,16 +72,24 @@ export function MultiplayerScoreboard({
               </span>
               {showRoundState && (
                 <span className="w-8 text-right font-mono text-xs">
-                  {player.answered ? (
-                    player.correctThisRound ? (
-                      <span className="text-emerald-400">✓</span>
-                    ) : (
-                      <span className="text-red-400">✗</span>
-                    )
-                  ) : (
+                  {/*
+                    Three states, not two. While a round is running the server withholds the
+                    outcome, so `correctThisRound` is null for everyone who has answered —
+                    treating that as falsy printed ✗ against them, telling the whole room they
+                    got it wrong before anybody knew.
+                  */}
+                  {!player.answered ? (
                     <span className="text-slate-500" title="Reveal stage">
                       {player.stageIndex + 1}/{maxGuesses}
                     </span>
+                  ) : player.correctThisRound == null ? (
+                    <span className="text-chorusify-accent2" title="Locked in">
+                      🔒
+                    </span>
+                  ) : player.correctThisRound ? (
+                    <span className="text-emerald-400">✓</span>
+                  ) : (
+                    <span className="text-red-400">✗</span>
                   )}
                 </span>
               )}

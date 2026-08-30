@@ -97,44 +97,59 @@ export function MultiplayerResults({
           </>
         )}
 
-        {canPlayAgain && picking && (
+        {/*
+          The catalogue is shown to the whole room once the game is over, not just the host.
+          Deciding what to play next is the conversation people are having at that moment, and
+          only the host being able to see the options meant everyone else was arguing about a
+          list they could not read. Non-hosts browse it; only the host's picks do anything.
+        */}
+        {(picking || !canPlayAgain) && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="glass flex w-full flex-col gap-3 rounded-2xl p-4"
           >
-            <p className="text-sm font-semibold text-white">Pick the next artist or category</p>
+            <p className="text-sm font-semibold text-white">
+              {canPlayAgain ? 'Pick the next artist or category' : "What's next?"}
+            </p>
             <p className="text-xs text-slate-400">
-              Everyone stays in the room — scores reset for the new race.
+              {canPlayAgain
+                ? 'Everyone stays in the room — scores reset for the new race.'
+                : 'Browse while the host decides. Shout if you see something good.'}
             </p>
             <SourcePicker value={picked} onChange={setPicked} compact />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPicking(false);
-                  setPicked(null);
-                }}
-                className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmSource}
-                disabled={!picked}
-                className="btn-primary flex-1 !rounded-xl !py-2.5 !text-sm"
-              >
-                Switch
-              </button>
-            </div>
+            {canPlayAgain && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPicking(false);
+                    setPicked(null);
+                  }}
+                  className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmSource}
+                  disabled={!picked}
+                  className="btn-primary flex-1 !rounded-xl !py-2.5 !text-sm"
+                >
+                  Switch
+                </button>
+              </div>
+            )}
+            {!canPlayAgain && picked && (
+              <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-300">
+                Like the look of{' '}
+                <span className="font-semibold text-white">
+                  {picked.kind === 'artist' ? picked.artist.name : picked.category.label}
+                </span>
+                ? Only the host can start it.
+              </p>
+            )}
           </motion.div>
-        )}
-
-        {!canPlayAgain && (
-          <p className="text-center text-sm text-slate-400">
-            Waiting for the host to pick what&apos;s next…
-          </p>
         )}
 
         <button type="button" onClick={onLeave} className="btn-ghost w-full !rounded-xl">

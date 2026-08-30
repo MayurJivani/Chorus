@@ -75,6 +75,9 @@ export function MultiplayerGame({
   const handleGuess = (song: SongSearchResult) => onSubmitGuess(String(song.id));
 
   const isChoice = !!round.options && round.options.length > 0;
+  /* Replaces the correct/wrong message with something that is still worth reading while you
+     wait, and is the same for everyone regardless of how they did. */
+  const waitingOn = scores.filter((s) => !s.answered).length;
   /** What this player locked in, so the option list can mark it while the round finishes. */
   const lockedGuessId =
     answered && isChoice && lastGuess ? (lastGuess.guessedTrackId ?? null) : null;
@@ -178,25 +181,19 @@ export function MultiplayerGame({
               /* The options stay mounted after answering so the locked pick remains visible;
                  a compact status strip sits above them instead of replacing the whole list. */
               <div className="flex w-full max-w-md flex-col gap-2">
+                {/* Neutral on purpose: the result lands at the reveal, with everyone else's. */}
                 {answered && (
                   <motion.div
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-chorusify-accent2/25 bg-chorusify-accent2/5 px-3 py-2 text-center"
                   >
-                    {lastGuess?.correct ? (
-                      <p className="text-sm font-bold text-emerald-400">
-                        Correct! +{lastGuess.points}
-                        <span className="ml-2 font-normal text-slate-400">
-                          {isSpeed ? 'Faster = more points' : 'Waiting for the reveal'}
-                        </span>
-                      </p>
-                    ) : (
-                      <p className="text-sm font-bold text-chorusify-danger">
-                        Not that one
-                        <span className="ml-2 font-normal text-slate-400">Done for this round</span>
-                      </p>
-                    )}
+                    <p className="text-sm font-semibold text-chorusify-accent2">
+                      Locked in
+                      <span className="ml-2 font-normal text-slate-400">
+                        {waitingOn > 0 ? `waiting on ${waitingOn} more` : 'waiting for the reveal…'}
+                      </span>
+                    </p>
                   </motion.div>
                 )}
                 <MultipleChoiceGuess
@@ -214,25 +211,13 @@ export function MultiplayerGame({
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex w-full max-w-md flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3"
               >
-                {lastGuess?.correct ? (
-                  <>
-                    <p className="text-lg font-bold text-emerald-400">
-                      {isSpeed
-                        ? `Correct! +${lastGuess.points}`
-                        : `Locked in! +${lastGuess.points}`}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {isSpeed
-                        ? 'Speed bonus — faster = more points!'
-                        : 'Now wait for the reveal, no changing it!'}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-lg font-bold text-chorusify-danger">Not that one</p>
-                    <p className="text-xs text-slate-400">You&apos;re done for this round.</p>
-                  </>
-                )}
+                {/* Search mode, same rule: answered, but not told whether it landed. */}
+                <p className="text-lg font-bold text-chorusify-accent2">Locked in</p>
+                <p className="text-xs text-slate-400">
+                  {waitingOn > 0
+                    ? `Waiting on ${waitingOn} more ${waitingOn === 1 ? 'player' : 'players'}…`
+                    : 'No changing it — the answer comes with the reveal.'}
+                </p>
               </motion.div>
             ) : (
               <GuessInput

@@ -27,9 +27,13 @@ export interface MultiplayerRound {
   options?: ArtistRoundOption[];
 }
 
+/**
+ * Confirmation that a guess was accepted — deliberately *not* whether it was right.
+ *
+ * The server withholds the outcome until the reveal so nobody learns their result early. What
+ * came back before was `correct` and `points`, which is why the round used to announce itself.
+ */
 export interface MultiplayerGuessResult {
-  correct: boolean;
-  points: number;
   stageIndex: number;
   /** The track this player committed to. Absent on a skip. */
   guessedTrackId?: string;
@@ -164,8 +168,6 @@ export function useMultiplayerGame(
         break;
       case 'guess_result':
         setLastGuess({
-          correct: raw.correct as boolean,
-          points: raw.points as number,
           stageIndex: raw.stageIndex as number,
           guessedTrackId: raw.guessedTrackId as string | undefined,
         });
