@@ -111,6 +111,23 @@ export async function previewFor(pathname: string): Promise<Preview> {
     };
   }
 
+  /*
+   * Room invites are the most-shared link there is — the whole point of a room is pasting it at
+   * people — and they were previewing as the generic site card, which says nothing about an
+   * invitation. Someone glancing at it in a group chat had no reason to think it was for them.
+   *
+   * The code goes in the title because it doubles as the manual fallback: if the link is
+   * mangled by a chat client, it can still be typed into the join box.
+   */
+  const roomMatch = /^\/room\/([A-Za-z0-9]{4,12})\/?$/.exec(pathname);
+  if (roomMatch) {
+    const code = roomMatch[1]!.toUpperCase();
+    return {
+      title: `Join the Chorusify room ${code}`,
+      description: 'Race your friends to name songs from a few seconds of audio. Tap to join.',
+    };
+  }
+
   return DEFAULT_PREVIEW;
 }
 

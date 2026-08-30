@@ -88,6 +88,25 @@ describe('previewFor', () => {
     expect((await previewFor('/play')).title).toBe("Today's challenge on Chorusify");
   });
 
+  /* Room links are the most-pasted thing in the app, and previewed as the generic site card —
+     nothing about them said "this is an invitation for you". */
+  it('invites the reader by name and code for a room link', async () => {
+    const preview = await previewFor('/room/TBTA6F');
+    expect(preview.title).toBe('Join the Chorusify room TBTA6F');
+    expect(preview.description).toContain('Race your friends');
+  });
+
+  it('upper-cases a room code, since that is how codes are shown and typed', async () => {
+    expect((await previewFor('/room/tbta6f')).title).toBe('Join the Chorusify room TBTA6F');
+  });
+
+  it('ignores a path that only looks like a room', async () => {
+    // Not a code shape — better the site card than an invitation to a room that cannot exist.
+    expect((await previewFor('/room/not-a-real-code!')).title).toBe(
+      'Chorusify: guess your favourite music',
+    );
+  });
+
   it('falls back to the site card for everything else', async () => {
     for (const route of ['/', '/leaderboard', '/admin', '/nonsense']) {
       expect((await previewFor(route)).title).toBe('Chorusify: guess your favourite music');
