@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSession } from '../../hooks/useSession';
 import { useToast } from '../../hooks/useToast';
 import { ApiError } from '../../api/client';
+import { PasswordStrength } from './PasswordStrength';
 
 export function RegisterForm() {
   const { register } = useSession();
@@ -58,6 +59,7 @@ export function RegisterForm() {
         onChange={(e) => setPassword(e.target.value)}
         className="input-base"
       />
+      <PasswordStrength password={password} email={email} displayName={displayName} />
       {error && <p className="text-sm text-chorusify-danger">{error}</p>}
       <button type="submit" disabled={submitting} className="btn-primary w-full !rounded-xl !py-3">
         {submitting ? 'Creating account…' : 'Sign up'}

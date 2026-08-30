@@ -1,4 +1,4 @@
-import { and, eq, or, sql } from 'drizzle-orm';
+import { and, eq, ilike, ne, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { friendships, messages, users } from '../db/schema';
 
@@ -21,6 +21,74 @@ export interface FriendView {
   unreadCount: number;
 }
 
+/**
+ * Finds people by display name, for adding a friend by username rather than email.
+ *
+ * Display names are not unique — there is no username column and nothing stops two people
+ * choosing the same one — so this returns matches for the requester to pick from rather than
+ * pretending a name identifies an account. Asking for someone's email just to add them is the
+ * thing this replaces; asking them to recognise their friend in a short list is not.
+ *
+ * Never returns email addresses. A name search that hands back contact details for strangers is
+ * a directory, and this only needs to be enough to tell two people apart.
+ */
+export async function searchUsersByName(query: string, requesterId: string) {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+
+  const rows = await db
+    .select({
+      id: users.id,
+      displayName: users.displayName,
+      rating: users.rating,
+      ratedDuels: users.ratedDuels,
+    })
+    .from(users)
+    .where(and(ilike(users.displayName, `%${trimmed}%`), ne(users.id, requesterId)))
+    .orderBy(users.displayName)
+    .limit(10);
+
+  if (rows.length === 0) return [];
+
+  // Annotate with the existing relationship so the UI can show "already friends" or "pending"
+  // instead of offering a button that will only fail.
+  const links = await db
+    .select({
+      requesterId: friendships.requesterId,
+      addresseeId: friendships.addresseeId,
+      status: friendships.status,
+    })
+    .from(friendships)
+    .where(or(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, requesterId)));
+
+  const statusFor = new Map<string, string>();
+  for (const link of links) {
+    const other = link.requesterId === requesterId ? link.addresseeId : link.requesterId;
+    statusFor.set(other, link.status);
+  }
+
+  return rows.map((row) => ({
+    id: row.id,
+    displayName: row.displayName,
+    rating: row.rating,
+    ratedDuels: row.ratedDuels,
+    relationship: statusFor.get(row.id) ?? 'none',
+  }));
+}
+
+/**
+ * Sends a request to a specific account.
+ *
+ * Split out from the email version because a name search resolves to an id — re-deriving the
+ * user from a display name here would reintroduce the ambiguity the search exists to resolve.
+ */
+export async function sendFriendRequestToUser(requesterId: string, addresseeId: string) {
+  const rows = await db.select().from(users).where(eq(users.id, addresseeId)).limit(1);
+  const addressee = rows[0];
+  if (!addressee) throw new FriendsError('No such user', 404);
+  return linkOrCreateRequest(requesterId, addressee);
+}
+
 export async function sendFriendRequest(requesterId: string, addresseeEmail: string) {
   const addresseeRows = await db
     .select()
@@ -29,6 +97,14 @@ export async function sendFriendRequest(requesterId: string, addresseeEmail: str
     .limit(1);
   const addressee = addresseeRows[0];
   if (!addressee) throw new FriendsError('No user found with that email', 404);
+  return linkOrCreateRequest(requesterId, addressee);
+}
+
+/** The request/accept bookkeeping, shared by the email and username paths. */
+async function linkOrCreateRequest(
+  requesterId: string,
+  addressee: { id: string; displayName: string },
+) {
   if (addressee.id === requesterId) throw new FriendsError('Cannot friend yourself');
 
   const existing = await db

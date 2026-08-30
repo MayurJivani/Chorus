@@ -31,6 +31,29 @@ export function getFriends() {
   return apiRequest<FriendView[]>('/friends');
 }
 
+/** A person found by display name, with the existing relationship so the UI can act on it. */
+export interface UserSearchResult {
+  id: string;
+  displayName: string;
+  rating: number;
+  ratedDuels: number;
+  relationship: 'none' | 'pending' | 'accepted' | 'rejected' | string;
+}
+
+export async function searchUsers(query: string): Promise<UserSearchResult[]> {
+  const res = await apiRequest<{ users: UserSearchResult[] }>(
+    `/friends/search?q=${encodeURIComponent(query)}`,
+  );
+  return res.users;
+}
+
+export function sendFriendRequestToUser(userId: string) {
+  return apiRequest<{ id: number; addressee: string }>('/friends/request', {
+    method: 'POST',
+    body: { userId },
+  });
+}
+
 export function getPendingRequests() {
   return apiRequest<PendingRequest[]>('/friends/pending');
 }

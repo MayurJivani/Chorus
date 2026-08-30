@@ -9,7 +9,9 @@ import {
   listPendingRequests,
   removeFriend,
   respondToRequest,
+  searchUsersByName,
   sendFriendRequest,
+  sendFriendRequestToUser,
   sendMessage,
 } from '../services/friendsService';
 
@@ -36,15 +38,44 @@ friendsRouter.get(
   }),
 );
 
-const requestSchema = z.object({ email: z.string().trim().toLowerCase().email() });
+/** Find people by display name. Two characters minimum — one matches most of the table. */
+const searchSchema = z.object({ q: z.string().trim().min(2).max(40) });
+
+friendsRouter.get(
+  '/search',
+  validate(searchSchema, 'query'),
+  asyncHandler(async (req, res) => {
+    const userId = requireUser(req);
+    const { q } = req.query as unknown as z.infer<typeof searchSchema>;
+    res.json({ users: await searchUsersByName(q, userId) });
+  }),
+);
+
+/**
+ * Accepts either a picked user id (the username flow) or an email (the original one).
+ *
+ * Exactly one, so a request naming both cannot quietly act on whichever the code reads first
+ * while the sender expects the other.
+ */
+const requestSchema = z
+  .object({
+    userId: z.string().min(1).max(64).optional(),
+    email: z.string().trim().toLowerCase().email().optional(),
+  })
+  .refine(
+    (body) => (body.userId != null) !== (body.email != null),
+    'Provide exactly one of userId or email',
+  );
 
 friendsRouter.post(
   '/request',
   validate(requestSchema),
   asyncHandler(async (req, res) => {
     const userId = requireUser(req);
-    const { email } = req.body as z.infer<typeof requestSchema>;
-    const result = await sendFriendRequest(userId, email);
+    const { userId: targetId, email } = req.body as z.infer<typeof requestSchema>;
+    const result = targetId
+      ? await sendFriendRequestToUser(userId, targetId)
+      : await sendFriendRequest(userId, email!);
     res.status(201).json(result);
   }),
 );

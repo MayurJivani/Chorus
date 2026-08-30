@@ -116,12 +116,12 @@ function DisplayNameForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={40}
-          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorus-accent/50"
+          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorusify-accent/50"
         />
         <button
           type="submit"
           disabled={saving || !name.trim() || name.trim() === currentName}
-          className="shrink-0 rounded-xl bg-chorus-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-chorus-accent/80 disabled:opacity-50"
+          className="shrink-0 rounded-xl bg-chorusify-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-chorusify-accent/80 disabled:opacity-50"
         >
           {saving ? 'Saving...' : 'Save'}
         </button>
@@ -174,26 +174,26 @@ function ChangePasswordForm() {
           placeholder="Current password"
           value={current}
           onChange={(e) => setCurrent(e.target.value)}
-          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorus-accent/50"
+          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorusify-accent/50"
         />
         <input
           type="password"
           placeholder="New password (min 8 chars)"
           value={newPwd}
           onChange={(e) => setNewPwd(e.target.value)}
-          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorus-accent/50"
+          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorusify-accent/50"
         />
         <input
           type="password"
           placeholder="Confirm new password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
-          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorus-accent/50"
+          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorusify-accent/50"
         />
         <button
           type="submit"
           disabled={saving || !current || !newPwd || !confirm}
-          className="rounded-xl bg-chorus-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-chorus-accent/80 disabled:opacity-50"
+          className="rounded-xl bg-chorusify-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-chorusify-accent/80 disabled:opacity-50"
         >
           {saving ? 'Changing...' : 'Change Password'}
         </button>

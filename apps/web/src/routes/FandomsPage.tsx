@@ -87,7 +87,7 @@ export function FandomsPage() {
           placeholder="Search an artist to join their fandom..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-chorus-accent/50"
+          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-chorusify-accent/50"
         />
         {searching && (
           <span className="absolute right-4 top-3.5 text-xs text-slate-500">Searching...</span>
@@ -119,7 +119,7 @@ export function FandomsPage() {
                   <span className="flex-1 truncate text-sm font-medium text-white">
                     {artist.name}
                   </span>
-                  <span className="shrink-0 text-xs font-medium text-chorus-accent">
+                  <span className="shrink-0 text-xs font-medium text-chorusify-accent">
                     {alreadyJoined ? 'View' : joining === String(artist.id) ? 'Joining...' : 'Join'}
                   </span>
                 </button>
@@ -232,7 +232,7 @@ function tierBadgeClass(cardStyle: string): string {
     case 'warm':
       return 'bg-gradient-to-r from-orange-500 to-amber-600 text-white';
     case 'shine':
-      return 'bg-chorus-accent/20 text-chorus-accent';
+      return 'bg-chorusify-accent/20 text-chorusify-accent';
     case 'flat':
       return 'bg-white/10 text-slate-300';
     default:

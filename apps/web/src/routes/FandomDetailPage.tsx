@@ -22,7 +22,7 @@ function tierBadgeClass(cardStyle: string): string {
     case 'warm':
       return 'bg-gradient-to-r from-orange-500 to-amber-600 text-white';
     case 'shine':
-      return 'bg-chorus-accent/25 text-chorus-accent';
+      return 'bg-chorusify-accent/25 text-chorusify-accent';
     case 'flat':
       return 'bg-white/10 text-slate-300';
     default:
@@ -113,7 +113,7 @@ export function FandomDetailPage() {
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-3 px-4">
         <p className="text-slate-400">This fandom doesn't exist yet.</p>
-        <Link to="/fandoms" className="text-sm text-chorus-accent hover:underline">
+        <Link to="/fandoms" className="text-sm text-chorusify-accent hover:underline">
           Browse fandoms
         </Link>
       </div>
@@ -158,7 +158,7 @@ export function FandomDetailPage() {
 
       {/* Membership card */}
       {membership ? (
-        <div className="rounded-xl border border-chorus-accent/20 bg-chorus-accent/5 px-4 py-4">
+        <div className="rounded-xl border border-chorusify-accent/20 bg-chorusify-accent/5 px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-white">
@@ -179,7 +179,7 @@ export function FandomDetailPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowCard((v) => !v)}
-                className="rounded-lg border border-chorus-accent/30 px-3 py-1.5 text-xs font-medium text-chorus-accent transition-colors hover:bg-chorus-accent/10"
+                className="rounded-lg border border-chorusify-accent/30 px-3 py-1.5 text-xs font-medium text-chorusify-accent transition-colors hover:bg-chorusify-accent/10"
               >
                 {showCard ? 'Hide card' : 'View card'}
               </button>
@@ -195,7 +195,7 @@ export function FandomDetailPage() {
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               to={`/artist/${deezerArtistId}/play`}
-              className="inline-block rounded-lg bg-chorus-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-chorus-accent/80"
+              className="inline-block rounded-lg bg-chorusify-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-chorusify-accent/80"
             >
               Play to earn fan points
             </Link>
@@ -205,7 +205,7 @@ export function FandomDetailPage() {
         <button
           onClick={handleJoin}
           disabled={acting}
-          className="rounded-xl bg-chorus-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-chorus-accent/80 disabled:opacity-50"
+          className="rounded-xl bg-chorusify-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-chorusify-accent/80 disabled:opacity-50"
         >
           {acting ? 'Joining...' : `Join ${detail.fandomName}`}
         </button>
@@ -235,7 +235,7 @@ export function FandomDetailPage() {
                 <div
                   key={entry.userId}
                   className={
-                    'flex items-center gap-3 px-4 py-3 ' + (isYou ? 'bg-chorus-accent/5' : '')
+                    'flex items-center gap-3 px-4 py-3 ' + (isYou ? 'bg-chorusify-accent/5' : '')
                   }
                 >
                   <span className="w-8 shrink-0 text-center text-sm font-bold text-slate-400">
@@ -245,7 +245,7 @@ export function FandomDetailPage() {
                     <span className="truncate text-sm font-medium text-white">
                       {entry.displayName}
                       {isYou && (
-                        <span className="ml-1.5 text-chorus-accent text-[10px]">(you)</span>
+                        <span className="ml-1.5 text-chorusify-accent text-[10px]">(you)</span>
                       )}
                     </span>
                     <span className="text-[11px] text-slate-500">{entry.tier}</span>

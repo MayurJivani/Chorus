@@ -1,10 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
+import { createMultiplayerRoom } from '../api/multiplayer';
 import {
   getFriends,
   getPendingRequests,
-  sendFriendRequest,
+  searchUsers,
+  sendFriendRequestToUser,
   respondToRequest,
   removeFriend,
   getMessages,
@@ -12,8 +15,17 @@ import {
   type FriendView,
   type PendingRequest,
   type MessageView,
+  type UserSearchResult,
 } from '../api/friends';
 import { usePageTitle } from '../hooks/usePageTitle';
+
+/**
+ * What an invite from chat races over when nobody has said otherwise.
+ *
+ * A broad, always-populated category: the host can switch to any artist or category from the
+ * lobby, so this only has to be a reasonable room to land in, not the right one.
+ */
+const INVITE_DEFAULT_CATEGORY = 'now-worldwide';
 
 export function FriendsPage() {
   usePageTitle('Friends');
@@ -21,7 +33,9 @@ export function FriendsPage() {
   const { user } = useSession();
   const [friends, setFriends] = useState<FriendView[]>([]);
   const [pending, setPending] = useState<PendingRequest[]>([]);
-  const [email, setEmail] = useState('');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<UserSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [chatWith, setChatWith] = useState<FriendView | null>(null);
@@ -45,14 +59,40 @@ export function FriendsPage() {
     );
   }
 
-  const handleSendRequest = async (e: React.FormEvent) => {
+  /*
+   * Search by name rather than asking for an email.
+   *
+   * Adding someone used to require knowing their email address, which is a thing you often do
+   * not have for someone you play with. Display names are not unique, so this shows the matches
+   * and lets the sender recognise the right person instead of guessing on their behalf.
+   */
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    if (query.trim().length < 2) {
+      setError('Type at least two characters');
+      return;
+    }
+    setSearching(true);
     try {
-      const result = await sendFriendRequest(email);
+      setResults(await searchUsers(query));
+    } catch (err: unknown) {
+      setError((err as Error).message);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleAdd = async (target: UserSearchResult) => {
+    setError('');
+    setSuccess('');
+    try {
+      const result = await sendFriendRequestToUser(target.id);
       setSuccess(`Request sent to ${result.addressee}`);
-      setEmail('');
+      setResults((prev) =>
+        prev.map((r) => (r.id === target.id ? { ...r, relationship: 'pending' } : r)),
+      );
     } catch (err: unknown) {
       setError((err as Error).message);
     }
@@ -92,22 +132,60 @@ export function FriendsPage() {
         Friends
       </motion.h1>
 
-      {/* Add friend form */}
-      <form onSubmit={handleSendRequest} className="flex gap-2">
+      {/* Find someone by username */}
+      <form onSubmit={handleSearch} className="flex gap-2">
         <input
-          type="email"
-          placeholder="Friend's email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorus-accent/50"
+          type="text"
+          placeholder="Search by username"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          maxLength={40}
+          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorusify-accent/50"
         />
         <button
           type="submit"
-          className="shrink-0 rounded-xl bg-chorus-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-chorus-accent/80"
+          disabled={searching}
+          className="shrink-0 rounded-xl bg-chorusify-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-chorusify-accent/80 disabled:opacity-50"
         >
-          Add
+          {searching ? 'Searching…' : 'Search'}
         </button>
       </form>
+
+      {results.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {results.map((person) => (
+            <li
+              key={person.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">{person.displayName}</p>
+                {/* Rating disambiguates two people with the same display name. */}
+                <p className="truncate text-xs text-slate-500">
+                  {person.ratedDuels > 0 ? `${person.rating} rating` : 'No rated duels yet'}
+                </p>
+              </div>
+              {person.relationship === 'accepted' ? (
+                <span className="shrink-0 text-xs text-slate-500">Already friends</span>
+              ) : person.relationship === 'pending' ? (
+                <span className="shrink-0 text-xs text-slate-500">Request pending</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleAdd(person)}
+                  className="btn-secondary shrink-0 !py-1.5 !text-xs"
+                >
+                  Add
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {results.length === 0 && query.trim().length >= 2 && !searching && !error && (
+        <p className="text-sm text-slate-500">No players found with that name.</p>
+      )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
       {success && <p className="text-sm text-green-400">{success}</p>}
@@ -160,7 +238,7 @@ export function FriendsPage() {
               </div>
               <div className="flex items-center gap-2">
                 {f.unreadCount > 0 && (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-chorus-accent px-1.5 text-[10px] font-bold text-white">
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-chorusify-accent px-1.5 text-[10px] font-bold text-white">
                     {f.unreadCount}
                   </span>
                 )}
@@ -198,9 +276,11 @@ function ChatView({
   userId: string;
   onBack: () => void;
 }) {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<MessageView[]>([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [inviteError, setInviteError] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -228,12 +308,35 @@ function ChatView({
     }
   };
 
-  const handleInvite = async (type: 'duel' | 'multiplayer') => {
+  /*
+   * Creates the room, then sends its code.
+   *
+   * This used to send `{ type, id: 0 }` — a placeholder that pointed at nothing, so the message
+   * arrived saying "Join my game!" with no game behind it. The room has to exist before the
+   * invite is worth sending.
+   *
+   * The source is a default rather than a prompt: the host can switch artist or category from
+   * the lobby, so asking first only puts a decision between "invite Sam" and Sam being invited.
+   */
+  const handleInvite = async () => {
     setSending(true);
+    setInviteError('');
     try {
-      const body = type === 'duel' ? 'Want to duel?' : 'Join my game!';
-      const msg = await sendMessageToFriend(friend.userId, body, { type, id: 0 });
+      const { code } = await createMultiplayerRoom(
+        { categoryId: INVITE_DEFAULT_CATEGORY },
+        'search',
+        'speed',
+        false,
+        true,
+      );
+      const msg = await sendMessageToFriend(friend.userId, `Come play — room ${code}`, {
+        type: 'multiplayer',
+        id: code,
+      });
       setMessages((prev) => [...prev, { ...msg, senderName: 'You', read: true }]);
+      navigate(`/room/${code}`, { state: { autoJoin: true, hostName: '' } });
+    } catch (err: unknown) {
+      setInviteError((err as Error).message || 'Could not create the room.');
     } finally {
       setSending(false);
     }
@@ -251,22 +354,20 @@ function ChatView({
         <h2 className="text-lg font-bold text-white">{friend.displayName}</h2>
       </div>
 
-      {/* Invite buttons */}
-      <div className="mb-4 flex gap-2">
+      {/*
+        No "invite to duel" any more: duels are live matchmaking now, so there is no duel to
+        link someone to — you queue and are paired. Inviting to a room is the thing that still
+        makes sense between two people who already know each other.
+      */}
+      <div className="mb-4 flex flex-col gap-1.5">
         <button
-          onClick={() => handleInvite('duel')}
+          onClick={() => void handleInvite()}
           disabled={sending}
-          className="rounded-lg border border-chorus-accent/30 px-3 py-1.5 text-xs font-medium text-chorus-accent transition-colors hover:bg-chorus-accent/10"
+          className="self-start rounded-lg border border-chorusify-accent/30 px-3 py-1.5 text-xs font-medium text-chorusify-accent transition-colors hover:bg-chorusify-accent/10 disabled:opacity-50"
         >
-          Invite to Duel
+          {sending ? 'Creating room…' : '🎮 Invite to a game'}
         </button>
-        <button
-          onClick={() => handleInvite('multiplayer')}
-          disabled={sending}
-          className="rounded-lg border border-chorus-accent/30 px-3 py-1.5 text-xs font-medium text-chorus-accent transition-colors hover:bg-chorus-accent/10"
-        >
-          Invite to Multiplayer
-        </button>
+        {inviteError && <p className="text-xs text-chorusify-danger">{inviteError}</p>}
       </div>
 
       {/* Messages */}
@@ -281,15 +382,24 @@ function ChatView({
               <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                 <div
                   className={`max-w-[75%] rounded-xl px-3 py-2 text-sm ${
-                    isMine ? 'bg-chorus-accent/20 text-white' : 'bg-white/5 text-slate-200'
+                    isMine ? 'bg-chorusify-accent/20 text-white' : 'bg-white/5 text-slate-200'
                   }`}
                 >
                   {msg.invite && (
-                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-chorus-accent">
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-chorusify-accent">
                       Game invite
                     </span>
                   )}
                   <p>{msg.body}</p>
+                  {/* An invite you cannot act on is just a sentence. */}
+                  {msg.invite?.type === 'multiplayer' && msg.invite.id ? (
+                    <Link
+                      to={`/room/${msg.invite.id}`}
+                      className="mt-1.5 inline-block rounded-lg border border-chorusify-accent2/40 bg-chorusify-accent2/10 px-2.5 py-1 text-[11px] font-semibold text-chorusify-accent2 transition-colors hover:bg-chorusify-accent2/20"
+                    >
+                      Join room {String(msg.invite.id)} →
+                    </Link>
+                  ) : null}
                   <span className="mt-1 block text-[10px] text-slate-500">
                     {new Date(msg.createdAt).toLocaleTimeString([], {
                       hour: '2-digit',
@@ -311,12 +421,12 @@ function ChatView({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Type a message..."
-          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorus-accent/50"
+          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-chorusify-accent/50"
         />
         <button
           type="submit"
           disabled={sending || !text.trim()}
-          className="shrink-0 rounded-xl bg-chorus-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-chorus-accent/80 disabled:opacity-50"
+          className="shrink-0 rounded-xl bg-chorusify-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-chorusify-accent/80 disabled:opacity-50"
         >
           Send
         </button>

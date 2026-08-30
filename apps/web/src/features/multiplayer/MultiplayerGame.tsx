@@ -203,6 +203,7 @@ export function MultiplayerGame({
                   lockedGuessId={lockedGuessId}
                   disabled={answered}
                   dense
+                  twoColumn
                 />
               </div>
             ) : answered ? (

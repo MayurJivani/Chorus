@@ -52,7 +52,7 @@ function RequestForm() {
           <p className="text-sm text-slate-300">
             If an account exists with that email, you'll receive a reset link.
           </p>
-          <Link to="/login" className="text-sm text-chorus-accent hover:underline">
+          <Link to="/login" className="text-sm text-chorusify-accent hover:underline">
             Back to login
           </Link>
         </div>
@@ -64,13 +64,13 @@ function RequestForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-chorus-accent/50"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-chorusify-accent/50"
           />
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-chorus-accent py-3 text-sm font-semibold text-white transition-colors hover:bg-chorus-accent/80 disabled:opacity-50"
+            className="w-full rounded-xl bg-chorusify-accent py-3 text-sm font-semibold text-white transition-colors hover:bg-chorusify-accent/80 disabled:opacity-50"
           >
             {loading ? 'Sending...' : 'Send reset link'}
           </button>
@@ -114,7 +114,7 @@ function ResetForm({ token }: { token: string }) {
         <p className="text-sm text-green-400">Password reset. You can now log in.</p>
         <Link
           to="/login"
-          className="rounded-xl bg-chorus-accent px-6 py-2.5 text-sm font-semibold text-white"
+          className="rounded-xl bg-chorusify-accent px-6 py-2.5 text-sm font-semibold text-white"
         >
           Log in
         </Link>
@@ -140,7 +140,7 @@ function ResetForm({ token }: { token: string }) {
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={8}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-chorus-accent/50"
+          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-chorusify-accent/50"
         />
         <input
           type="password"
@@ -148,13 +148,13 @@ function ResetForm({ token }: { token: string }) {
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           required
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-chorus-accent/50"
+          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-chorusify-accent/50"
         />
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-xl bg-chorus-accent py-3 text-sm font-semibold text-white transition-colors hover:bg-chorus-accent/80 disabled:opacity-50"
+          className="w-full rounded-xl bg-chorusify-accent py-3 text-sm font-semibold text-white transition-colors hover:bg-chorusify-accent/80 disabled:opacity-50"
         >
           {loading ? 'Resetting...' : 'Reset password'}
         </button>

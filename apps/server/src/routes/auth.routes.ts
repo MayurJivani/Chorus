@@ -13,12 +13,17 @@ import { generateCsrfToken } from '../middleware/csrf';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { createResetToken, resetPassword, ResetError } from '../services/passwordResetService';
 import { env } from '../env';
+import {
+  passwordProblems,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from '../utils/passwordPolicy';
 
 export const authRouter = Router();
 
 const registerSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254),
-  password: z.string().min(8).max(128),
+  password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
   displayName: z.string().trim().min(1).max(40),
 });
 
@@ -40,6 +45,13 @@ function toPublicUser(user: { id: string; email: string; displayName: string; is
 
 authRouter.post('/register', authRateLimiter, validate(registerSchema), async (req, res) => {
   const { email, password, displayName } = req.body as z.infer<typeof registerSchema>;
+
+  // Checked here as well as in the client form: the form is a courtesy, this is the rule.
+  const problems = passwordProblems(password, { email, displayName });
+  if (problems.length > 0) {
+    res.status(400).json({ error: problems[0], problems });
+    return;
+  }
 
   const existingRows = await db.select().from(users).where(eq(users.email, email)).limit(1);
   const existing = existingRows[0];
@@ -122,7 +134,7 @@ authRouter.post(
 
 const resetSchema = z.object({
   token: z.string().min(1),
-  password: z.string().min(8).max(128),
+  password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
 });
 
 authRouter.post(
@@ -131,6 +143,13 @@ authRouter.post(
   validate(resetSchema),
   asyncHandler(async (req, res) => {
     const { token, password } = req.body as z.infer<typeof resetSchema>;
+    // No email or name to compare against here — the token identifies the account, and looking
+    // it up just to reject a password would leak whether the token is valid before it is used.
+    const problems = passwordProblems(password);
+    if (problems.length > 0) {
+      res.status(400).json({ error: problems[0], problems });
+      return;
+    }
     try {
       await resetPassword(token, password);
       res.json({ ok: true });
