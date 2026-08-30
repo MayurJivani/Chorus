@@ -5,7 +5,12 @@ import { users } from '../db/schema';
 import type { Identity } from '../auth/identity';
 import { getFreshPreviewUrl, type ArtistTrack } from './deezerService';
 import { buildRoundOptions, type RoundOption } from './artistChallengeService';
-import type { ChallengeSource, ChallengeSourceType } from './challengeSource';
+import {
+  resolveArtistSource,
+  resolveCategorySource,
+  type ChallengeSource,
+  type ChallengeSourceType,
+} from './challengeSource';
 import { seededShuffle } from '../utils/deterministic';
 import { getSettings } from './settingsService';
 import { logger } from '../logger';
@@ -25,6 +30,36 @@ export const MP_ROUNDS = 10;
 export const MP_REVEAL_DURATION_MS = 5000;
 export const MP_MAX_PLAYERS = 8;
 export const MP_EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * Multiplayer choice rounds offer four answers, not the three a single-player run uses.
+ * Everyone hears the same snippet at the same time, so a one-in-three guess lands often
+ * enough to flatten the scoreboard; a fourth option restores some separation without making
+ * the buttons too small to hit on a phone.
+ */
+export const MP_CHOICE_OPTIONS = 4;
+
+/**
+ * Ceiling on a host-chosen game length. The admin setting supplies the default; this only
+ * bounds what a room may ask for, so a request for 500 rounds can't tie up a room (and the
+ * Deezer preview lookups behind it) for an afternoon.
+ */
+export const MP_MAX_ROUNDS = 25;
+
+/**
+ * Classic (progressive reveal, points by stage) is switched off for now — every room plays a
+ * Speed Round. The mode is disabled rather than deleted: all of its branches below are still
+ * live and correct, so flipping this back on restores it with no other change.
+ *
+ * Kept behind a function rather than a bare const so the test suite can re-enable it and keep
+ * exercising those branches. Code that is disabled *and* untested is code that has quietly
+ * rotted by the time anyone wants it back.
+ */
+let classicEnabled = false;
+
+export function isClassicEnabled(): boolean {
+  return classicEnabled;
+}
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -78,7 +113,7 @@ interface MpRoom {
   tracks: ArtistTrack[];
   previewUrls: string[];
   /** Per-round multiple-choice options, empty in search mode. Built once when the game starts
-   *  so every player is offered exactly the same three answers. */
+   *  so every player is offered exactly the same answers. */
   roundOptions: RoundOption[][];
   currentRound: number;
   roundStartedAt: number;
@@ -147,6 +182,8 @@ export async function createRoom(
   gameMode: MpGameMode = 'classic',
   hostOnlyAudio: boolean = false,
   hostPlayable: boolean = true,
+  /** Host-chosen game length. Omitted falls back to the admin default. */
+  rounds?: number,
 ): Promise<{ code: string }> {
   let code = '';
   do {
@@ -155,11 +192,15 @@ export async function createRoom(
 
   const settings = await getSettings();
 
+  // Classic is off (see isClassicEnabled) — a room asking for it still gets a playable game.
+  const effectiveGameMode: MpGameMode =
+    gameMode === 'classic' && !isClassicEnabled() ? 'speed' : gameMode;
+
   rooms.set(code, {
     code,
     source,
-    guessMode: gameMode === 'speed' ? 'choice' : guessMode,
-    gameMode,
+    guessMode: effectiveGameMode === 'speed' ? 'choice' : guessMode,
+    gameMode: effectiveGameMode,
     phase: 'lobby',
     hostId: '',
     players: new Map(),
@@ -170,7 +211,10 @@ export async function createRoom(
     roundStartedAt: 0,
     timers: [],
     createdAt: Date.now(),
-    rounds: settings.multiplayerRounds,
+    rounds:
+      rounds != null
+        ? Math.max(1, Math.min(MP_MAX_ROUNDS, Math.floor(rounds)))
+        : settings.multiplayerRounds,
     roundDurationMs: settings.multiplayerRoundSeconds * 1000,
     revealDurationMs: settings.multiplayerRevealSeconds * 1000,
     maxPlayers: settings.multiplayerMaxPlayers,
@@ -184,7 +228,13 @@ export async function createRoom(
   });
 
   logger.info(
-    { code, sourceType: source.sourceType, sourceId: source.sourceId, guessMode },
+    {
+      code,
+      sourceType: source.sourceType,
+      sourceId: source.sourceId,
+      guessMode,
+      gameMode: effectiveGameMode,
+    },
     'Multiplayer room created',
   );
   return { code };
@@ -242,6 +292,12 @@ export async function handleClientMessage(playerId: string, message: unknown): P
     case 'start_game':
       void startGame(playerId);
       break;
+    case 'change_source': {
+      const artistId = typeof payload.artistId === 'number' ? payload.artistId : undefined;
+      const categoryId = typeof payload.categoryId === 'string' ? payload.categoryId : undefined;
+      await changeSource(playerId, artistId, categoryId);
+      break;
+    }
     case 'reveal':
       revealMore(playerId);
       break;
@@ -330,6 +386,65 @@ export function leaveRoom(playerId: string): void {
   broadcastRoomState(room);
 }
 
+/**
+ * Repoints a finished room at a different artist or category and returns it to the lobby.
+ *
+ * Without this the only way to race something new was to abandon the room and re-share a code,
+ * which scatters the group every single time — everyone re-scans, re-types a name, and someone
+ * always ends up in the old room. Swapping the source in place keeps the players, the host and
+ * the scoreboard history where they are; only the pool changes.
+ */
+export async function changeSource(
+  playerId: string,
+  artistId?: number,
+  categoryId?: string,
+): Promise<void> {
+  const room = roomFor(playerId);
+  if (!room) return;
+  if (room.hostId !== playerId) return sendError(playerId, 'Only the host can change the music.');
+  if (room.phase === 'playing' || room.phase === 'round-reveal') {
+    return sendError(playerId, 'Finish the current game first.');
+  }
+  if ((artistId != null) === (categoryId != null)) {
+    return sendError(playerId, 'Pick exactly one artist or category.');
+  }
+
+  let source: ChallengeSource;
+  try {
+    source =
+      artistId != null
+        ? await resolveArtistSource(artistId, false)
+        : resolveCategorySource(categoryId!);
+  } catch {
+    return sendError(playerId, artistId != null ? 'Artist not found.' : 'Unknown category.');
+  }
+
+  clearRoomTimers(room);
+  room.source = source;
+  room.phase = 'lobby';
+  room.tracks = [];
+  room.previewUrls = [];
+  room.roundOptions = [];
+  room.currentRound = 0;
+  room.speedCorrectCount = 0;
+
+  // Scores reset with the source: carrying them over would mean the new race starts with
+  // someone already ahead for songs nobody in this game heard.
+  for (const p of room.players.values()) {
+    p.score = 0;
+    p.roundAnswered = false;
+    p.roundCorrect = null;
+    p.roundPoints = 0;
+    p.stageIndex = 0;
+  }
+
+  logger.info(
+    { code: room.code, sourceType: source.sourceType, sourceId: source.sourceId },
+    'Multiplayer room source changed',
+  );
+  broadcastRoomState(room);
+}
+
 export async function startGame(playerId: string): Promise<void> {
   const room = roomFor(playerId);
   if (!room) return;
@@ -391,9 +506,11 @@ export async function startGame(playerId: string): Promise<void> {
     room.tracks = chosen;
     room.previewUrls = previews;
     // Decoys are drawn once, here, rather than per player: everyone must be shown the same
-    // three answers or the round is not a fair race.
+    // answers or the round is not a fair race.
     room.roundOptions =
-      room.guessMode === 'choice' ? chosen.map((track) => buildRoundOptions(track, pool)) : [];
+      room.guessMode === 'choice'
+        ? chosen.map((track) => buildRoundOptions(track, pool, MP_CHOICE_OPTIONS))
+        : [];
 
     for (const p of room.players.values()) {
       p.score = 0;
@@ -503,6 +620,9 @@ function submitGuess(playerId: string, trackId: string): void {
     correct,
     points,
     stageIndex: player.stageIndex,
+    // Echoed so the client can keep the chosen option marked while the round finishes, without
+    // having to remember what it sent across a reconnect.
+    guessedTrackId: trackId,
   });
   broadcast(room, { type: 'scores', scores: buildScores(room) });
 
@@ -674,6 +794,11 @@ export function sweepEmptyRooms(): void {
       destroyRoom(room);
     }
   }
+}
+
+/** Test hook: re-enables Classic so its (still-live) branches stay covered. See isClassicEnabled. */
+export function __setClassicEnabled(enabled: boolean): void {
+  classicEnabled = enabled;
 }
 
 /** Test hook: clears all in-memory state so tests start from a clean slate. */

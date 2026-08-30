@@ -133,6 +133,11 @@ export function ChallengeRunner({
   // OR the server's attempt number (whichever is higher).
   const stageIndex = Math.max(localRevealCount, attemptNumber - 1);
   const stageSeconds = snippetSchedule[Math.min(stageIndex, snippetSchedule.length - 1)] ?? 1;
+  const nextRevealSeconds = snippetSchedule[Math.min(stageIndex + 1, snippetSchedule.length - 1)];
+  /* Nudge the reveal only on the opening round, before anyone has stretched a snippet. Once
+     they have used it (or moved past round one) the pulse has done its job and would just be
+     motion on the screen while they are trying to listen. */
+  const emphasiseReveal = challenge.currentRound === 0 && localRevealCount === 0;
 
   const lastAttempt = roundHistory[roundHistory.length - 1];
 
@@ -244,6 +249,9 @@ export function ChallengeRunner({
                 onSkip={skip}
                 onRevealMore={revealMore}
                 canRevealMore={canRevealMore}
+                currentSeconds={stageSeconds}
+                nextSeconds={nextRevealSeconds}
+                emphasiseReveal={emphasiseReveal}
                 disabled={submitting}
                 revealedSong={revealedSong}
                 roundEnded={false}
@@ -254,6 +262,9 @@ export function ChallengeRunner({
                 onSkip={skip}
                 onRevealMore={revealMore}
                 canRevealMore={canRevealMore}
+                currentSeconds={stageSeconds}
+                nextSeconds={nextRevealSeconds}
+                emphasiseReveal={emphasiseReveal}
                 disabled={submitting}
                 searchFn={searchFn}
                 guessFeedback={guessFeedback}

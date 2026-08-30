@@ -5,6 +5,10 @@ import { artistTrackPools } from '../../src/db/schema';
 
 const deezerMocks = vi.hoisted(() => ({
   getArtistTopTracks: vi.fn(),
+  // The module under test fires this off (fire-and-forget) whenever it fills a pool, then
+  // chains .then on the result — so it has to exist *and* resolve to an array. Individual
+  // tests override it when they assert on the background enrichment itself.
+  fetchFullDiscography: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../src/services/deezerService', () => deezerMocks);

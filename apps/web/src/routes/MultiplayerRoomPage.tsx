@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { searchArtistTracks } from '../api/artists';
 import { searchCategoryTracks } from '../api/categories';
@@ -7,6 +7,7 @@ import { MultiplayerLobby } from '../features/multiplayer/MultiplayerLobby';
 import { MultiplayerGame } from '../features/multiplayer/MultiplayerGame';
 import { MultiplayerResults } from '../features/multiplayer/MultiplayerResults';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useSession } from '../hooks/useSession';
 import { ensureMediaUnlocked } from '../features/game/SnippetPlayer';
 
 export function MultiplayerRoomPage() {
@@ -16,10 +17,24 @@ export function MultiplayerRoomPage() {
   const code = (codeParam ?? '').toUpperCase();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, loading: sessionLoading } = useSession();
   const autoJoin = location.state?.autoJoin === true;
   const hostName = typeof location.state?.hostName === 'string' ? location.state.hostName : '';
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState<string | null>(autoJoin ? hostName : null);
+
+  /**
+   * A signed-in player joins straight through: the server resolves their display name from
+   * their account when no nickname is sent, so the prompt would only be a chance to disagree
+   * with the name already on their profile. Waits for the session to load first — deciding
+   * while `user` is still null would show the form to someone who is in fact logged in.
+   */
+  const skipNamePrompt = !sessionLoading && user !== null && nickname === null;
+  useEffect(() => {
+    if (!skipNamePrompt) return;
+    ensureMediaUnlocked();
+    setNickname('');
+  }, [skipNamePrompt]);
 
   const {
     connectionStatus,
@@ -36,6 +51,7 @@ export function MultiplayerRoomPage() {
     reveal,
     submitGuess,
     nextRound,
+    changeSource,
     leave,
   } = useMultiplayerGame(code, nickname);
 
@@ -57,8 +73,16 @@ export function MultiplayerRoomPage() {
     navigate('/multiplayer');
   }, [leave, navigate]);
 
-  // Pre-join: ask for a name (optional) before opening the socket.
+  // Pre-join: ask for a name (optional) before opening the socket. Signed-in players never see
+  // this — the effect above joins them straight through under their account name.
   if (nickname === null) {
+    if (sessionLoading || skipNamePrompt) {
+      return (
+        <Centered>
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-chorusify-accent2" />
+        </Centered>
+      );
+    }
     return (
       <Centered>
         <form
@@ -120,7 +144,7 @@ export function MultiplayerRoomPage() {
         label={room.label}
         canPlayAgain={selfId === room.hostId}
         onPlayAgain={startGame}
-        onNewRoom={handleLeave}
+        onChangeSource={changeSource}
         onLeave={handleLeave}
       />
     );

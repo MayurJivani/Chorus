@@ -1,61 +1,62 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArtistSearchInput } from '../features/artist/ArtistSearchInput';
-import { createMultiplayerRoom } from '../api/multiplayer';
-import { getCategories } from '../api/categories';
-import type {
-  ArtistSearchResult,
-  Category,
-  MultiplayerGameMode,
-  MultiplayerGuessMode,
-} from '../types/api';
+import { createMultiplayerRoom, MULTIPLAYER_MAX_ROUNDS } from '../api/multiplayer';
+import { SourcePicker, type PickedSource } from '../features/multiplayer/SourcePicker';
+import { QrScanner, isQrScanSupported } from '../features/multiplayer/QrScanner';
+import { MultiplayerGuide } from '../features/game/ModeGuide';
+import type { MultiplayerGameMode, MultiplayerGuessMode } from '../types/api';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useSession } from '../hooks/useSession';
 
-/** What a room races over. Rooms accept either; the game is identical. */
-type SourceKind = 'artist' | 'category';
+/**
+ * Classic (progressive reveal) is switched off while Speed Round is the only supported
+ * multiplayer game. Mirrors MP_CLASSIC_ENABLED on the server — flip both to bring the mode
+ * back; the selector below and every classic branch downstream are still intact.
+ */
+const CLASSIC_ENABLED = false;
+
+/** Offered game lengths. Capped at the server's MP_MAX_ROUNDS. */
+const ROUND_CHOICES = [5, 10, 15, 20, MULTIPLAYER_MAX_ROUNDS] as const;
 
 export function MultiplayerHomePage() {
   usePageTitle('Multiplayer');
   const navigate = useNavigate();
-  const [sourceKind, setSourceKind] = useState<SourceKind>('artist');
-  const [artist, setArtist] = useState<ArtistSearchResult | null>(null);
-  const [category, setCategory] = useState<Category | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { user } = useSession();
+
+  const [source, setSource] = useState<PickedSource | null>(null);
   const [gameMode, setGameMode] = useState<MultiplayerGameMode>('speed');
   const [guessMode, setGuessMode] = useState<MultiplayerGuessMode>('search');
+  const [rounds, setRounds] = useState<number>(10);
   const [hostOnlyAudio, setHostOnlyAudio] = useState(false);
   const [hostPlayable, setHostPlayable] = useState(true);
   const [hostName, setHostName] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [roomCode, setRoomCode] = useState('');
+  const [scanning, setScanning] = useState(false);
 
-  // Fetched lazily: someone racing over an artist never needs the category list.
-  useEffect(() => {
-    if (sourceKind !== 'category' || categories.length > 0) return;
-    getCategories()
-      .then(setCategories)
-      .catch(() => setError('Could not load categories.'));
-  }, [sourceKind, categories.length]);
-
-  const selection = sourceKind === 'artist' ? artist : category;
+  // A signed-in player already has a name on their account, so asking again is a pointless
+  // extra field — and a second, conflicting name on the scoreboard when they type something new.
+  const needsName = user === null;
+  const canCreate = source !== null && (!needsName || hostName.trim().length > 0);
 
   const createRoom = useCallback(async () => {
-    if (!selection || creating) return;
+    if (!source || creating) return;
     setCreating(true);
     setError(null);
     try {
-      const source =
-        sourceKind === 'artist'
-          ? { artistId: (selection as ArtistSearchResult).id }
-          : { categoryId: (selection as Category).id };
+      const payload =
+        source.kind === 'artist'
+          ? { artistId: source.artist.id }
+          : { categoryId: source.category.id };
       const { code } = await createMultiplayerRoom(
-        source,
+        payload,
         guessMode,
         gameMode,
         hostOnlyAudio,
         hostPlayable,
+        rounds,
       );
       navigate(`/room/${code}`, { state: { autoJoin: true, hostName: hostName.trim() } });
     } catch (err) {
@@ -63,13 +64,13 @@ export function MultiplayerHomePage() {
       setCreating(false);
     }
   }, [
-    selection,
-    sourceKind,
+    source,
     creating,
     guessMode,
     gameMode,
     hostOnlyAudio,
     hostPlayable,
+    rounds,
     hostName,
     navigate,
   ]);
@@ -85,68 +86,12 @@ export function MultiplayerHomePage() {
         <p className="text-sm text-slate-500">Race friends in real time on shared snippets</p>
       </motion.div>
 
-      <div
-        role="tablist"
-        aria-label="What to race over"
-        className="flex w-full gap-1.5 rounded-xl border border-white/5 bg-chorusify-bg/80 p-1.5"
-      >
-        {(
-          [
-            ['artist', 'An artist'],
-            ['category', 'A category'],
-          ] as [SourceKind, string][]
-        ).map(([kind, label]) => (
-          <button
-            key={kind}
-            type="button"
-            role="tab"
-            aria-selected={sourceKind === kind}
-            onClick={() => {
-              setSourceKind(kind);
-              setArtist(null);
-              setCategory(null);
-            }}
-            className={
-              'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ' +
-              (sourceKind === kind
-                ? 'bg-white/10 text-white'
-                : 'text-slate-400 hover:bg-white/5 hover:text-white')
-            }
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Only before a source is chosen — see ArtistSearchPage for the same reasoning. */}
+      {!source && <MultiplayerGuide />}
 
-      {sourceKind === 'artist' ? (
-        <ArtistSearchInput onSelect={setArtist} />
-      ) : (
-        <div className="glass grid max-h-64 w-full grid-cols-2 gap-2 overflow-y-auto rounded-2xl p-3 sm:grid-cols-3">
-          {categories.length === 0 && (
-            <p className="col-span-full py-4 text-center text-sm text-slate-400">
-              Loading categories…
-            </p>
-          )}
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setCategory(c)}
-              aria-pressed={category?.id === c.id}
-              className={
-                'rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-all ' +
-                (category?.id === c.id
-                  ? 'border-chorusify-accent/60 bg-chorusify-accent/15 text-white'
-                  : 'border-white/5 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]')
-              }
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <SourcePicker value={source} onChange={setSource} />
 
-      {!selection && (
+      {!source && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -154,52 +99,76 @@ export function MultiplayerHomePage() {
           className="glass w-full rounded-2xl p-6 flex flex-col gap-4"
         >
           <div>
-            <h2 className="text-lg font-bold text-white">Join with Room Code</h2>
+            <h2 className="text-lg font-bold text-white">Join a room</h2>
             <p className="text-xs text-slate-400">
-              Have a code from a friend? Enter it below to join their lobby.
+              Have a code from a friend? Enter it below
+              {isQrScanSupported() ? ' or scan their QR' : ''}.
             </p>
           </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (roomCode.trim()) {
-                navigate(`/room/${roomCode.trim().toUpperCase()}`);
-              }
-            }}
-            className="flex w-full gap-2"
-          >
-            <input
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              maxLength={12}
-              placeholder="ROOM CODE"
-              /* min-w-0 is the fix: a flex item defaults to min-width:auto, so this input refused
-                 to shrink below the width of its own "ROOM CODE" placeholder and shoved the button
-                 off the screen on a narrow phone. */
-              className="w-full min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center font-mono text-base font-black tracking-widest text-chorusify-accent2 outline-none focus:border-chorusify-accent2 uppercase placeholder:font-sans placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-600"
+
+          {scanning ? (
+            <QrScanner
+              onScan={(code) => {
+                setScanning(false);
+                navigate(`/room/${code}`);
+              }}
+              onClose={() => setScanning(false)}
             />
-            <button
-              type="submit"
-              disabled={!roomCode.trim()}
-              className="btn-primary shrink-0 !px-5 !py-2.5 !text-sm whitespace-nowrap"
-            >
-              Join Room
-            </button>
-          </form>
+          ) : (
+            <>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (roomCode.trim()) {
+                    navigate(`/room/${roomCode.trim().toUpperCase()}`);
+                  }
+                }}
+                className="flex w-full gap-2"
+              >
+                <input
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  maxLength={12}
+                  placeholder="ROOM CODE"
+                  /* min-w-0 is the fix: a flex item defaults to min-width:auto, so this input refused
+                     to shrink below the width of its own "ROOM CODE" placeholder and shoved the button
+                     off the screen on a narrow phone. */
+                  className="w-full min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center font-mono text-base font-black tracking-widest text-chorusify-accent2 outline-none focus:border-chorusify-accent2 uppercase placeholder:font-sans placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-600"
+                />
+                <button
+                  type="submit"
+                  disabled={!roomCode.trim()}
+                  className="btn-primary shrink-0 !px-5 !py-2.5 !text-sm whitespace-nowrap"
+                >
+                  Join
+                </button>
+              </form>
+
+              {isQrScanSupported() && (
+                <button
+                  type="button"
+                  onClick={() => setScanning(true)}
+                  className="btn-secondary w-full !rounded-xl !py-2.5 !text-sm"
+                >
+                  Scan QR code
+                </button>
+              )}
+            </>
+          )}
         </motion.div>
       )}
 
-      {selection && (
+      {source && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           className="glass w-full rounded-2xl p-6"
         >
           <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 p-3.5">
-            {artist?.pictureUrl ? (
+            {source.kind === 'artist' && source.artist.pictureUrl ? (
               <img
-                src={artist.pictureUrl}
-                alt={artist.name}
+                src={source.artist.pictureUrl}
+                alt={source.artist.name}
                 className="h-12 w-12 shrink-0 rounded-full border border-white/20 object-cover"
               />
             ) : (
@@ -209,44 +178,69 @@ export function MultiplayerHomePage() {
             )}
             <div className="min-w-0">
               <h2 className="truncate text-lg font-bold text-white">
-                {sourceKind === 'artist' ? artist?.name : category?.label}
+                {source.kind === 'artist' ? source.artist.name : source.category.label}
               </h2>
-              <p className="text-xs text-slate-400">10-song real-time race</p>
+              <p className="text-xs text-slate-400">{rounds}-song real-time race</p>
             </div>
           </div>
 
           <div className="mt-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Game mode
+              Number of songs
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              {(
-                [
-                  ['classic', 'Classic', 'Progressive reveal, points by stage'],
-                  ['speed', 'Speed Round', 'Full snippet, fastest correct = most points'],
-                ] as [MultiplayerGameMode, string, string][]
-              ).map(([mode, label, hint]) => (
+            <div className="grid grid-cols-5 gap-2">
+              {ROUND_CHOICES.map((n) => (
                 <button
-                  key={mode}
+                  key={n}
                   type="button"
-                  onClick={() => setGameMode(mode)}
-                  aria-pressed={gameMode === mode}
-                  className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
-                    gameMode === mode
+                  onClick={() => setRounds(n)}
+                  aria-pressed={rounds === n}
+                  className={`rounded-xl border py-2.5 text-sm font-semibold transition-all ${
+                    rounds === n
                       ? 'border-chorusify-accent/60 bg-chorusify-accent/10 text-white'
                       : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/25'
                   }`}
                 >
-                  <span className="block text-sm font-semibold">{label}</span>
-                  <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
-                    {hint}
-                  </span>
+                  {n}
                 </button>
               ))}
             </div>
           </div>
 
-          {gameMode === 'classic' && (
+          {CLASSIC_ENABLED && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Game mode
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ['classic', 'Classic', 'Progressive reveal, points by stage'],
+                    ['speed', 'Speed Round', 'Full snippet, fastest correct = most points'],
+                  ] as [MultiplayerGameMode, string, string][]
+                ).map(([mode, label, hint]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setGameMode(mode)}
+                    aria-pressed={gameMode === mode}
+                    className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                      gameMode === mode
+                        ? 'border-chorusify-accent/60 bg-chorusify-accent/10 text-white'
+                        : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/25'
+                    }`}
+                  >
+                    <span className="block text-sm font-semibold">{label}</span>
+                    <span className="mt-0.5 block text-[11px] leading-tight text-slate-400">
+                      {hint}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {CLASSIC_ENABLED && gameMode === 'classic' && (
             <div className="mt-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                 How does everyone guess?
@@ -255,7 +249,7 @@ export function MultiplayerHomePage() {
                 {(
                   [
                     ['search', 'Type to search', 'Search the full catalog'],
-                    ['choice', 'Multiple choice', 'Pick one of three'],
+                    ['choice', 'Multiple choice', 'Pick one of four'],
                   ] as [MultiplayerGuessMode, string, string][]
                 ).map(([mode, label, hint]) => (
                   <button
@@ -343,23 +337,29 @@ export function MultiplayerHomePage() {
             </div>
           )}
 
-          <div className="mt-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Your name
+          {needsName ? (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Your name
+              </p>
+              <input
+                value={hostName}
+                onChange={(e) => setHostName(e.target.value)}
+                maxLength={24}
+                placeholder="Enter your name"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-chorusify-accent2"
+              />
+            </div>
+          ) : (
+            <p className="mt-4 text-xs text-slate-400">
+              Playing as <span className="font-semibold text-slate-200">{user.displayName}</span>
             </p>
-            <input
-              value={hostName}
-              onChange={(e) => setHostName(e.target.value)}
-              maxLength={24}
-              placeholder="Enter your name"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-chorusify-accent2"
-            />
-          </div>
+          )}
 
           <button
             type="button"
             onClick={() => void createRoom()}
-            disabled={creating || !hostName.trim()}
+            disabled={creating || !canCreate}
             className="btn-primary mt-3 w-full !rounded-xl"
           >
             {creating ? 'Creating room…' : 'Create room →'}

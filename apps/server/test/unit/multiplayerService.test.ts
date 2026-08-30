@@ -8,12 +8,15 @@ import {
   __getRoom,
   __getRoomPhase,
   __getCurrentTrack,
+  __setClassicEnabled,
+  MP_CHOICE_OPTIONS,
   MP_ROUND_DURATION_MS,
   MP_REVEAL_DURATION_MS,
   MP_REVEAL_POINTS,
   MP_REVEAL_SCHEDULE,
   MP_ROUNDS,
   MP_MAX_PLAYERS,
+  MP_MAX_ROUNDS,
   type MpSocket,
 } from '../../src/services/multiplayerService';
 
@@ -158,10 +161,15 @@ beforeEach(() => {
     previewUrl: `https://preview.test/${id}.mp3`,
     durationSeconds: 30,
   }));
+  // Classic is switched off in production but its code is deliberately kept (see
+  // isClassicEnabled). These tests are what stop it rotting while it's dormant, so they run
+  // with it on — the default-off behaviour has its own test below.
+  __setClassicEnabled(true);
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  __setClassicEnabled(false);
   __resetForTests();
 });
 
@@ -436,7 +444,29 @@ describe('multiplayerService guess mode', () => {
     expect(__getRoom(code)).toMatchObject({ guessMode: 'search' });
   });
 
-  it('sends three options per round in choice mode', async () => {
+  it('substitutes a speed round when classic is disabled', async () => {
+    __setClassicEnabled(false);
+    const { code } = await createRoom(queenSource(), 'search', 'classic');
+    // Speed rounds are always multiple choice, so the requested search mode goes with it.
+    expect(__getRoom(code)).toMatchObject({ gameMode: 'speed', guessMode: 'choice' });
+  });
+
+  it('honours an explicit classic room while the mode is enabled', async () => {
+    const { code } = await createRoom(queenSource(), 'search', 'classic');
+    expect(__getRoom(code)).toMatchObject({ gameMode: 'classic', guessMode: 'search' });
+  });
+
+  it('caps a host-chosen round count at the maximum', async () => {
+    const { code } = await createRoom(queenSource(), 'search', 'classic', false, true, 999);
+    expect(__getRoom(code)).toMatchObject({ totalRounds: MP_MAX_ROUNDS });
+  });
+
+  it('uses a host-chosen round count when it is in range', async () => {
+    const { code } = await createRoom(queenSource(), 'search', 'classic', false, true, 3);
+    expect(__getRoom(code)).toMatchObject({ totalRounds: 3 });
+  });
+
+  it('sends four options per round in choice mode', async () => {
     const { code } = await createRoom(queenSource(), 'choice');
     const host = register('host', 'hostaaaa');
     await join('host', code);
@@ -447,7 +477,7 @@ describe('multiplayerService guess mode', () => {
     const start = lastOf(host, 'round_start');
     expect(start?.guessMode).toBe('choice');
     const options = start?.options as { deezerTrackId: string; title: string }[];
-    expect(options).toHaveLength(3);
+    expect(options).toHaveLength(MP_CHOICE_OPTIONS);
     // The correct answer has to be among them, or the round is unwinnable.
     const current = __getCurrentTrack(code);
     expect(options.map((o) => o.deezerTrackId)).toContain(current?.deezerTrackId);
@@ -476,6 +506,126 @@ describe('multiplayerService guess mode', () => {
 
     const state = lastOf(guest, 'room_state')?.room as { guessMode: string };
     expect(state.guessMode).toBe('choice');
+  });
+});
+
+describe('changing what a finished room races over', () => {
+  /** Plays a room to completion so the source switch has a realistic starting state. */
+  async function playToFinish(code: string, socket: FakeSocket) {
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+    for (let i = 0; i < MP_ROUNDS; i++) {
+      await vi.advanceTimersByTimeAsync(MP_ROUND_DURATION_MS + MP_REVEAL_DURATION_MS);
+    }
+    expect(lastOf(socket, 'game_over')).toBeDefined();
+    expect(__getRoomPhase(code)).toBe('finished');
+  }
+
+  it('repoints a finished room at a category and returns it to the lobby', async () => {
+    const { code } = await createRoom(queenSource());
+    const host = register('host', 'hostaaaa');
+    await join('host', code);
+    await playToFinish(code, host);
+
+    await handleClientMessage('host', { type: 'change_source', categoryId: 'year-2020' });
+
+    expect(__getRoom(code)).toMatchObject({
+      code,
+      sourceType: 'category',
+      sourceId: 'year-2020',
+      phase: 'lobby',
+    });
+  });
+
+  it('keeps every player in the room across the switch', async () => {
+    const { code } = await createRoom(queenSource());
+    const host = register('host', 'hostaaaa');
+    const guest = register('guest', 'guestaaa');
+    await join('host', code);
+    await join('guest', code);
+    await playToFinish(code, host);
+
+    await handleClientMessage('host', { type: 'change_source', categoryId: 'year-2020' });
+
+    const room = __getRoom(code);
+    expect(room?.players).toHaveLength(2);
+    expect(room?.hostId).toBe('host');
+    // The guest is told about it rather than being left staring at the old results.
+    expect(lastOf(guest, 'room_state')?.room).toMatchObject({ sourceId: 'year-2020' });
+  });
+
+  it('resets scores, so the new race does not start with someone already ahead', async () => {
+    const { code } = await createRoom(queenSource());
+    register('host', 'hostaaaa');
+    await join('host', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+    const track = __getCurrentTrack(code);
+    handleClientMessage('host', { type: 'guess', trackId: track!.deezerTrackId });
+    await vi.advanceTimersByTimeAsync(MP_REVEAL_DURATION_MS);
+    for (let i = 0; i < MP_ROUNDS; i++) {
+      await vi.advanceTimersByTimeAsync(MP_ROUND_DURATION_MS + MP_REVEAL_DURATION_MS);
+    }
+    expect(__getRoom(code)?.players[0]?.score).toBeGreaterThan(0);
+
+    await handleClientMessage('host', { type: 'change_source', categoryId: 'year-2020' });
+    expect(__getRoom(code)?.players[0]?.score).toBe(0);
+  });
+
+  it('lets only the host change the music', async () => {
+    const { code } = await createRoom(queenSource());
+    const host = register('host', 'hostaaaa');
+    const guest = register('guest', 'guestaaa');
+    await join('host', code);
+    await join('guest', code);
+    await playToFinish(code, host);
+
+    await handleClientMessage('guest', { type: 'change_source', categoryId: 'year-2020' });
+
+    expect(lastOf(guest, 'error')?.message).toMatch(/only the host/i);
+    expect(__getRoom(code)).toMatchObject({ sourceId: '412' });
+  });
+
+  it('refuses to swap the source out from under a game in progress', async () => {
+    const { code } = await createRoom(queenSource());
+    const host = register('host', 'hostaaaa');
+    await join('host', code);
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    await handleClientMessage('host', { type: 'change_source', categoryId: 'year-2020' });
+
+    expect(lastOf(host, 'error')?.message).toMatch(/finish the current game/i);
+    expect(__getRoom(code)).toMatchObject({ sourceId: '412', phase: 'playing' });
+  });
+
+  it('rejects a request naming both an artist and a category', async () => {
+    const { code } = await createRoom(queenSource());
+    const host = register('host', 'hostaaaa');
+    await join('host', code);
+    await playToFinish(code, host);
+
+    await handleClientMessage('host', {
+      type: 'change_source',
+      artistId: 412,
+      categoryId: 'year-2020',
+    });
+
+    expect(lastOf(host, 'error')?.message).toMatch(/exactly one/i);
+    expect(__getRoom(code)).toMatchObject({ sourceId: '412' });
+  });
+
+  it('reports an unknown category instead of emptying the room', async () => {
+    const { code } = await createRoom(queenSource());
+    const host = register('host', 'hostaaaa');
+    await join('host', code);
+    await playToFinish(code, host);
+
+    await handleClientMessage('host', { type: 'change_source', categoryId: 'not-a-category' });
+
+    expect(lastOf(host, 'error')?.message).toMatch(/unknown category/i);
+    expect(__getRoom(code)).toMatchObject({ sourceId: '412', phase: 'finished' });
   });
 });
 

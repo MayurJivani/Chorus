@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { createRoom } from '../services/multiplayerService';
+import { createRoom, isClassicEnabled, MP_MAX_ROUNDS } from '../services/multiplayerService';
 import { resolveArtistSource, resolveCategorySource } from '../services/challengeSource';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -16,6 +16,7 @@ const createRoomSchema = z
     gameMode: z.enum(['classic', 'speed']).optional().default('classic'),
     hostOnlyAudio: z.boolean().optional().default(false),
     hostPlayable: z.boolean().optional().default(true),
+    rounds: z.coerce.number().int().min(1).max(MP_MAX_ROUNDS).optional(),
   })
   // Exactly one, so a request naming both can't quietly race over whichever the code checks
   // first while the player who sent it expects the other.
@@ -33,7 +34,7 @@ multiplayerRouter.post(
   '/rooms',
   validate(createRoomSchema),
   asyncHandler(async (req, res) => {
-    const { artistId, categoryId, guessMode, gameMode, hostOnlyAudio, hostPlayable } =
+    const { artistId, categoryId, guessMode, gameMode, hostOnlyAudio, hostPlayable, rounds } =
       req.body as z.infer<typeof createRoomSchema>;
 
     let source;
@@ -46,15 +47,27 @@ multiplayerRouter.post(
       throw new HttpError(404, artistId != null ? 'Artist not found' : 'Unknown category');
     }
 
-    const { code } = await createRoom(source, guessMode, gameMode, hostOnlyAudio, hostPlayable);
+    // Mirrors what createRoom does with a disabled mode, so the response describes the room
+    // that actually exists rather than the one that was asked for.
+    const effectiveGameMode =
+      gameMode === 'classic' && !isClassicEnabled() ? ('speed' as const) : gameMode;
+
+    const { code } = await createRoom(
+      source,
+      guessMode,
+      gameMode,
+      hostOnlyAudio,
+      hostPlayable,
+      rounds,
+    );
     res.status(201).json({
       code,
       sourceType: source.sourceType,
       sourceId: source.sourceId,
       label: source.label,
       pictureUrl: source.pictureUrl,
-      guessMode: gameMode === 'speed' ? 'choice' : guessMode,
-      gameMode,
+      guessMode: effectiveGameMode === 'speed' ? 'choice' : guessMode,
+      gameMode: effectiveGameMode,
       hostOnlyAudio,
       hostPlayable,
     });

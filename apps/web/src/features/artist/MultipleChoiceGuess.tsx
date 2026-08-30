@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { RevealMoreButton } from '../game/RevealMoreButton';
 import type { ArtistRoundOption, RevealedSong, SongSearchResult } from '../../types/api';
 
 interface MultipleChoiceGuessProps {
@@ -13,6 +14,21 @@ interface MultipleChoiceGuessProps {
   onRevealMore?: () => void;
   /** Whether there is more snippet left to reveal. Hides the reveal button when false. */
   canRevealMore?: boolean;
+  /**
+   * Multiplayer: the answer this player committed to, still awaiting everyone else.
+   *
+   * The options stay on screen rather than being swapped for a status card, because in a race
+   * the thing you want to check while waiting is *what you picked* — replacing the list with
+   * "Locked in!" left players unable to see their own answer until the reveal.
+   */
+  lockedGuessId?: string | null;
+  /** Tightens spacing so four options and the player still fit a phone without scrolling. */
+  dense?: boolean;
+  /** Seconds now and after the next reveal, so the button can offer a concrete "+3s". */
+  currentSeconds?: number;
+  nextSeconds?: number;
+  /** Draws attention to the reveal the first time it is offered in a run. */
+  emphasiseReveal?: boolean;
 }
 
 export function MultipleChoiceGuess({
@@ -25,6 +41,11 @@ export function MultipleChoiceGuess({
   selectedGuessId,
   onRevealMore,
   canRevealMore = true,
+  lockedGuessId = null,
+  dense = false,
+  currentSeconds,
+  nextSeconds,
+  emphasiseReveal = false,
 }: MultipleChoiceGuessProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -32,8 +53,10 @@ export function MultipleChoiceGuess({
     setSelectedId(null);
   }, [options]);
 
+  const locked = lockedGuessId !== null;
+
   const handleSelect = (option: ArtistRoundOption) => {
-    if (disabled || roundEnded) return;
+    if (disabled || roundEnded || locked) return;
     setSelectedId(option.deezerTrackId);
     onGuess({
       id: option.deezerTrackId,
@@ -44,7 +67,7 @@ export function MultipleChoiceGuess({
   };
 
   return (
-    <div className="flex w-full max-w-md flex-col gap-2.5">
+    <div className={`flex w-full max-w-md flex-col ${dense ? 'gap-1.5' : 'gap-2.5'}`}>
       {options.map((option) => {
         const isSelected = roundEnded
           ? selectedGuessId === option.deezerTrackId
@@ -79,6 +102,20 @@ export function MultipleChoiceGuess({
           } else {
             styleClass = 'border-white/5 bg-white/5 text-slate-500 opacity-40';
           }
+        } else if (locked) {
+          // Waiting on the rest of the room: the pick stays legible and everything else dims,
+          // so a glance answers "what did I go with?" without waiting for the reveal.
+          if (option.deezerTrackId === lockedGuessId) {
+            styleClass =
+              'border-chorusify-accent2/70 bg-chorusify-accent2/10 text-white ring-2 ring-chorusify-accent2/40';
+            badge = (
+              <span className="rounded-md border border-chorusify-accent2/30 bg-chorusify-accent2/15 px-2 py-0.5 text-[11px] font-bold text-chorusify-accent2">
+                🔒 Locked
+              </span>
+            );
+          } else {
+            styleClass = 'border-white/5 bg-white/5 text-slate-500 opacity-40';
+          }
         } else if (isSelected) {
           styleClass = 'border-white/40 bg-white/10 text-white';
         }
@@ -87,15 +124,19 @@ export function MultipleChoiceGuess({
           <button
             key={option.deezerTrackId}
             type="button"
-            disabled={disabled || roundEnded}
+            disabled={disabled || roundEnded || locked}
             onClick={() => handleSelect(option)}
-            className={`flex items-center justify-between gap-2 rounded-xl border px-4 py-3.5 text-left backdrop-blur-sm transition-all duration-200 ${styleClass} disabled:cursor-not-allowed`}
+            className={`flex items-center justify-between gap-2 rounded-xl border text-left backdrop-blur-sm transition-all duration-200 ${
+              dense ? 'px-3 py-2.5' : 'px-4 py-3.5'
+            } ${styleClass} disabled:cursor-not-allowed`}
           >
             {/* min-w-0 is what lets the truncation actually happen: without it this flex child
                 refuses to shrink below its content, and a long title ("Bang My Head (feat. Sia
                 & Fetty Wap)") pushes the result badge off a phone screen entirely. */}
             <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-base font-semibold">{option.title}</span>
+              <span className={`truncate font-semibold ${dense ? 'text-sm' : 'text-base'}`}>
+                {option.title}
+              </span>
               <span className="truncate text-xs opacity-75">{option.artist}</span>
             </div>
             {badge && <span className="shrink-0">{badge}</span>}
@@ -104,25 +145,26 @@ export function MultipleChoiceGuess({
       })}
 
       {!roundEnded &&
+        !locked &&
         (onRevealMore ? (
           <div className="mt-1 flex gap-2 w-full">
             <button
               type="button"
               onClick={onSkip}
               disabled={disabled}
-              className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
+              // Narrower and quieter than Reveal: this is the one that costs you the round.
+              className="btn-ghost shrink-0 !rounded-xl !px-4 !py-2.5 !text-sm !text-slate-400"
             >
               Skip
             </button>
             {canRevealMore && (
-              <button
-                type="button"
-                onClick={onRevealMore}
+              <RevealMoreButton
+                onRevealMore={onRevealMore}
+                currentSeconds={currentSeconds}
+                nextSeconds={nextSeconds}
                 disabled={disabled}
-                className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
-              >
-                Reveal more
-              </button>
+                emphasise={emphasiseReveal}
+              />
             )}
           </div>
         ) : (

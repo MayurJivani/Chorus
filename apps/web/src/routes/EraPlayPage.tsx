@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { SnippetPlayer } from '../features/game/SnippetPlayer';
 import { SongPreviewButton } from '../features/game/SongPreviewButton';
 import { SnippetProgressBar } from '../features/game/SnippetProgressBar';
+import { RevealMoreButton } from '../features/game/RevealMoreButton';
 import { ChallengeSummary } from '../features/challenge/ChallengeSummary';
 import { useGameConfig } from '../hooks/useGameConfig';
 import { getEraChallenge, getEraLeaderboard, submitEraGuess } from '../api/era';
@@ -248,22 +249,24 @@ export function EraPlayPage() {
                 type="button"
                 onClick={() => void guess(undefined)}
                 disabled={submitting}
-                className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
+                // Narrower and quieter than Reveal: this is the one that costs you the round.
+                className="btn-ghost shrink-0 !rounded-xl !px-4 !py-2.5 !text-sm !text-slate-400"
               >
                 Skip
               </button>
               {canRevealMore && (
-                <button
-                  type="button"
-                  onClick={() => {
+                <RevealMoreButton
+                  onRevealMore={() => {
                     setRevealCount((n) => n + 1);
                     setAutoPlay(true);
                   }}
+                  currentSeconds={stageSeconds}
+                  nextSeconds={
+                    snippetSchedule[Math.min(stageIndex + 1, snippetSchedule.length - 1)]
+                  }
                   disabled={submitting}
-                  className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
-                >
-                  Reveal more
-                </button>
+                  emphasise={revealCount === 0}
+                />
               )}
             </div>
 

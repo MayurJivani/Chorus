@@ -31,6 +31,8 @@ export interface MultiplayerGuessResult {
   correct: boolean;
   points: number;
   stageIndex: number;
+  /** The track this player committed to. Absent on a skip. */
+  guessedTrackId?: string;
 }
 
 export interface MultiplayerRoundEnd {
@@ -64,6 +66,8 @@ interface UseMultiplayerGameResult {
   reveal: () => void;
   submitGuess: (trackId: string) => void;
   nextRound: () => void;
+  /** Host-only: repoints the room at a different artist or category and returns it to the lobby. */
+  changeSource: (source: { artistId: number } | { categoryId: string }) => void;
   leave: () => void;
 }
 
@@ -113,6 +117,15 @@ export function useMultiplayerGame(
         setScores(snapshotScores(snapshot));
         setGameOver(null);
         setRoundEnd(null);
+        // A room back in the lobby has no round by definition. Without this the last round of
+        // the previous game survives, and the host switching to a new artist drops everyone
+        // back into the finished game's screen instead of the lobby — `round` is checked
+        // before `room.phase` when deciding what to render.
+        if (snapshot.phase === 'lobby') {
+          setRound(null);
+          setStageIndex(0);
+          setLastGuess(null);
+        }
         break;
       }
       case 'round_start': {
@@ -144,6 +157,7 @@ export function useMultiplayerGame(
           correct: raw.correct as boolean,
           points: raw.points as number,
           stageIndex: raw.stageIndex as number,
+          guessedTrackId: raw.guessedTrackId as string | undefined,
         });
         break;
       case 'scores':
@@ -228,6 +242,11 @@ export function useMultiplayerGame(
   const reveal = useCallback(() => send({ type: 'reveal' }), [send]);
   const submitGuess = useCallback((trackId: string) => send({ type: 'guess', trackId }), [send]);
   const nextRound = useCallback(() => send({ type: 'next_round' }), [send]);
+  const changeSource = useCallback(
+    (source: { artistId: number } | { categoryId: string }) =>
+      send({ type: 'change_source', ...source }),
+    [send],
+  );
   const leave = useCallback(() => {
     send({ type: 'leave_room' });
     wsRef.current?.close();
@@ -248,6 +267,7 @@ export function useMultiplayerGame(
     reveal,
     submitGuess,
     nextRound,
+    changeSource,
     leave,
   };
 }

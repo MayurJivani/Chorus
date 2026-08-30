@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import type { MultiplayerGameOver } from './useMultiplayerGame';
 import { MultiplayerScoreboard } from './MultiplayerScoreboard';
+import { SourcePicker, type PickedSource } from './SourcePicker';
 
 interface MultiplayerResultsProps {
   gameOver: MultiplayerGameOver;
@@ -10,7 +11,8 @@ interface MultiplayerResultsProps {
   label: string;
   canPlayAgain: boolean;
   onPlayAgain: () => void;
-  onNewRoom: () => void;
+  /** Host-only: races something else without breaking up the room. */
+  onChangeSource: (source: { artistId: number } | { categoryId: string }) => void;
   onLeave: () => void;
 }
 
@@ -20,10 +22,12 @@ export function MultiplayerResults({
   label,
   canPlayAgain,
   onPlayAgain,
-  onNewRoom,
+  onChangeSource,
   onLeave,
 }: MultiplayerResultsProps) {
   const iWon = gameOver.winner?.playerId === selfId;
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<PickedSource | null>(null);
 
   useEffect(() => {
     if (!iWon) return;
@@ -34,6 +38,17 @@ export function MultiplayerResults({
       colors: ['#7c5cff', '#22d3ee', '#22c55e'],
     });
   }, [iWon]);
+
+  const confirmSource = () => {
+    if (!picked) return;
+    onChangeSource(
+      picked.kind === 'artist'
+        ? { artistId: picked.artist.id }
+        : { categoryId: picked.category.id },
+    );
+    setPicking(false);
+    setPicked(null);
+  };
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center gap-4 sm:gap-6 px-4 py-4 sm:py-8">
@@ -67,16 +82,61 @@ export function MultiplayerResults({
       />
 
       <div className="flex w-full max-w-xl flex-col gap-3">
-        {canPlayAgain && (
-          <button type="button" onClick={onPlayAgain} className="btn-primary w-full !rounded-xl">
-            Play again (new songs)
-          </button>
+        {canPlayAgain && !picking && (
+          <>
+            <button type="button" onClick={onPlayAgain} className="btn-primary w-full !rounded-xl">
+              Play again ({label})
+            </button>
+            <button
+              type="button"
+              onClick={() => setPicking(true)}
+              className="btn-secondary w-full !rounded-xl"
+            >
+              Race something else
+            </button>
+          </>
         )}
-        {canPlayAgain && (
-          <button type="button" onClick={onNewRoom} className="btn-secondary w-full !rounded-xl">
-            New room (different artist/category)
-          </button>
+
+        {canPlayAgain && picking && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass flex w-full flex-col gap-3 rounded-2xl p-4"
+          >
+            <p className="text-sm font-semibold text-white">Pick the next artist or category</p>
+            <p className="text-xs text-slate-400">
+              Everyone stays in the room — scores reset for the new race.
+            </p>
+            <SourcePicker value={picked} onChange={setPicked} compact />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPicking(false);
+                  setPicked(null);
+                }}
+                className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmSource}
+                disabled={!picked}
+                className="btn-primary flex-1 !rounded-xl !py-2.5 !text-sm"
+              >
+                Switch
+              </button>
+            </div>
+          </motion.div>
         )}
+
+        {!canPlayAgain && (
+          <p className="text-center text-sm text-slate-400">
+            Waiting for the host to pick what&apos;s next…
+          </p>
+        )}
+
         <button type="button" onClick={onLeave} className="btn-ghost w-full !rounded-xl">
           Leave room
         </button>

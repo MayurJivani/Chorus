@@ -17,6 +17,10 @@ vi.mock('../../src/services/deezerService', () => ({
   getArtistById: vi.fn(),
   getArtistTopTracks: vi.fn(),
   getFreshPreviewUrl: vi.fn(),
+  // Not exercised here, but artistCatalogService kicks it off in the background whenever it
+  // fills a pool. It has to resolve to an array: the fire-and-forget caller chains .then on
+  // the result, so a bare vi.fn() returning undefined throws inside every challenge test.
+  fetchFullDiscography: vi.fn().mockResolvedValue([]),
 }));
 
 // Imported after the mock so the module under test picks up the mocked deezerService.
@@ -31,6 +35,7 @@ import {
   evictAbandonedChallenges,
   resolvePlayableRound,
   loadChallengeTracks,
+  getActiveSessionOrStartNew,
   ARTIST_CHALLENGE_SIZE,
 } from '../../src/services/artistChallengeService';
 
@@ -116,6 +121,74 @@ describe('getOrCreateArtistChallenge', () => {
     expect(withFeatures.challenge.id).not.toBe(withoutFeatures.challenge.id);
     expect(deezerService.getArtistTopTracks).toHaveBeenCalledWith(412, false);
     expect(deezerService.getArtistTopTracks).toHaveBeenCalledWith(412, true);
+  });
+});
+
+/**
+ * The resume rule, which is anti-cheat rather than convenience.
+ *
+ * If walking away and coming back dealt a new hand, a player stuck on a hard song could reroll
+ * until the draw was easy and every leaderboard entry would be the best of N attempts. These
+ * cover both directions of the rule; before this the behaviour had no coverage at all.
+ */
+describe('resuming an unfinished run', () => {
+  const guest = { userId: null, guestId: 'resume-guest' };
+
+  it('hands back the same challenge mid-run, so the draw cannot be rerolled', async () => {
+    const first = await getActiveSessionOrStartNew(412, false, guest);
+    await recordArtistRoundResult(first.session.id, false, 1, 1);
+
+    const second = await getActiveSessionOrStartNew(412, false, guest);
+
+    expect(second.challenge.id).toBe(first.challenge.id);
+    expect(second.session.id).toBe(first.session.id);
+    expect(second.session.completed).toBe(false);
+    // The same songs, in the same order — a reroll would show up here first.
+    expect(second.tracks.map((t) => t.deezerTrackId)).toEqual(
+      first.tracks.map((t) => t.deezerTrackId),
+    );
+  });
+
+  it('resumes at the round the player left off on', async () => {
+    const started = await getActiveSessionOrStartNew(412, false, {
+      userId: null,
+      guestId: 'resume-guest-2',
+    });
+    await recordArtistRoundResult(started.session.id, true, 1, 1);
+    await recordArtistRoundResult(started.session.id, true, 1, 1);
+
+    const resumed = await getActiveSessionOrStartNew(412, false, {
+      userId: null,
+      guestId: 'resume-guest-2',
+    });
+
+    expect(resumed.session.currentRound).toBe(2);
+    expect(resumed.session.songsCorrect).toBe(2);
+  });
+
+  it('deals a fresh challenge once the run is finished', async () => {
+    const identity = { userId: null, guestId: 'finished-guest' };
+    const played = await getActiveSessionOrStartNew(412, false, identity);
+    for (let round = 0; round < ARTIST_CHALLENGE_SIZE; round += 1) {
+      await recordArtistRoundResult(played.session.id, true, 1, 1);
+    }
+
+    const next = await getActiveSessionOrStartNew(412, false, identity);
+
+    // Finishing banks the score, so there is nothing left to reroll — a new run here is what
+    // stops the player being stranded on their old results screen.
+    expect(next.challenge.id).not.toBe(played.challenge.id);
+    expect(next.session.completed).toBe(false);
+    expect(next.session.currentRound).toBe(0);
+  });
+
+  it('keeps an explicit play-again separate from the run it replaces', async () => {
+    const identity = { userId: null, guestId: 'play-again-guest' };
+    const first = await getActiveSessionOrStartNew(412, false, identity);
+
+    const replayed = await getActiveSessionOrStartNew(412, false, identity, true);
+
+    expect(replayed.challenge.id).not.toBe(first.challenge.id);
   });
 });
 

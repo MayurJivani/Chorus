@@ -5,16 +5,27 @@ import type {
   MultiplayerGuessMode,
 } from '../types/api';
 
+/** Ceiling on a host-chosen game length; mirrors MP_MAX_ROUNDS on the server. */
+export const MULTIPLAYER_MAX_ROUNDS = 25;
+
 export function createMultiplayerRoom(
   source: { artistId: number } | { categoryId: string },
   guessMode: MultiplayerGuessMode = 'search',
   gameMode: MultiplayerGameMode = 'classic',
   hostOnlyAudio: boolean = false,
   hostPlayable: boolean = true,
+  rounds?: number,
 ): Promise<MultiplayerCreateRoomResponse> {
   return apiRequest<MultiplayerCreateRoomResponse>('/multiplayer/rooms', {
     method: 'POST',
-    body: { ...source, guessMode, gameMode, hostOnlyAudio, hostPlayable },
+    body: {
+      ...source,
+      guessMode,
+      gameMode,
+      hostOnlyAudio,
+      hostPlayable,
+      ...(rounds != null ? { rounds } : {}),
+    },
   });
 }
 

@@ -163,10 +163,12 @@ describe('POST /api/artists/:artistId/challenge/today/guess', () => {
 
   it('completes the session and reports a final score after all 10 rounds', async () => {
     const agent = request.agent(app);
+    let playedChallengeId: number | undefined;
 
     for (let round = 0; round < 10; round += 1) {
       const today = await agent.get('/api/artists/412/challenge/today');
       if (today.body.completed) break;
+      playedChallengeId = today.body.challengeId;
 
       const csrfToken = await getCsrfToken(agent);
       const challengeTracks = await db.select().from(artistChallengeTracks);
@@ -190,8 +192,13 @@ describe('POST /api/artists/:artistId/challenge/today/guess', () => {
       }
     }
 
+    // Coming back after finishing deals a fresh run rather than re-serving the completed one,
+    // so a player is never stranded on their old results screen. Nothing is rerollable here —
+    // the finished score is already banked (see getSessionOrStartNew).
     const final = await agent.get('/api/artists/412/challenge/today');
-    expect(final.body.completed).toBe(true);
+    expect(final.body.completed).toBe(false);
+    expect(final.body.currentRound).toBe(0);
+    expect(final.body.challengeId).not.toBe(playedChallengeId);
   });
 
   it('rejects further guesses once the session is already complete', async () => {

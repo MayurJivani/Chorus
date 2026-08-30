@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArtistSearchInput } from '../features/artist/ArtistSearchInput';
+import { ArtistModeGuide } from '../features/game/ModeGuide';
 import { usePageTitle } from '../hooks/usePageTitle';
 import type { ArtistSearchResult } from '../types/api';
 
@@ -25,6 +26,10 @@ export function ArtistSearchPage() {
         <h1 className="text-3xl font-extrabold text-white tracking-tight">Artist Mode</h1>
         <p className="text-sm text-slate-500">10 songs from any artist's discography</p>
       </motion.div>
+
+      {/* Only before an artist is chosen: once someone has picked, they know what they came
+          for and the guide is just something between them and the start button. */}
+      {!artist && <ArtistModeGuide />}
 
       <ArtistSearchInput onSelect={(a) => setArtist(a)} />
 

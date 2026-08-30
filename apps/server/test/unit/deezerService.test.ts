@@ -389,25 +389,36 @@ describe('getArtistTopTracks', () => {
   });
 
   it('caches separately per includeFeatures setting', async () => {
-    // A full album's worth of tracks, so the top-tracks fallback (which triggers below ten)
-    // stays out of the way — this test is about caching, not about the fallback.
-    const fetchMock = mockAlbumsAndTracks([{ id: 1, title: 'Album A', cover_medium: undefined }], {
-      1: Array.from({ length: 12 }, (_, i) => ({
-        id: i + 1,
-        title: `Song ${i}`,
-        duration: 200,
-        preview: `${i}.mp3`,
-      })),
+    // Enough top tracks to satisfy the fast path, so this stays a test about caching rather
+    // than about the album-crawl fallback.
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/top?')) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: Array.from({ length: 12 }, (_, i) => ({
+              id: i + 1,
+              title: `Song ${i}`,
+              duration: 200,
+              preview: `${i}.mp3`,
+              artist: { name: 'Queen' },
+            })),
+            next: null,
+          }),
+        };
+      }
+      return { ok: false };
     });
+    vi.stubGlobal('fetch', fetchMock);
 
     await getArtistTopTracks(412, false);
     await getArtistTopTracks(412, false);
     await getArtistTopTracks(412, true);
 
-    // Albums fetch: 1 for false (cached on second call), 1 for true = 2 album calls
-    // Tracks fetch: 1 for false, 1 for true = 2 track calls
-    // Total: 4 fetch calls
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    // One /top call per distinct includeFeatures value; the repeated `false` is served from
+    // cache. The two settings are cached separately because the filter runs during the build,
+    // so one cannot stand in for the other.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -493,21 +504,25 @@ describe('artists with no albums of their own', () => {
     expect(tracks.map((t) => t.title)).toEqual(['Gerua']);
   });
 
-  it('does not reach for top tracks when the albums already yield enough', async () => {
-    const albumTracks = Array.from({ length: 12 }, (_, i) => ({
-      id: 100 + i,
-      title: `Album Song ${i}`,
-      duration: 200,
-      preview: `https://example.test/${i}.mp3`,
-      artist: { name: 'Queen' },
-    }));
-
+  it('does not crawl albums when the top chart already yields enough', async () => {
+    // The order is deliberately top-chart-first: one /top call returns up to 100 tracks, where
+    // an album crawl costs a request per album (>100 for a large discography). The album crawl
+    // still runs when /top comes up short, and in the background to enrich the stored pool.
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
-      if (url.includes('/albums?')) {
-        return { ok: true, json: async () => ({ data: [{ id: 1, title: 'Album' }] }) };
-      }
-      if (url.includes('/album/1/tracks')) {
-        return { ok: true, json: async () => ({ data: albumTracks }) };
+      if (url.includes('/top?')) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: Array.from({ length: 12 }, (_, i) => ({
+              id: 100 + i,
+              title: `Top Song ${i}`,
+              duration: 200,
+              preview: `https://example.test/${i}.mp3`,
+              artist: { name: 'Queen' },
+            })),
+            next: null,
+          }),
+        };
       }
       return { ok: false };
     });
@@ -516,7 +531,43 @@ describe('artists with no albums of their own', () => {
     const tracks = await getArtistTopTracks(412);
 
     expect(tracks).toHaveLength(12);
-    // Pulling /top in unconditionally would drag in records where the artist is only credited.
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/top?'))).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/albums?'))).toBe(false);
+  });
+
+  it('still filters guest credits out of the top chart', async () => {
+    // The reason the old album-first order existed: /top includes records where the artist is
+    // only a featured credit. The fast path is only safe because the same filter runs on it.
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/top?')) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: [
+              {
+                id: 1,
+                title: 'Own Song',
+                duration: 200,
+                preview: 'a.mp3',
+                artist: { name: 'Queen' },
+              },
+              {
+                id: 2,
+                title: 'Guest Spot (feat. Queen)',
+                duration: 200,
+                preview: 'b.mp3',
+                artist: { name: 'Someone Else' },
+              },
+            ],
+            next: null,
+          }),
+        };
+      }
+      return { ok: false };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const tracks = await getArtistTopTracks(412, false);
+
+    expect(tracks.map((t) => t.title)).toEqual(['Own Song']);
   });
 });

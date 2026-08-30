@@ -104,6 +104,11 @@ export function PlayPage() {
             onSkip={skip}
             onRevealMore={skip}
             canRevealMore={canRevealMore}
+            currentSeconds={stageSeconds}
+            nextSeconds={snippetSchedule[Math.min(attemptNumber, snippetSchedule.length - 1)]}
+            // On the daily an attempt *is* the reveal, so the button must not claim to be free.
+            revealCostsGuess
+            emphasiseReveal={attemptNumber === 1}
             disabled={submitting}
             guessFeedback={guessFeedback}
           />

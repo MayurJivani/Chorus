@@ -8,6 +8,7 @@ import { SnippetPlayer } from '../game/SnippetPlayer';
 import { SnippetProgressBar } from '../game/SnippetProgressBar';
 import { GuessInput } from '../game/GuessInput';
 import { MultipleChoiceGuess } from '../artist/MultipleChoiceGuess';
+import { RevealMoreButton } from '../game/RevealMoreButton';
 import { MultiplayerScoreboard } from './MultiplayerScoreboard';
 import type {
   MultiplayerGuessResult,
@@ -48,8 +49,17 @@ export function MultiplayerGame({
   onLeave,
 }: MultiplayerGameProps) {
   const isHost = selfId === room.hostId;
-  const you = room.players.find((p) => p.playerId === selfId);
-  const answered = you?.roundAnswered ?? false;
+  /**
+   * Answered state comes from `scores`, not the room snapshot.
+   *
+   * After a guess the server broadcasts `scores` and nothing else — `room_state` is only sent
+   * on membership changes — so `room.players[].roundAnswered` still reads false for the rest
+   * of the round. Reading it left a player who had already answered looking like they hadn't:
+   * the guess UI stayed live and nothing marked what they'd picked.
+   */
+  const you = scores.find((s) => s.playerId === selfId);
+  const answered =
+    you?.answered ?? room.players.find((p) => p.playerId === selfId)?.roundAnswered ?? false;
   const isSpeed = round.gameMode === 'speed';
   const showPlayer = !room.hostOnlyAudio || isHost;
   const canGuess = !isHost || room.hostPlayable;
@@ -64,9 +74,14 @@ export function MultiplayerGame({
 
   const handleGuess = (song: SongSearchResult) => onSubmitGuess(String(song.id));
 
+  const isChoice = !!round.options && round.options.length > 0;
+  /** What this player locked in, so the option list can mark it while the round finishes. */
+  const lockedGuessId =
+    answered && isChoice && lastGuess ? (lastGuess.guessedTrackId ?? null) : null;
+
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center gap-3 sm:gap-6 px-4 py-2 sm:py-8">
-      <div className="glass flex w-full flex-col items-center gap-3 sm:gap-4 rounded-2xl p-3 sm:p-6">
+    <div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center justify-center gap-2 sm:gap-6 px-4 py-2 sm:py-8">
+      <div className="glass flex w-full flex-col items-center gap-2.5 sm:gap-4 rounded-2xl p-3 sm:p-6">
         {/* Header */}
         <div className="flex w-full flex-col items-center gap-1 text-center">
           <h1 className="text-xl font-bold text-white">{room.label}</h1>
@@ -134,18 +149,23 @@ export function MultiplayerGame({
               </div>
             )}
 
-            {showPlayer && !isSpeed && (
-              <button
-                type="button"
-                onClick={onReveal}
-                disabled={answered || atMaxStage}
-                className="btn-ghost w-full max-w-md !rounded-xl"
-              >
-                {atMaxStage
-                  ? 'Full snippet revealed. Go on, guess!'
-                  : `Reveal more audio → ${nextSeconds}s`}
-              </button>
-            )}
+            {showPlayer &&
+              !isSpeed &&
+              (atMaxStage ? (
+                <p className="w-full max-w-md rounded-xl border border-white/10 bg-white/5 py-2.5 text-center text-sm text-slate-400">
+                  Full snippet unlocked — go on, guess!
+                </p>
+              ) : (
+                <div className="flex w-full max-w-md">
+                  <RevealMoreButton
+                    onRevealMore={onReveal}
+                    currentSeconds={stageSeconds}
+                    nextSeconds={nextSeconds}
+                    disabled={answered}
+                    emphasise={round.roundIndex === 0 && stageIndex === 0 && !answered}
+                  />
+                </div>
+              ))}
 
             {!canGuess ? (
               <div className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 w-full max-w-md">
@@ -153,6 +173,40 @@ export function MultiplayerGame({
                 <p className="text-xs text-slate-500">
                   You&apos;re the DJ — sit back and play the music
                 </p>
+              </div>
+            ) : isChoice ? (
+              /* The options stay mounted after answering so the locked pick remains visible;
+                 a compact status strip sits above them instead of replacing the whole list. */
+              <div className="flex w-full max-w-md flex-col gap-2">
+                {answered && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center"
+                  >
+                    {lastGuess?.correct ? (
+                      <p className="text-sm font-bold text-emerald-400">
+                        Correct! +{lastGuess.points}
+                        <span className="ml-2 font-normal text-slate-400">
+                          {isSpeed ? 'Faster = more points' : 'Waiting for the reveal'}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="text-sm font-bold text-chorusify-danger">
+                        Not that one
+                        <span className="ml-2 font-normal text-slate-400">Done for this round</span>
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+                <MultipleChoiceGuess
+                  options={round.options!}
+                  onGuess={handleGuess}
+                  onSkip={() => onSubmitGuess('__pass__')}
+                  lockedGuessId={lockedGuessId}
+                  disabled={answered}
+                  dense
+                />
               </div>
             ) : answered ? (
               <motion.div
@@ -180,12 +234,6 @@ export function MultiplayerGame({
                   </>
                 )}
               </motion.div>
-            ) : round.options && round.options.length > 0 ? (
-              <MultipleChoiceGuess
-                options={round.options}
-                onGuess={handleGuess}
-                onSkip={() => onSubmitGuess('__pass__')}
-              />
             ) : (
               <GuessInput
                 onGuess={handleGuess}

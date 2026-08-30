@@ -270,9 +270,17 @@ export async function getSessionOrStartNew(
   }
 
   // If not explicitly requesting a new challenge, look for the most recent session.
-  // A completed session is only resumed for the daily challenge (where the answer is shared
-  // and replaying the same puzzle is the point); for artist/category modes, completing a run
-  // means the next visit automatically gets fresh songs.
+  //
+  // An *in-progress* run is always resumed, and that is a scoring rule rather than a
+  // convenience: if leaving and coming back dealt a new hand, a player stuck on a hard song
+  // could reroll until the draw was easy, and every leaderboard entry would be the best of
+  // however many attempts someone was willing to sit through. Resuming makes the run you
+  // started the run you are scored on.
+  //
+  // A *completed* run is not resumed — the next visit gets fresh songs, so finishing doesn't
+  // strand the player on their old results screen. There is nothing to reroll at that point;
+  // the score is already banked. (The daily challenge is the exception and takes a separate
+  // path: replaying the same shared puzzle is the entire point of it.)
   if (!playAgain) {
     const existingRows = await db
       .select({
@@ -568,17 +576,22 @@ export interface RoundOption {
 }
 
 /**
- * Three shuffled multiple-choice options for a round: the correct track plus two decoys drawn
- * from the wider candidate pool (the artist's full top-tracks list), not just the other 9
- * tracks in today's challenge. Two things this fixes: (1) decoys are deduplicated by
- * normalized title against the correct answer, so a near-duplicate version (e.g. two entries
- * that normalize to the same title) can never silently replace the "correct" button with a
- * second copy of itself; (2) drawing from a larger pool means decoys don't always come from
- * the same fixed 10 songs, which was giving away information across rounds.
+ * Shuffled multiple-choice options for a round: the correct track plus decoys drawn from the
+ * wider candidate pool (the artist's full top-tracks list), not just the other 9 tracks in
+ * today's challenge. Two things this fixes: (1) decoys are deduplicated by normalized title
+ * against the correct answer, so a near-duplicate version (e.g. two entries that normalize to
+ * the same title) can never silently replace the "correct" button with a second copy of
+ * itself; (2) drawing from a larger pool means decoys don't always come from the same fixed 10
+ * songs, which was giving away information across rounds.
+ *
+ * `optionCount` is the total shown including the answer. Single-player runs use three;
+ * Multiplayer asks for four, where everyone races the same snippet and a one-in-three guess
+ * lands too often to separate the field.
  */
 export function buildRoundOptions(
   correct: { deezerTrackId: string; title: string; artist: string },
   candidatePool: readonly ArtistTrack[],
+  optionCount = 3,
 ): RoundOption[] {
   const correctNormalized = normalizeTitle(correct.title);
   const seen = new Set<string>([correctNormalized]);
@@ -592,7 +605,7 @@ export function buildRoundOptions(
   });
 
   const decoys = shuffle(decoyCandidates)
-    .slice(0, 2)
+    .slice(0, Math.max(1, optionCount - 1))
     .map((t) => ({ deezerTrackId: t.deezerTrackId, title: t.title, artist: t.artist }));
 
   return shuffle([

@@ -5,6 +5,7 @@ import { useCountdownToNextPuzzle } from '../hooks/useCountdown';
 import { useSession } from '../hooks/useSession';
 import { getMyStats } from '../api/stats';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { ArtistModeDemo, MultiplayerDemo } from '../features/home/ModeDemos';
 import type { StatsResponse } from '../types/api';
 
 function AnimatedWaveform({ isPlaying = true }: { isPlaying?: boolean }) {
@@ -24,22 +25,17 @@ function AnimatedWaveform({ isPlaying = true }: { isPlaying?: boolean }) {
 }
 
 /**
- * The modes, minus the daily.
+ * The remaining modes.
  *
- * The daily is the button above rather than a sixth card: it was previously both, so the first
- * thing on the page and the first card in the grid were the same link.
+ * Artist Mode and Multiplayer are pulled out above into cards with demos: they are the two that
+ * reward coming back, and burying them as two of six equal tiles meant nearly everyone took the
+ * big daily button instead and never found them.
  *
- * Each card is icon, name and one line. The numbered badges and per-card "Play today →" links
- * that used to sit on them were noise: the whole card is already a link, and the number ranked
- * nothing.
+ * Every icon on this page has to be unique — the same glyph twice reads as the same kind of
+ * thing. Guess the Year is the hourglass rather than a calendar precisely because the calendar
+ * belongs to the daily strip at the bottom.
  */
-const MODES: { to: string; icon: string; title: string; blurb: string }[] = [
-  {
-    to: '/artist',
-    icon: '🎤',
-    title: 'Artist Mode',
-    blurb: 'Ten songs from any artist you pick.',
-  },
+const SECONDARY_MODES: { to: string; icon: string; title: string; blurb: string }[] = [
   {
     to: '/categories',
     icon: '📻',
@@ -52,18 +48,7 @@ const MODES: { to: string; icon: string; title: string; blurb: string }[] = [
     title: 'Survival',
     blurb: 'Endless songs. One wrong answer ends the run.',
   },
-  {
-    to: '/era',
-    icon: '📅',
-    title: 'Guess the Year',
-    blurb: 'Hear a song and place it in time.',
-  },
-  {
-    to: '/multiplayer',
-    icon: '⚡',
-    title: 'Multiplayer',
-    blurb: 'Race friends in real time.',
-  },
+  { to: '/era', icon: '⏳', title: 'Guess the Year', blurb: 'Hear a song and place it in time.' },
   {
     to: '/duels',
     icon: '⚔️',
@@ -71,9 +56,6 @@ const MODES: { to: string; icon: string; title: string; blurb: string }[] = [
     blurb: 'Rated 1v1. Same ten songs, best score wins.',
   },
 ];
-
-/** Spelled out rather than a digit, and derived so the heading can't drift from the grid. */
-const NUMBER_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
 
 export function HomePage() {
   usePageTitle('');
@@ -88,67 +70,104 @@ export function HomePage() {
       .catch(() => setStats(null));
   }, [userId, guestId]);
 
+  const streak = stats?.currentStreak ?? 0;
+
   return (
-    <div className="mx-auto flex min-h-full max-w-4xl flex-col items-center justify-center gap-8 px-4 py-10 text-center sm:py-14">
+    <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center gap-4 px-4 py-6 sm:gap-8 sm:py-10">
+      {/*
+        Hero, cut to the waveform and one line. The tagline paragraph that used to sit here
+        restated what the two demos below already show, and its only real effect was pushing
+        those demos off the first screen — which is the whole reason nobody found the modes.
+      */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        className="flex flex-col items-center gap-5"
+        className="flex flex-col items-center gap-2.5 text-center"
       >
         <div className="animate-float">
           <AnimatedWaveform />
         </div>
-
-        <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl">
+        <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
           Guess your <span className="text-purple-400">favourite</span> music!
         </h1>
         <p className="max-w-md text-base leading-relaxed text-slate-400">
           Hear a growing snippet and name the song in as few listens as you can.
         </p>
-
-        <div className="flex flex-col items-center gap-2.5">
-          <Link to="/play" className="btn-primary !px-9 !py-3.5 !text-base">
-            Play today&apos;s challenge
-          </Link>
-          {/* Streak and countdown share one line: two stacked badges said less than this does. */}
-          <p className="text-sm text-slate-500">
-            {stats && stats.currentStreak > 0 ? (
-              <>
-                <span aria-hidden="true">🔥</span>{' '}
-                <span className="font-semibold text-slate-300">{stats.currentStreak}</span> day
-                streak · next in{' '}
-              </>
-            ) : (
-              'Next puzzle in '
-            )}
-            <span className="font-mono font-semibold text-slate-300">{countdown}</span>
-          </p>
-        </div>
       </motion.div>
+
+      {/* The two headline modes, each showing what happens rather than describing it */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
+      >
+        <Link
+          to="/artist"
+          className="glass group flex flex-col gap-2.5 rounded-2xl border border-white/10 p-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-chorusify-accent/40 sm:p-4"
+        >
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="text-base">
+              🎤
+            </span>
+            <span className="font-bold text-white">Artist Mode</span>
+            <span className="ml-auto text-xs font-semibold text-chorusify-accent transition-transform duration-200 group-hover:translate-x-0.5">
+              Pick one →
+            </span>
+          </div>
+          <ArtistModeDemo />
+          <span className="text-[11px] text-slate-500">Any artist → 10 of their songs</span>
+        </Link>
+
+        <Link
+          to="/multiplayer"
+          className="glass group flex flex-col gap-2.5 rounded-2xl border border-white/10 p-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-chorusify-accent2/40 sm:p-4"
+        >
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="text-base">
+              ⚡
+            </span>
+            <span className="font-bold text-white">Multiplayer</span>
+            <span className="ml-auto text-xs font-semibold text-chorusify-accent2 transition-transform duration-200 group-hover:translate-x-0.5">
+              Start a room →
+            </span>
+          </div>
+          <MultiplayerDemo />
+          <span className="text-[11px] text-slate-500">Same song, everyone at once</span>
+        </Link>
+      </motion.section>
+
+      {/*
+        No "how a round works" panel here on purpose. Explaining the scoring ladder on the
+        landing page was teaching mechanics to someone who hasn't picked a mode yet — the job
+        of this page is to get them into one. The trade is now taught where it applies, on the
+        reveal control inside a round, which states the cost and the seconds gained directly.
+      */}
 
       <motion.section
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
+        transition={{ delay: 0.28 }}
         className="flex w-full flex-col gap-4"
       >
         <div className="flex items-center gap-3">
           <span className="h-px flex-1 bg-gradient-to-r from-transparent to-white/15" />
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-purple-400">
-            {/* Counts the grid below it, not the daily button above: the heading labels what
-                it sits on top of. */}
-            {NUMBER_WORDS[MODES.length] ?? MODES.length} ways to play
+            More ways to play
           </h2>
           <span className="h-px flex-1 bg-gradient-to-l from-transparent to-white/15" />
         </div>
 
-        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {MODES.map((mode) => (
+        {/* Two-up on phones rather than the original single column: same card, but four of
+            them stacked full-width added ~330px of scrolling to a page whose whole point is
+            that the modes are reachable without any. */}
+        <div className="grid w-full grid-cols-2 gap-3 lg:grid-cols-4">
+          {SECONDARY_MODES.map((mode) => (
             <Link
               key={mode.to}
               to={mode.to}
-              className="glass group flex flex-col gap-3 rounded-2xl border border-white/10 p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25"
+              className="glass group flex flex-col gap-3 rounded-2xl border border-white/10 p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25 sm:p-5"
             >
               <span
                 className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-xl"
@@ -166,6 +185,50 @@ export function HomePage() {
           ))}
         </div>
       </motion.section>
+
+      {/*
+        The daily, demoted from the page's main button to a single strip.
+        It still needs to be reachable and still needs to show the streak — that is what brings
+        people back tomorrow — but as the loudest thing on the page it was absorbing nearly every
+        first click, so nobody discovered the modes above.
+      */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.36 }}
+        className="w-full"
+      >
+        <Link
+          to="/play"
+          className="glass flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 px-4 py-3 transition-all duration-200 hover:border-white/25"
+        >
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="text-base" aria-hidden="true">
+              📅
+            </span>
+            <div className="min-w-0">
+              <span className="block text-sm font-semibold text-white">
+                Today&apos;s daily challenge
+              </span>
+              <span className="block text-[11px] text-slate-400">
+                {streak > 0 ? (
+                  <>
+                    <span aria-hidden="true">🔥</span>{' '}
+                    <span className="font-semibold text-slate-300">{streak}</span> day streak · next
+                    in <span className="font-mono">{countdown}</span>
+                  </>
+                ) : (
+                  <>
+                    One puzzle, everyone gets the same · next in{' '}
+                    <span className="font-mono">{countdown}</span>
+                  </>
+                )}
+              </span>
+            </div>
+          </div>
+          <span className="shrink-0 text-sm font-semibold text-slate-300">Play →</span>
+        </Link>
+      </motion.div>
     </div>
   );
 }

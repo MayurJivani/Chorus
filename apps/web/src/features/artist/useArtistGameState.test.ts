@@ -122,9 +122,10 @@ describe('useArtistGameState, final round', () => {
 });
 
 describe('useArtistGameState, selecting an artist', () => {
-  it('starts a fresh run rather than resuming an abandoned one', async () => {
-    // The server resumes the most recent session unless playAgain is set, so the client has to
-    // ask for a new challenge explicitly.
+  it('does not force a new run, so an unfinished one is resumed', async () => {
+    // Whether to resume is the server's call, and it resumes anything unfinished — that is what
+    // stops a player rerolling a hard draw by leaving and coming back. Sending playAgain here
+    // would override that and hand out a fresh set of songs on every visit.
     api.getArtistChallenge.mockResolvedValue({ ...challenge, currentRound: 0, songsCorrect: 0 });
 
     const { result } = renderGame();
@@ -134,19 +135,19 @@ describe('useArtistGameState, selecting an artist', () => {
     const [artistId, includeFeatures, playAgain] = api.getArtistChallenge.mock.calls[0]!;
     expect(artistId).toBe(412);
     expect(includeFeatures).toBe(false);
-    expect(playAgain).toBe(true);
+    expect(playAgain).toBeFalsy();
   });
 
   it('drops straight into a new challenge when the previous run was completed', async () => {
-    // Previously the finished session was resumed, stranding the player on the results page
-    // until they pressed "New challenge". A fresh challenge is never `completed`.
+    // Finishing a run must not strand the player on the results page. The server does this by
+    // only resuming unfinished sessions, so the client asks for nothing special and simply
+    // receives a challenge that isn't complete.
     api.getArtistChallenge.mockResolvedValue({ ...challenge, currentRound: 0, completed: false });
 
     const { result } = renderGame();
     await waitFor(() => expect(result.current.status).toBe('playing'));
 
     expect(result.current.status).not.toBe('completed');
-    expect(api.getArtistChallenge.mock.calls[0]![2]).toBe(true);
   });
 
   it('loads the exact challenge behind a shared link instead of starting a new one', async () => {

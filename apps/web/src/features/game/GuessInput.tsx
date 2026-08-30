@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { searchSongs } from '../../api/songs';
+import { RevealMoreButton } from './RevealMoreButton';
 import type { SongSearchResult } from '../../types/api';
 
 interface GuessInputProps {
@@ -15,6 +16,17 @@ interface GuessInputProps {
   onRevealMore?: () => void;
   /** Whether there is more snippet left to reveal. Hides the reveal button when false. */
   canRevealMore?: boolean;
+  /** Seconds now and after the next reveal, so the button can offer a concrete "+3s". */
+  currentSeconds?: number;
+  nextSeconds?: number;
+  /** Draws attention to the reveal the first time it is offered in a run. */
+  emphasiseReveal?: boolean;
+  /**
+   * Set on the daily, where skipping *is* how the snippet grows. There the two actions are one,
+   * so a single honest button replaces the pair — showing both meant two buttons that ran the
+   * same handler and only differed in wording.
+   */
+  revealCostsGuess?: boolean;
 }
 
 export function GuessInput({
@@ -25,6 +37,10 @@ export function GuessInput({
   guessFeedback,
   onRevealMore,
   canRevealMore = true,
+  currentSeconds,
+  nextSeconds,
+  emphasiseReveal = false,
+  revealCostsGuess = false,
 }: GuessInputProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SongSearchResult[]>([]);
@@ -128,25 +144,49 @@ export function GuessInput({
         </ul>
       )}
 
-      {onRevealMore ? (
+      {onRevealMore && revealCostsGuess ? (
+        // Daily: one action, so one button. Falls back to a plain Skip at the last attempt,
+        // where there is no more audio left to unlock.
+        <div className="mt-3 flex w-full">
+          {canRevealMore ? (
+            <RevealMoreButton
+              onRevealMore={onRevealMore}
+              currentSeconds={currentSeconds}
+              nextSeconds={nextSeconds}
+              disabled={disabled}
+              emphasise={emphasiseReveal}
+              costsGuess
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={onSkip}
+              disabled={disabled}
+              className="btn-ghost w-full !rounded-xl !py-2.5 !text-sm !text-slate-400"
+            >
+              Skip
+            </button>
+          )}
+        </div>
+      ) : onRevealMore ? (
         <div className="mt-3 flex gap-2 w-full">
           <button
             type="button"
             onClick={onSkip}
             disabled={disabled}
-            className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
+            // Narrower and quieter than Reveal: this is the one that costs you the round.
+            className="btn-ghost shrink-0 !rounded-xl !px-4 !py-2.5 !text-sm !text-slate-400"
           >
             Skip
           </button>
           {canRevealMore && (
-            <button
-              type="button"
-              onClick={onRevealMore}
+            <RevealMoreButton
+              onRevealMore={onRevealMore}
+              currentSeconds={currentSeconds}
+              nextSeconds={nextSeconds}
               disabled={disabled}
-              className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
-            >
-              Reveal more
-            </button>
+              emphasise={emphasiseReveal}
+            />
           )}
         </div>
       ) : (
