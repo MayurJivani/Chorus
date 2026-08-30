@@ -286,6 +286,9 @@ export interface Category {
   label: string;
   group: CategoryGroup;
   blurb: string;
+  /** Live activity, so a pick is informed rather than a guess. */
+  playing?: number;
+  queued?: number;
 }
 
 /** A shared challenge and the score its sender set, if they have finished it. */

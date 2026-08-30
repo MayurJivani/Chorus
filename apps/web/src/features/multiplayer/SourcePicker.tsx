@@ -100,7 +100,15 @@ export function SourcePicker({ value, onChange, compact = false }: SourcePickerP
                   : 'border-white/5 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]')
               }
             >
-              {c.label}
+              <span className="block truncate">{c.label}</span>
+              {/* Only shown where somebody actually is — a row of zeroes would just say
+                  "nobody is anywhere", which is worse than saying nothing. */}
+              {(c.playing ?? 0) + (c.queued ?? 0) > 0 && (
+                <span className="mt-0.5 flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                  <span className="h-1 w-1 rounded-full bg-emerald-400" />
+                  {(c.playing ?? 0) + (c.queued ?? 0)} here
+                </span>
+              )}
             </button>
           ))}
         </div>

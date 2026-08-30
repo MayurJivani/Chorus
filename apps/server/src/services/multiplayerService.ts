@@ -1175,6 +1175,24 @@ export function activeRoomCount(): { total: number; playing: number } {
   return { total: rooms.size, playing };
 }
 
+/**
+ * How many people are in a room racing each source, keyed the same way as the duel queue
+ * (`artist:<id>` / `category:<slug>`).
+ *
+ * Lets the pickers show where the activity actually is. A category list is otherwise a wall of
+ * equally-plausible options, and picking one is a guess about whether anyone else is there.
+ * Counts players rather than rooms: three rooms of one is not a busy category.
+ */
+export function playersBySource(): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const room of rooms.values()) {
+    if (room.players.size === 0) continue;
+    const key = `${room.source.sourceType}:${room.source.sourceId}`;
+    counts[key] = (counts[key] ?? 0) + room.players.size;
+  }
+  return counts;
+}
+
 /** All live rooms, for the admin panel. */
 export function listRooms(): MpRoomSnapshot[] {
   return [...rooms.values()].map(buildRoomSnapshot);

@@ -8,6 +8,8 @@
  * "is this one of ours".
  */
 import { Router } from 'express';
+import { playersBySource } from '../services/multiplayerService';
+import { getQueueCounts } from '../services/duelQueueService';
 import { z } from 'zod';
 import { CATEGORIES } from '../services/categories';
 import { resolveCategorySource } from '../services/challengeSource';
@@ -47,14 +49,25 @@ const challengeQuerySchema = z.object({
 });
 const searchQuerySchema = z.object({ q: z.string().trim().min(1).max(80) });
 
-/** The catalog itself is a compile-time constant, so this needs no Deezer call and no cache. */
+/**
+ * The catalog itself is a compile-time constant, so this needs no Deezer call and no cache.
+ *
+ * `playing` and `queued` come from in-memory room and queue state, so they cost nothing to
+ * include and let the picker show where people actually are — a list of eighty equally
+ * plausible categories is otherwise a guess about whether anyone else is there.
+ */
 categoriesRouter.get('/', (_req, res) => {
+  const inRooms = playersBySource();
+  const queued = getQueueCounts();
+
   res.json({
     categories: CATEGORIES.map((c) => ({
       id: c.id,
       label: c.label,
       group: c.group,
       blurb: c.blurb,
+      playing: inRooms[`category:${c.id}`] ?? 0,
+      queued: queued.find((q) => q.key === `category:${c.id}`)?.count ?? 0,
     })),
   });
 });

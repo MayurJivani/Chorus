@@ -137,6 +137,16 @@ export function CategoryPickerPage() {
                     <span className="mt-0.5 block text-[11px] leading-snug text-slate-500">
                       {category.blurb}
                     </span>
+                    {/* Shown only where somebody is: a grid of "0 here" reads as a dead game. */}
+                    {(category.playing ?? 0) + (category.queued ?? 0) > 0 && (
+                      <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        </span>
+                        {(category.playing ?? 0) + (category.queued ?? 0)} playing now
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
