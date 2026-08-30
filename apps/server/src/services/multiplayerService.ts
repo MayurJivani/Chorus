@@ -11,6 +11,8 @@ import {
   type ChallengeSource,
   type ChallengeSourceType,
 } from './challengeSource';
+import { recordLiveDuel } from './duelService';
+import * as duelQueue from './duelQueueService';
 import { seededShuffle } from '../utils/deterministic';
 import { getSettings } from './settingsService';
 import { logger } from '../logger';
@@ -95,6 +97,24 @@ export type MpGuessMode = 'search' | 'choice';
 /** Classic: progressive reveal, points by stage. Speed: full snippet, first correct wins. */
 export type MpGameMode = 'classic' | 'speed';
 
+/**
+ * What makes a room a rated duel rather than a friendly race.
+ *
+ * A duel is deliberately *not* a separate game engine — the rounds, scoring, sockets and reveal
+ * are identical, so it is an ordinary room with two named seats, no host button, and a rating
+ * applied at the end. Anything else would be a second copy of the game loop to keep in step.
+ */
+interface MpDuel {
+  /** The two accounts the matchmaker paired. Nobody else may take a seat. */
+  challengerUserId: string;
+  opponentUserId: string;
+  sourceType: string;
+  sourceId: string;
+  label: string;
+  /** Guards against settling twice — a forfeit and a natural finish can race. */
+  settled: boolean;
+}
+
 interface MpRoom {
   code: string;
   /**
@@ -132,6 +152,8 @@ interface MpRoom {
   speedCorrectCount: number;
   hostOnlyAudio: boolean;
   hostPlayable: boolean;
+  /** Present only on rated 1v1 rooms created by the duel matchmaker. */
+  duel?: MpDuel;
 }
 
 export interface MpScoreEntry {
@@ -160,6 +182,8 @@ export interface MpRoomSnapshot {
   players: MpPlayerState[];
   hostOnlyAudio: boolean;
   hostPlayable: boolean;
+  /** True on a rated duel, so the client can drop the host controls and show the stakes. */
+  isDuel: boolean;
 }
 
 const rooms = new Map<string, MpRoom>();
@@ -240,6 +264,40 @@ export async function createRoom(
   return { code };
 }
 
+/** How many songs a rated duel runs over. Fixed rather than chosen: both sides have to agree,
+ *  and there is no host to make the call. */
+export const DUEL_ROUNDS = 10;
+
+/**
+ * Creates the room a matched pair will race in.
+ *
+ * Built here rather than in the matchmaker so a duel gets the identical round loop as any other
+ * room — the only differences are the two reserved seats, the fixed length, and the rating that
+ * lands when it finishes.
+ */
+export async function createDuelRoom(
+  source: ChallengeSource,
+  challengerUserId: string,
+  opponentUserId: string,
+): Promise<{ code: string }> {
+  const { code } = await createRoom(source, 'choice', 'speed', false, true, DUEL_ROUNDS);
+  const room = rooms.get(code);
+  if (!room) throw new Error('Duel room vanished immediately after creation');
+
+  room.maxPlayers = 2;
+  room.duel = {
+    challengerUserId,
+    opponentUserId,
+    sourceType: source.sourceType,
+    sourceId: source.sourceId,
+    label: source.label,
+    settled: false,
+  };
+
+  logger.info({ code, challengerUserId, opponentUserId, label: source.label }, 'Duel room created');
+  return { code };
+}
+
 /** Registers a new WebSocket connection (no room membership yet — join_room binds it). */
 export function registerConnection(input: {
   playerId: string;
@@ -252,6 +310,9 @@ export function registerConnection(input: {
 
 export function unregisterConnection(playerId: string): void {
   leaveRoom(playerId);
+  // A queued player whose socket died must come out of the line, or the next person to pick
+  // that artist gets matched into a room nobody is going to join.
+  duelQueue.dropPlayer(playerId);
   sockets.delete(playerId);
   identities.delete(playerId);
 }
@@ -312,9 +373,36 @@ export async function handleClientMessage(playerId: string, message: unknown): P
     case 'ping':
       sendTo(playerId, { type: 'pong' });
       break;
+
+    // Duel matchmaking rides the same socket rather than opening a second one: the connection
+    // is already authenticated, and a player moves from the queue straight into a room.
+    case 'duel_queue_join': {
+      const request = parseDuelRequest(payload);
+      if (request) await duelQueue.joinQueue(playerId, request);
+      break;
+    }
+    case 'duel_queue_leave':
+      duelQueue.leaveQueue(playerId);
+      break;
+    case 'duel_queue_watch':
+      duelQueue.watchQueue(playerId);
+      break;
+    case 'duel_queue_unwatch':
+      duelQueue.unwatchQueue(playerId);
+      break;
+
     default:
       break;
   }
+}
+
+function parseDuelRequest(payload: Record<string, unknown>): duelQueue.DuelQueueRequest | null {
+  if (payload.random === true) return { kind: 'random' };
+  if (typeof payload.artistId === 'number') return { kind: 'artist', artistId: payload.artistId };
+  if (typeof payload.categoryId === 'string') {
+    return { kind: 'category', categoryId: payload.categoryId };
+  }
+  return null;
 }
 
 async function joinRoom(playerId: string, code: string, nickname?: string): Promise<void> {
@@ -328,6 +416,22 @@ async function joinRoom(playerId: string, code: string, nickname?: string): Prom
   if (room.players.size >= room.maxPlayers) return sendError(playerId, 'Room is full.');
 
   const identity = identities.get(playerId) ?? { userId: null, guestId: null };
+
+  // A duel's two seats are reserved for the accounts the matchmaker paired. Without this the
+  // room code is a plain string that anyone could join, and a rated result would depend on who
+  // happened to open the link.
+  if (room.duel) {
+    const uid = identity.userId;
+    if (!uid || (uid !== room.duel.challengerUserId && uid !== room.duel.opponentUserId)) {
+      return sendError(playerId, 'This duel is between two other players.');
+    }
+    for (const existing of room.players.values()) {
+      if (existing.identity.userId === uid) {
+        return sendError(playerId, 'You are already in this duel on another tab.');
+      }
+    }
+  }
+
   const isHost = room.players.size === 0;
   const player: MpPlayer = {
     playerId,
@@ -348,6 +452,13 @@ async function joinRoom(playerId: string, code: string, nickname?: string): Prom
   if (isHost) room.hostId = playerId;
 
   broadcastRoomState(room);
+
+  // A duel has no host to press start — it begins the moment both seats are filled. Deferred a
+  // tick so the client that just joined has its room_state before round_start lands on top.
+  if (room.duel && room.players.size === 2 && room.phase === 'lobby') {
+    const starter = room.hostId;
+    room.timers.push(setTimeout(() => void startGame(starter), 400));
+  }
 }
 
 export function leaveRoom(playerId: string): void {
@@ -358,7 +469,32 @@ export function leaveRoom(playerId: string): void {
   const room = rooms.get(code);
   if (!room) return;
 
+  const leaver = room.players.get(playerId);
   room.players.delete(playerId);
+
+  /*
+   * Walking out of a rated duel in progress is a loss, not an escape.
+   *
+   * Without this, the way to avoid dropping rating would be to close the tab whenever you were
+   * behind, which makes the rating meaningless — every recorded result would be one somebody
+   * chose to let finish. Settled before the empty-room check below, because the leaver is
+   * frequently the second-to-last socket and the room is about to be destroyed.
+   */
+  if (room.duel && !room.duel.settled && room.phase !== 'lobby' && room.phase !== 'finished') {
+    const survivor = [...room.players.values()][0];
+    if (leaver?.identity.userId && survivor?.identity.userId) {
+      void settleDuelRoom(room, {
+        winnerUserId: survivor.identity.userId,
+        loserUserId: leaver.identity.userId,
+        forfeited: true,
+      });
+      broadcast(room, {
+        type: 'duel_forfeit',
+        winnerUserId: survivor.identity.userId,
+        message: 'Your opponent left — the duel is yours.',
+      });
+    }
+  }
 
   if (room.players.size === 0) {
     destroyRoom(room);
@@ -681,6 +817,75 @@ function finishGame(room: MpRoom): void {
     scores,
     winner: computeWinner(scores),
   });
+
+  if (room.duel && !room.duel.settled) {
+    void settleDuelRoomFromScores(room);
+  }
+}
+
+/** Turns the room's final scores into a rated result. Higher score wins; equal is a draw. */
+async function settleDuelRoomFromScores(room: MpRoom): Promise<void> {
+  const duel = room.duel;
+  if (!duel) return;
+
+  const byUser = new Map<string, number>();
+  for (const p of room.players.values()) {
+    if (p.identity.userId) byUser.set(p.identity.userId, p.score);
+  }
+  const challengerScore = byUser.get(duel.challengerUserId) ?? 0;
+  const opponentScore = byUser.get(duel.opponentUserId) ?? 0;
+
+  await settleDuelRoom(room, {
+    challengerScore,
+    opponentScore,
+    forfeited: false,
+  });
+}
+
+/**
+ * Writes the duel row and moves both ratings.
+ *
+ * Marks `settled` synchronously *before* awaiting anything: a forfeit and a natural finish can
+ * both reach this in the same tick, and a rating applied twice is not something a later read
+ * can untangle.
+ */
+async function settleDuelRoom(
+  room: MpRoom,
+  outcome:
+    | { challengerScore: number; opponentScore: number; forfeited: false }
+    | { winnerUserId: string; loserUserId: string; forfeited: true },
+): Promise<void> {
+  const duel = room.duel;
+  if (!duel || duel.settled) return;
+  duel.settled = true;
+
+  const challengerScore = outcome.forfeited
+    ? outcome.winnerUserId === duel.challengerUserId
+      ? 1
+      : 0
+    : outcome.challengerScore;
+  const opponentScore = outcome.forfeited
+    ? outcome.winnerUserId === duel.opponentUserId
+      ? 1
+      : 0
+    : outcome.opponentScore;
+
+  try {
+    const settled = await recordLiveDuel({
+      challengerUserId: duel.challengerUserId,
+      opponentUserId: duel.opponentUserId,
+      challengerScore,
+      opponentScore,
+      sourceType: duel.sourceType,
+      sourceId: duel.sourceId,
+      label: duel.label,
+      forfeited: outcome.forfeited,
+    });
+    broadcast(room, { type: 'duel_result', duel: settled });
+  } catch (err) {
+    // A failed settle must not take the room with it — the players still get their scoreboard.
+    logger.error({ err, code: room.code }, 'Failed to settle duel');
+  }
 }
 
 function computeWinner(
@@ -730,6 +935,7 @@ function buildRoomSnapshot(room: MpRoom): MpRoomSnapshot {
     })),
     hostOnlyAudio: room.hostOnlyAudio,
     hostPlayable: room.hostPlayable,
+    isDuel: room.duel != null,
   };
 }
 
@@ -758,6 +964,19 @@ function sendTo(playerId: string, payload: Record<string, unknown>): void {
 
 function sendError(playerId: string, message: string): void {
   sendTo(playerId, { type: 'error', message });
+}
+
+/**
+ * Socket access for the duel matchmaker, which needs to talk to players who are connected but
+ * not in any room yet. Exported rather than duplicating the connection registry: two maps of
+ * live sockets would drift the first time a disconnect was handled in only one of them.
+ */
+export function sendToPlayer(playerId: string, payload: Record<string, unknown>): void {
+  sendTo(playerId, payload);
+}
+
+export function identityFor(playerId: string): Identity | null {
+  return identities.get(playerId) ?? null;
 }
 
 function roomFor(playerId: string): MpRoom | null {

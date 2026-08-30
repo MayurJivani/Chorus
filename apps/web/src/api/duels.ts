@@ -1,18 +1,12 @@
+/**
+ * Duels are live now, so joining one is a WebSocket conversation (see useDuelQueue), not a REST
+ * call. What is left here is history, the rating board, and a first-paint snapshot of the queue.
+ */
 import { apiRequest } from './client';
-import type { DuelView, RatingLeaderboard } from '../types/api';
-
-export function createDuel(
-  source: { artistId: number } | { categoryId: string },
-): Promise<DuelView> {
-  return apiRequest<DuelView>('/duels', { method: 'POST', body: source });
-}
+import type { DuelQueueCount, DuelView, RatingLeaderboard } from '../types/api';
 
 export function getDuel(duelId: number): Promise<DuelView> {
   return apiRequest<DuelView>(`/duels/${duelId}`);
-}
-
-export function acceptDuel(duelId: number): Promise<DuelView> {
-  return apiRequest<DuelView>(`/duels/${duelId}/accept`, { method: 'POST' });
 }
 
 export async function getMyDuels(): Promise<DuelView[]> {
@@ -20,15 +14,16 @@ export async function getMyDuels(): Promise<DuelView[]> {
   return res.duels;
 }
 
-export async function getOpenDuels(): Promise<DuelView[]> {
-  const res = await apiRequest<{ duels: DuelView[] }>('/duels/open');
-  return res.duels;
-}
-
 export function getRatingLeaderboard(): Promise<RatingLeaderboard> {
   return apiRequest<RatingLeaderboard>('/duels/leaderboard');
 }
 
-export function matchmake(): Promise<DuelView> {
-  return apiRequest<DuelView>('/duels/matchmake', { method: 'POST' });
+/**
+ * Queue counts for the first render.
+ *
+ * The socket keeps these live; this only exists so the page doesn't show an empty queue while
+ * the socket opens — "nobody is waiting" is the one message that would stop a player queuing.
+ */
+export function getQueueSnapshot(): Promise<{ counts: DuelQueueCount[]; total: number }> {
+  return apiRequest<{ counts: DuelQueueCount[]; total: number }>('/duels/queue');
 }

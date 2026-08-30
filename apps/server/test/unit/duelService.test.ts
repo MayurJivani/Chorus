@@ -28,15 +28,11 @@ vi.mock('../../src/services/deezerService', async (importOriginal) => {
 });
 
 import { clearArtistPools } from '../../src/services/artistCatalogService';
-import { resolveArtistSource } from '../../src/services/challengeSource';
 import {
-  acceptDuel,
-  createDuel,
-  DuelError,
-  getDuel,
   getRatingLeaderboard,
-  listOpenDuels,
-  settleDuelsForChallenge,
+  listDuelsForUser,
+  recordLiveDuel,
+  type LiveDuelInput,
 } from '../../src/services/duelService';
 import { STARTING_RATING } from '../../src/services/eloService';
 
@@ -46,19 +42,23 @@ async function seedUser(id: string, displayName: string, rating = STARTING_RATIN
     .values({ id, email: `${id}@example.test`, passwordHash: 'x', displayName, rating });
 }
 
-/** Records a finished run for a player on a challenge, without playing it round by round. */
-async function finishRun(
-  challengeId: number,
-  userId: string,
-  opts: { songsCorrect: number; totalGuessesUsed: number; timeTakenSeconds: number | null },
-) {
-  await db.insert(artistSessionResults).values({
-    challengeId,
-    userId,
-    completed: true,
-    currentRound: 9,
-    ...opts,
-  });
+function liveDuel(over: Partial<LiveDuelInput> = {}): LiveDuelInput {
+  return {
+    challengerUserId: 'u1',
+    opponentUserId: 'u2',
+    challengerScore: 30,
+    opponentScore: 10,
+    sourceType: 'artist',
+    sourceId: '412',
+    label: 'Queen',
+    forfeited: false,
+    ...over,
+  };
+}
+
+async function ratingOf(userId: string): Promise<number> {
+  const rows = await db.select({ rating: users.rating }).from(users).where(eq(users.id, userId));
+  return rows[0]!.rating;
 }
 
 beforeEach(async () => {
@@ -68,220 +68,91 @@ beforeEach(async () => {
   await db.delete(artistChallengeTracks);
   await db.delete(artistChallenges);
   await db.delete(users);
+  await seedUser('u1', 'Ada');
+  await seedUser('u2', 'Blake');
 });
 
-async function newDuel(challengerId: string) {
-  return createDuel(await resolveArtistSource(412, false), challengerId);
-}
+describe('recordLiveDuel', () => {
+  it('writes a settled duel with the source on the row, not a challenge join', async () => {
+    const view = await recordLiveDuel(liveDuel());
 
-describe('createDuel', () => {
-  it('builds a challenge and opens the duel for someone to take', async () => {
-    await seedUser('u1', 'Ada');
-    const duel = await newDuel('u1');
-
-    expect(duel.status).toBe('open');
-    expect(duel.opponent).toBeNull();
-    expect(duel.challenger).toMatchObject({ displayName: 'Ada', rating: STARTING_RATING });
-    expect(duel.totalRounds).toBeGreaterThan(0);
-  });
-
-  it('gives each duel its own challenge, so neither side has seen the songs', async () => {
-    await seedUser('u1', 'Ada');
-    const first = await newDuel('u1');
-    const second = await newDuel('u1');
-
-    expect(second.challengeId).not.toBe(first.challengeId);
-  });
-});
-
-describe('acceptDuel', () => {
-  it('refuses the challenger their own duel', async () => {
-    await seedUser('u1', 'Ada');
-    const duel = await newDuel('u1');
-
-    // A rating you can farm by playing yourself is not a rating.
-    await expect(acceptDuel(duel.id, 'u1')).rejects.toBeInstanceOf(DuelError);
-  });
-
-  it('refuses a third player once someone has taken it', async () => {
-    await seedUser('u1', 'Ada');
-    await seedUser('u2', 'Grace');
-    await seedUser('u3', 'Linus');
-    const duel = await newDuel('u1');
-    await acceptDuel(duel.id, 'u2');
-
-    await expect(acceptDuel(duel.id, 'u3')).rejects.toBeInstanceOf(DuelError);
-  });
-
-  it('is idempotent for the player who already took it', async () => {
-    await seedUser('u1', 'Ada');
-    await seedUser('u2', 'Grace');
-    const duel = await newDuel('u1');
-    await acceptDuel(duel.id, 'u2');
-
-    const again = await acceptDuel(duel.id, 'u2');
-    expect(again.opponent?.userId).toBe('u2');
-  });
-});
-
-describe('settleDuelsForChallenge', () => {
-  it('does nothing until both players have finished', async () => {
-    await seedUser('u1', 'Ada');
-    await seedUser('u2', 'Grace');
-    const duel = await newDuel('u1');
-    await acceptDuel(duel.id, 'u2');
-
-    await finishRun(duel.challengeId, 'u1', {
-      songsCorrect: 8,
-      totalGuessesUsed: 12,
-      timeTakenSeconds: 60,
+    expect(view).toMatchObject({
+      status: 'complete',
+      label: 'Queen',
+      sourceType: 'artist',
+      sourceId: '412',
+      winnerId: 'u1',
+      forfeited: false,
+      scores: { challenger: 30, opponent: 10 },
     });
-
-    expect(await settleDuelsForChallenge(duel.challengeId)).toBeNull();
-    expect((await getDuel(duel.id))?.status).toBe('open');
+    // A live duel never creates an artist_challenges row, so there is nothing to point at.
+    expect(view.challengeId).toBeNull();
   });
 
-  it('settles once both have played, moving both ratings', async () => {
-    await seedUser('u1', 'Ada');
-    await seedUser('u2', 'Grace');
-    const duel = await newDuel('u1');
-    await acceptDuel(duel.id, 'u2');
+  it('moves both ratings in opposite directions by the same amount', async () => {
+    const view = await recordLiveDuel(liveDuel());
 
-    await finishRun(duel.challengeId, 'u1', {
-      songsCorrect: 9,
-      totalGuessesUsed: 11,
-      timeTakenSeconds: 60,
-    });
-    await finishRun(duel.challengeId, 'u2', {
-      songsCorrect: 6,
-      totalGuessesUsed: 18,
-      timeTakenSeconds: 80,
-    });
-
-    const settled = await settleDuelsForChallenge(duel.challengeId);
-
-    expect(settled?.status).toBe('complete');
-    expect(settled?.winnerId).toBe('u1');
-    expect(settled?.ratingChange?.challenger).toBeGreaterThan(0);
-    expect(settled?.ratingChange?.opponent).toBeLessThan(0);
-
-    const [ada] = await db.select().from(users).where(eq(users.id, 'u1'));
-    expect(ada?.rating).toBeGreaterThan(STARTING_RATING);
-    expect(ada?.ratedDuels).toBe(1);
+    const [a, b] = [await ratingOf('u1'), await ratingOf('u2')];
+    expect(a).toBeGreaterThan(STARTING_RATING);
+    expect(b).toBeLessThan(STARTING_RATING);
+    expect(a - STARTING_RATING).toBe(STARTING_RATING - b);
+    expect(view.ratingChange!.challenger).toBe(-view.ratingChange!.opponent);
   });
 
-  it('records a draw without moving equal ratings', async () => {
-    await seedUser('u1', 'Ada');
-    await seedUser('u2', 'Grace');
-    const duel = await newDuel('u1');
-    await acceptDuel(duel.id, 'u2');
-
-    const identical = { songsCorrect: 7, totalGuessesUsed: 13, timeTakenSeconds: 55 };
-    await finishRun(duel.challengeId, 'u1', identical);
-    await finishRun(duel.challengeId, 'u2', identical);
-
-    const settled = await settleDuelsForChallenge(duel.challengeId);
-
-    expect(settled?.winnerId).toBeNull();
-    expect(settled?.status).toBe('complete');
-    expect(settled?.ratingChange).toEqual({ challenger: 0, opponent: 0 });
+  it('counts the duel against both players, so K-factor can settle down', async () => {
+    await recordLiveDuel(liveDuel());
+    const rows = await db.select({ id: users.id, ratedDuels: users.ratedDuels }).from(users);
+    expect(rows.every((r) => r.ratedDuels === 1)).toBe(true);
   });
 
-  /**
-   * Both players can finish within a moment of each other, and settlement runs on each. Applying
-   * the rating change twice would double every result.
-   */
-  it('settles exactly once even if called again', async () => {
-    await seedUser('u1', 'Ada');
-    await seedUser('u2', 'Grace');
-    const duel = await newDuel('u1');
-    await acceptDuel(duel.id, 'u2');
+  it('records a draw on equal scores without moving either rating', async () => {
+    const view = await recordLiveDuel(liveDuel({ challengerScore: 20, opponentScore: 20 }));
 
-    await finishRun(duel.challengeId, 'u1', {
-      songsCorrect: 9,
-      totalGuessesUsed: 10,
-      timeTakenSeconds: 50,
-    });
-    await finishRun(duel.challengeId, 'u2', {
-      songsCorrect: 5,
-      totalGuessesUsed: 20,
-      timeTakenSeconds: 90,
-    });
-
-    await settleDuelsForChallenge(duel.challengeId);
-    const afterFirst = (await db.select().from(users).where(eq(users.id, 'u1')))[0];
-
-    await settleDuelsForChallenge(duel.challengeId);
-    const afterSecond = (await db.select().from(users).where(eq(users.id, 'u1')))[0];
-
-    expect(afterSecond?.rating).toBe(afterFirst?.rating);
-    expect(afterSecond?.ratedDuels).toBe(1);
+    expect(view.winnerId).toBeNull();
+    expect(await ratingOf('u1')).toBe(STARTING_RATING);
+    expect(await ratingOf('u2')).toBe(STARTING_RATING);
   });
 
-  it('leaves an unaccepted duel alone even if the challenger finishes', async () => {
-    await seedUser('u1', 'Ada');
-    const duel = await newDuel('u1');
-    await finishRun(duel.challengeId, 'u1', {
-      songsCorrect: 10,
-      totalGuessesUsed: 10,
-      timeTakenSeconds: 40,
-    });
-
-    expect(await settleDuelsForChallenge(duel.challengeId)).toBeNull();
-  });
-});
-
-describe('listOpenDuels', () => {
-  it('hides a player their own open duels', async () => {
-    await seedUser('u1', 'Ada');
-    await seedUser('u2', 'Grace');
-    await newDuel('u1');
-
-    expect(await listOpenDuels('u1')).toHaveLength(0);
-    expect(await listOpenDuels('u2')).toHaveLength(1);
+  it('lets the lower score win when it belongs to the opponent', async () => {
+    const view = await recordLiveDuel(liveDuel({ challengerScore: 5, opponentScore: 40 }));
+    expect(view.winnerId).toBe('u2');
+    expect(await ratingOf('u2')).toBeGreaterThan(STARTING_RATING);
   });
 
-  it('drops a duel once it has been taken', async () => {
-    await seedUser('u1', 'Ada');
-    await seedUser('u2', 'Grace');
-    await seedUser('u3', 'Linus');
-    const duel = await newDuel('u1');
-    await acceptDuel(duel.id, 'u2');
+  /* Forfeits are what stop the rating being a record only of games people chose to let finish. */
+  it('applies a normal rating change to a forfeit, and flags it', async () => {
+    const view = await recordLiveDuel(
+      liveDuel({ challengerScore: 1, opponentScore: 0, forfeited: true }),
+    );
 
-    expect(await listOpenDuels('u3')).toHaveLength(0);
+    expect(view.forfeited).toBe(true);
+    expect(view.winnerId).toBe('u1');
+    expect(await ratingOf('u1')).toBeGreaterThan(STARTING_RATING);
+    expect(await ratingOf('u2')).toBeLessThan(STARTING_RATING);
+  });
+
+  it('refuses to rate a duel where a player no longer exists', async () => {
+    await expect(recordLiveDuel(liveDuel({ opponentUserId: 'ghost' }))).rejects.toThrow();
+  });
+
+  it('shows up in both players history', async () => {
+    await recordLiveDuel(liveDuel());
+    expect(await listDuelsForUser('u1')).toHaveLength(1);
+    expect(await listDuelsForUser('u2')).toHaveLength(1);
   });
 });
 
 describe('getRatingLeaderboard', () => {
   it('leaves out players who have never finished a rated duel', async () => {
-    await seedUser('u1', 'Ada');
-    await seedUser('u2', 'Grace');
-
-    // Everyone starts on the same rating, so listing them would be a board of ties.
-    expect(await getRatingLeaderboard('u1')).toHaveLength(0);
+    const board = await getRatingLeaderboard('u1');
+    expect(board).toHaveLength(0);
   });
 
   it('ranks by rating once duels have been played', async () => {
-    await seedUser('u1', 'Ada');
-    await seedUser('u2', 'Grace');
-    const duel = await newDuel('u1');
-    await acceptDuel(duel.id, 'u2');
-    await finishRun(duel.challengeId, 'u1', {
-      songsCorrect: 9,
-      totalGuessesUsed: 10,
-      timeTakenSeconds: 50,
-    });
-    await finishRun(duel.challengeId, 'u2', {
-      songsCorrect: 4,
-      totalGuessesUsed: 20,
-      timeTakenSeconds: 95,
-    });
-    await settleDuelsForChallenge(duel.challengeId);
+    await recordLiveDuel(liveDuel());
 
-    const board = await getRatingLeaderboard('u2');
-
-    expect(board.map((e) => e.displayName)).toEqual(['Ada', 'Grace']);
-    expect(board[0]!.rating).toBeGreaterThan(board[1]!.rating);
-    expect(board[1]!.isYou).toBe(true);
+    const board = await getRatingLeaderboard('u1');
+    expect(board.map((e) => e.displayName)).toEqual(['Ada', 'Blake']);
+    expect(board[0]).toMatchObject({ rank: 1, isYou: true, ratedDuels: 1 });
   });
 });

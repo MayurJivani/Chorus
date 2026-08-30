@@ -317,15 +317,30 @@ export const duels = pgTable(
   'duels',
   {
     id: serial('id').primaryKey(),
-    challengeId: integer('challenge_id')
-      .notNull()
-      .references(() => artistChallenges.id, { onDelete: 'cascade' }),
+    /**
+     * Only set for the older asynchronous duels, which were played through a stored challenge.
+     * A live duel races inside an in-memory room and never writes an `artist_challenges` row,
+     * so there is nothing here to point at — hence nullable, and why the source is denormalised
+     * onto the columns below rather than read back through the join.
+     */
+    challengeId: integer('challenge_id').references(() => artistChallenges.id, {
+      onDelete: 'cascade',
+    }),
+    /** What the duel raced over, kept here so a finished duel stays readable without a join. */
+    sourceType: text('source_type'),
+    sourceId: text('source_id'),
+    label: text('label'),
     challengerId: text('challenger_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     /** Null until somebody opens the link and accepts. */
     opponentId: text('opponent_id').references(() => users.id, { onDelete: 'cascade' }),
     status: text('status').notNull().default('open'),
+    /** Final scores, for showing the result without replaying the room's state. */
+    challengerScore: integer('challenger_score'),
+    opponentScore: integer('opponent_score'),
+    /** True when the loss came from someone leaving rather than being outscored. */
+    forfeited: boolean('forfeited').notNull().default(false),
     /** Ratings as they stood at settlement, kept so a duel's history stays readable later. */
     challengerRatingBefore: integer('challenger_rating_before'),
     opponentRatingBefore: integer('opponent_rating_before'),

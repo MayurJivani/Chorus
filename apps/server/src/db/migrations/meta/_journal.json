@@ -78,6 +78,13 @@
       "when": 1787617906175,
       "tag": "0010_worried_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788103257780,
+      "tag": "0011_stiff_the_hood",
+      "breakpoints": true
     }
   ]
 }

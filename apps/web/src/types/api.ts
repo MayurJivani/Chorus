@@ -376,7 +376,8 @@ export interface DuelPlayer {
 
 export interface DuelView {
   id: number;
-  challengeId: number;
+  /** Null for a live duel, which races in a room rather than through a stored challenge. */
+  challengeId: number | null;
   status: 'open' | 'complete';
   label: string;
   sourceType: string;
@@ -387,6 +388,18 @@ export interface DuelView {
   /** Null on a draw as well as before settlement; check `status` to tell them apart. */
   winnerId: string | null;
   ratingChange: { challenger: number; opponent: number } | null;
+  /** True when the result came from someone leaving rather than being outscored. */
+  forfeited: boolean;
+  /** Final scores. Null on the older asynchronous duels, which never recorded them. */
+  scores: { challenger: number; opponent: number } | null;
+}
+
+/** How many players are waiting to duel over one particular artist or category. */
+export interface DuelQueueCount {
+  /** `artist:<id>`, `category:<slug>` or `random`. */
+  key: string;
+  label: string;
+  count: number;
 }
 
 export interface RatingStanding {

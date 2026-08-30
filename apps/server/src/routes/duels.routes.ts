@@ -1,24 +1,23 @@
 /**
- * Rated 1v1 duels. Accounts only: a rating has to attach to something that persists and is
- * attributable, which a guest cookie is not.
+ * Duels are now live 1v1: you queue over the WebSocket, get matched with someone waiting on the
+ * same artist or category, and race them in a room. So there is nothing here for creating or
+ * accepting a duel — matchmaking is `duel_queue_*` on the socket, and settlement happens when
+ * the room finishes.
+ *
+ * What remains is read-only history and the rating board, plus a REST snapshot of the queue for
+ * the initial page render before the socket has connected.
+ *
+ * Accounts only: a rating has to attach to something that persists and is attributable, which a
+ * guest cookie is not.
  */
 import { Router } from 'express';
 import { z } from 'zod';
-import {
-  acceptDuel,
-  createDuel,
-  DuelError,
-  getDuel,
-  getRatingLeaderboard,
-  listDuelsForUser,
-  listOpenDuels,
-} from '../services/duelService';
-import { findOrCreateMatch } from '../services/matchmakingService';
-import { resolveArtistSource, resolveCategorySource } from '../services/challengeSource';
-import { requireAuth } from '../middleware/requireAuth';
+import { getDuel, getRatingLeaderboard, listDuelsForUser } from '../services/duelService';
+import { getQueueCounts } from '../services/duelQueueService';
 import { validate } from '../middleware/validate';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { HttpError } from '../middleware/errorHandler';
+import { requireAuth } from '../middleware/requireAuth';
 
 export const duelsRouter = Router();
 
@@ -33,11 +32,18 @@ duelsRouter.get(
   }),
 );
 
+/**
+ * Who is waiting, and for what.
+ *
+ * Also served over the socket, which is what keeps it live — this exists so the page can render
+ * counts on first paint instead of showing an empty queue for as long as the socket takes to
+ * open, which reads as "nobody is here" at exactly the wrong moment.
+ */
 duelsRouter.get(
-  '/open',
-  requireAuth,
-  asyncHandler(async (req, res) => {
-    res.json({ duels: await listOpenDuels(req.session.userId!) });
+  '/queue',
+  asyncHandler(async (_req, res) => {
+    const counts = getQueueCounts();
+    res.json({ counts, total: counts.reduce((sum, c) => sum + c.count, 0) });
   }),
 );
 
@@ -46,56 +52,6 @@ duelsRouter.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     res.json({ duels: await listDuelsForUser(req.session.userId!) });
-  }),
-);
-
-duelsRouter.post(
-  '/matchmake',
-  requireAuth,
-  asyncHandler(async (req, res) => {
-    try {
-      const duel = await findOrCreateMatch(req.session.userId!);
-      res.json(duel);
-    } catch (err) {
-      if (err instanceof DuelError) throw new HttpError(400, err.message);
-      throw err;
-    }
-  }),
-);
-
-const createSchema = z
-  .object({
-    artistId: z.coerce.number().int().positive().optional(),
-    categoryId: z.string().min(1).max(64).optional(),
-  })
-  .refine(
-    (body) => (body.artistId != null) !== (body.categoryId != null),
-    'Provide exactly one of artistId or categoryId',
-  );
-
-duelsRouter.post(
-  '/',
-  requireAuth,
-  validate(createSchema),
-  asyncHandler(async (req, res) => {
-    const { artistId, categoryId } = req.body as z.infer<typeof createSchema>;
-
-    let source;
-    try {
-      source =
-        artistId != null
-          ? await resolveArtistSource(artistId, false)
-          : resolveCategorySource(categoryId!);
-    } catch {
-      throw new HttpError(404, artistId != null ? 'Artist not found' : 'Unknown category');
-    }
-
-    try {
-      res.status(201).json(await createDuel(source, req.session.userId!));
-    } catch (err) {
-      if (err instanceof DuelError) throw new HttpError(400, err.message);
-      throw err;
-    }
   }),
 );
 
@@ -109,20 +65,5 @@ duelsRouter.get(
     const duel = await getDuel(duelId);
     if (!duel) throw new HttpError(404, 'Duel not found');
     res.json(duel);
-  }),
-);
-
-duelsRouter.post(
-  '/:duelId/accept',
-  requireAuth,
-  validate(duelIdSchema, 'params'),
-  asyncHandler(async (req, res) => {
-    const { duelId } = req.params as unknown as z.infer<typeof duelIdSchema>;
-    try {
-      res.json(await acceptDuel(duelId, req.session.userId!));
-    } catch (err) {
-      if (err instanceof DuelError) throw new HttpError(409, err.message);
-      throw err;
-    }
   }),
 );

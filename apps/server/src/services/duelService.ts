@@ -1,24 +1,26 @@
 /**
  * Rated 1v1 duels.
  *
- * A duel is one shared challenge played by two accounts. That is the whole trick: the fairness
- * comes from both players answering the same ten songs, so nothing new is needed to *run* one —
- * they each play the challenge exactly as they would a shared link, and settlement reads the
- * results the normal game already wrote.
+ * A duel is two accounts racing the same songs at the same time, in a room the matchmaker built
+ * for them (see duelQueueService and createDuelRoom). Fairness comes from it being one room:
+ * both sides hear the same clip at the same moment, so the result needs no reconciliation.
+ *
+ * This module is now only the *record* — writing the settled row and moving the ratings. The
+ * game itself is an ordinary multiplayer room.
  *
  * Accounts only. A rating has to attach to something that persists and is attributable, and a
  * guest is a browser cookie: clearing it would erase a rating, and two guests are
  * indistinguishable.
+ *
+ * Rows written before this rework are asynchronous duels — they carry a `challengeId` and no
+ * denormalised source, which is why the read path still tolerates both shapes.
  */
-import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, desc, eq, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { artistChallenges, artistSessionResults, duels, users } from '../db/schema';
 import type { Duel } from '../db/schema';
-import { applyElo, decideDuel, STARTING_RATING, type DuelRun } from './eloService';
-import { getOrCreateChallenge } from './artistChallengeService';
-import type { ChallengeSource } from './challengeSource';
+import { applyElo, STARTING_RATING, type DuelRun } from './eloService';
 import { logger } from '../logger';
-import crypto from 'crypto';
 
 export class DuelError extends Error {}
 
@@ -32,7 +34,8 @@ export interface DuelPlayerView {
 
 export interface DuelView {
   id: number;
-  challengeId: number;
+  /** Null for a live duel, which never wrote a challenge row. */
+  challengeId: number | null;
   status: 'open' | 'complete';
   label: string;
   sourceType: string;
@@ -43,6 +46,10 @@ export interface DuelView {
   opponent: DuelPlayerView | null;
   winnerId: string | null;
   ratingChange: { challenger: number; opponent: number } | null;
+  /** True when the result came from someone walking out rather than being outscored. */
+  forfeited: boolean;
+  /** Final round scores. Null for the older asynchronous duels, which never recorded them. */
+  scores: { challenger: number; opponent: number } | null;
 }
 
 async function loadUser(userId: string) {
@@ -79,55 +86,13 @@ async function completedRun(challengeId: number, userId: string): Promise<DuelRu
   return rows[0] ?? null;
 }
 
-/**
- * Creates a duel and the challenge behind it.
- *
- * The challenge gets a unique date suffix so it is a fresh set of songs rather than one the
- * challenger might already have seen — a duel over a challenge one side has played is not a
- * duel.
- */
-export async function createDuel(source: ChallengeSource, challengerId: string): Promise<DuelView> {
-  const challengeDate = `duel-${new Date().toISOString().slice(0, 10)}_${crypto.randomUUID()}`;
-  const { challenge } = await getOrCreateChallenge(source, challengeDate);
-
-  const inserted = await db
-    .insert(duels)
-    .values({ challengeId: challenge.id, challengerId })
-    .returning();
-  const duel = inserted[0];
-  if (!duel) throw new DuelError('Could not create the duel');
-
-  logger.info({ duelId: duel.id, challengeId: challenge.id, challengerId }, 'Duel created');
-  return (await getDuel(duel.id))!;
-}
-
-/**
- * Joins an open duel.
- *
- * Refuses the challenger's own duel: a rating you can farm by playing yourself is not a rating.
- */
-export async function acceptDuel(duelId: number, opponentId: string): Promise<DuelView> {
-  const rows = await db.select().from(duels).where(eq(duels.id, duelId)).limit(1);
-  const duel = rows[0];
-  if (!duel) throw new DuelError('Duel not found');
-  if (duel.challengerId === opponentId) {
-    throw new DuelError('You cannot accept your own duel');
-  }
-  if (duel.opponentId && duel.opponentId !== opponentId) {
-    throw new DuelError('Someone has already taken this duel');
-  }
-
-  if (!duel.opponentId) {
-    await db.update(duels).set({ opponentId }).where(eq(duels.id, duelId));
-  }
-  return (await getDuel(duelId))!;
-}
-
 export async function getDuel(duelId: number): Promise<DuelView | null> {
+  // Left join: a live duel has no challenge row to join to, and an inner join silently returned
+  // nothing for exactly the duels this mode now creates.
   const rows = await db
     .select({ duel: duels, challenge: artistChallenges })
     .from(duels)
-    .innerJoin(artistChallenges, eq(artistChallenges.id, duels.challengeId))
+    .leftJoin(artistChallenges, eq(artistChallenges.id, duels.challengeId))
     .where(eq(duels.id, duelId))
     .limit(1);
   const row = rows[0];
@@ -143,7 +108,7 @@ async function toView(
     sourceType: string;
     deezerArtistId: string;
     totalRounds: number;
-  },
+  } | null,
 ): Promise<DuelView> {
   const challenger = await loadUser(duel.challengerId);
   const opponent = duel.opponentId ? await loadUser(duel.opponentId) : null;
@@ -154,10 +119,17 @@ async function toView(
     id: duel.id,
     challengeId: duel.challengeId,
     status: settled ? 'complete' : 'open',
-    label: challenge.artistName,
-    sourceType: challenge.sourceType,
-    sourceId: challenge.deezerArtistId,
-    totalRounds: challenge.totalRounds,
+    // Denormalised columns first: they are the only source for a live duel, and for an older
+    // asynchronous one they are null so the challenge still answers.
+    label: duel.label ?? challenge?.artistName ?? 'Duel',
+    sourceType: duel.sourceType ?? challenge?.sourceType ?? 'artist',
+    sourceId: duel.sourceId ?? challenge?.deezerArtistId ?? '',
+    totalRounds: challenge?.totalRounds ?? 0,
+    forfeited: duel.forfeited,
+    scores:
+      duel.challengerScore != null && duel.opponentScore != null
+        ? { challenger: duel.challengerScore, opponent: duel.opponentScore }
+        : null,
     challenger: {
       userId: duel.challengerId,
       displayName: challenger?.displayName ?? 'Player',
@@ -166,14 +138,18 @@ async function toView(
       rating: settled
         ? (duel.challengerRatingAfter ?? STARTING_RATING)
         : (challenger?.rating ?? STARTING_RATING),
-      result: await completedRun(duel.challengeId, duel.challengerId),
+      // Only asynchronous duels have a stored run to read back; a live duel's outcome is the
+      // score on the row itself.
+      result:
+        duel.challengeId != null ? await completedRun(duel.challengeId, duel.challengerId) : null,
     },
     opponent: opponent
       ? {
           userId: opponent.id,
           displayName: opponent.displayName,
           rating: settled ? (duel.opponentRatingAfter ?? STARTING_RATING) : opponent.rating,
-          result: await completedRun(duel.challengeId, opponent.id),
+          result:
+            duel.challengeId != null ? await completedRun(duel.challengeId, opponent.id) : null,
         }
       : null,
     winnerId: duel.winnerId,
@@ -187,56 +163,63 @@ async function toView(
   };
 }
 
+export interface LiveDuelInput {
+  challengerUserId: string;
+  opponentUserId: string;
+  challengerScore: number;
+  opponentScore: number;
+  sourceType: string;
+  sourceId: string;
+  label: string;
+  forfeited: boolean;
+}
+
 /**
- * Settles any duel on this challenge whose players have both finished.
+ * Records a finished live duel and moves both ratings.
  *
- * Called after a run completes rather than on a schedule, so the result lands while the player
- * is still looking at it. Doing nothing when only one side has played is the normal case: an
- * async duel spends most of its life half-finished.
+ * Unlike the asynchronous duels this replaced, there is no row to update: the match existed
+ * only as an in-memory room, so the row is written once, already settled. The source is stored
+ * on the row rather than reached through a challenge join, because a live duel never creates an
+ * `artist_challenges` record to join to.
  */
-export async function settleDuelsForChallenge(challengeId: number): Promise<DuelView | null> {
-  const rows = await db
-    .select()
-    .from(duels)
-    .where(and(eq(duels.challengeId, challengeId), eq(duels.status, 'open')))
-    .limit(1);
-  const duel = rows[0];
-  if (!duel?.opponentId) return null;
-
-  const [challengerRun, opponentRun] = await Promise.all([
-    completedRun(challengeId, duel.challengerId),
-    completedRun(challengeId, duel.opponentId),
-  ]);
-  if (!challengerRun || !opponentRun) return null;
-
+export async function recordLiveDuel(input: LiveDuelInput): Promise<DuelView> {
   const [challenger, opponent] = await Promise.all([
-    loadUser(duel.challengerId),
-    loadUser(duel.opponentId),
+    loadUser(input.challengerUserId),
+    loadUser(input.opponentUserId),
   ]);
-  if (!challenger || !opponent) return null;
+  if (!challenger || !opponent) throw new DuelError('Both players must have accounts');
 
-  const outcome = decideDuel(challengerRun, opponentRun);
+  const outcome =
+    input.challengerScore > input.opponentScore
+      ? 1
+      : input.challengerScore < input.opponentScore
+        ? 0
+        : 0.5;
   const change = applyElo(challenger, opponent, outcome);
   const winnerId = outcome === 1 ? challenger.id : outcome === 0 ? opponent.id : null;
 
-  await db.transaction(async (tx) => {
-    // Guarded on `status = 'open'` so two runs finishing at once cannot both settle the duel and
-    // apply the rating change twice.
-    const claimed = await tx
-      .update(duels)
-      .set({
+  const duelId = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(duels)
+      .values({
+        challengeId: null,
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+        label: input.label,
+        challengerId: challenger.id,
+        opponentId: opponent.id,
         status: 'complete',
         settledAt: new Date(),
         winnerId,
+        challengerScore: input.challengerScore,
+        opponentScore: input.opponentScore,
+        forfeited: input.forfeited,
         challengerRatingBefore: change.challenger.before,
         challengerRatingAfter: change.challenger.after,
         opponentRatingBefore: change.opponent.before,
         opponentRatingAfter: change.opponent.after,
       })
-      .where(and(eq(duels.id, duel.id), eq(duels.status, 'open')))
       .returning({ id: duels.id });
-
-    if (claimed.length === 0) return;
 
     await tx
       .update(users)
@@ -246,13 +229,15 @@ export async function settleDuelsForChallenge(challengeId: number): Promise<Duel
       .update(users)
       .set({ rating: change.opponent.after, ratedDuels: opponent.ratedDuels + 1 })
       .where(eq(users.id, opponent.id));
+
+    return inserted[0]!.id;
   });
 
   logger.info(
-    { duelId: duel.id, winnerId, challengerDelta: change.challenger.delta },
-    'Duel settled',
+    { duelId, winnerId, forfeited: input.forfeited, delta: change.challenger.delta },
+    'Live duel settled',
   );
-  return getDuel(duel.id);
+  return (await getDuel(duelId))!;
 }
 
 /** Duels a player is involved in, newest first. */
@@ -260,27 +245,10 @@ export async function listDuelsForUser(userId: string, limit = 20): Promise<Duel
   const rows = await db
     .select({ duel: duels, challenge: artistChallenges })
     .from(duels)
-    .innerJoin(artistChallenges, eq(artistChallenges.id, duels.challengeId))
+    // Left, not inner: a live duel has no challenge row, and an inner join drops exactly the
+    // duels this mode creates — which is every duel from here on.
+    .leftJoin(artistChallenges, eq(artistChallenges.id, duels.challengeId))
     .where(or(eq(duels.challengerId, userId), eq(duels.opponentId, userId)))
-    .orderBy(desc(duels.id))
-    .limit(limit);
-
-  return Promise.all(rows.map((r) => toView(r.duel, r.challenge)));
-}
-
-/** Open duels nobody has taken yet, excluding the player's own. */
-export async function listOpenDuels(userId: string, limit = 20): Promise<DuelView[]> {
-  const rows = await db
-    .select({ duel: duels, challenge: artistChallenges })
-    .from(duels)
-    .innerJoin(artistChallenges, eq(artistChallenges.id, duels.challengeId))
-    .where(
-      and(
-        isNull(duels.opponentId),
-        eq(duels.status, 'open'),
-        sql`${duels.challengerId} <> ${userId}`,
-      ),
-    )
     .orderBy(desc(duels.id))
     .limit(limit);
 
