@@ -699,6 +699,16 @@ function startRound(room: MpRoom, roundIndex: number): void {
     ...(room.guessMode === 'choice' ? { options: room.roundOptions[roundIndex] ?? [] } : {}),
   });
 
+  /*
+   * Publish the cleared per-round state.
+   *
+   * The reset above only happened in memory: `round_start` carries the new song but says nothing
+   * about who has answered, so every client was still holding the previous round's scores, where
+   * everyone reads as answered. That left the guess UI disabled from round two onwards — you
+   * could play the first song and then nothing else.
+   */
+  broadcast(room, { type: 'scores', scores: buildScores(room) });
+
   room.timers.push(
     setTimeout(() => {
       endRound(room);

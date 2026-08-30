@@ -483,6 +483,64 @@ describe('multiplayerService guess mode', () => {
     expect(options.map((o) => o.deezerTrackId)).toContain(current?.deezerTrackId);
   });
 
+  /*
+   * Regression: answering song one left the guess UI disabled for the rest of the game.
+   *
+   * `round_start` carries the new song but nothing about who has answered, so a client holding
+   * the previous round's scores still saw everyone as answered — and the guess UI is gated on
+   * exactly that. The reset has to be published, not just applied in memory.
+   */
+  it('publishes cleared answered flags when a new round starts', async () => {
+    const { code } = await createRoom(queenSource(), 'choice');
+    const host = register('host', 'hostaaaa');
+    register('guest', 'guestbbb');
+    await join('host', code);
+    await join('guest', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    // Host answers round one; the guest does not, so the round runs to time.
+    const track = __getCurrentTrack(code);
+    handleClientMessage('host', { type: 'guess', trackId: track!.deezerTrackId });
+    expect(
+      (lastOf(host, 'scores')?.scores as { playerId: string; answered: boolean }[]).find(
+        (s) => s.playerId === 'host',
+      )?.answered,
+    ).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(MP_ROUND_DURATION_MS + MP_REVEAL_DURATION_MS);
+
+    // Round two is live, and the last scores frame must say the host may answer again.
+    expect(lastOf(host, 'round_start')?.roundIndex).toBe(1);
+    const scores = lastOf(host, 'scores')?.scores as { playerId: string; answered: boolean }[];
+    expect(scores.find((s) => s.playerId === 'host')?.answered).toBe(false);
+    expect(scores.find((s) => s.playerId === 'guest')?.answered).toBe(false);
+  });
+
+  /* Passes with or without the broadcast above — the server always accepted these. Kept as the
+     other half of the picture: it pins down that the round-two lockout was purely a matter of
+     what clients were told, so anyone debugging a repeat starts on the right side of the wire. */
+  it('has always accepted a guess on a later round after answering the first', async () => {
+    const { code } = await createRoom(queenSource(), 'choice');
+    const host = register('host', 'hostaaaa');
+    register('guest', 'guestbbb');
+    await join('host', code);
+    await join('guest', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    handleClientMessage('host', { type: 'guess', trackId: __getCurrentTrack(code)!.deezerTrackId });
+    await vi.advanceTimersByTimeAsync(MP_ROUND_DURATION_MS + MP_REVEAL_DURATION_MS);
+
+    const before = messagesOf(host, 'guess_result').length;
+    handleClientMessage('host', { type: 'guess', trackId: __getCurrentTrack(code)!.deezerTrackId });
+
+    expect(messagesOf(host, 'guess_result')).toHaveLength(before + 1);
+    expect(lastOf(host, 'error')).toBeUndefined();
+  });
+
   it('gives every player in the room the same three options', async () => {
     const { code } = await createRoom(queenSource(), 'choice');
     const host = register('host', 'hostaaaa');

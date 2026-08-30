@@ -147,6 +147,16 @@ export function useMultiplayerGame(
         setRoundEnd(null);
         setLastGuess(null);
         setGameOver(null);
+        /*
+         * Clear the per-round flags rather than waiting for the `scores` frame that follows.
+         * `answered` gates the guess UI, so carrying the previous round's value even for the
+         * moment between the two messages shows a locked board at the start of every round —
+         * and if the scores frame is ever dropped or reordered, it never unlocks at all.
+         * Totals are left alone; only the server changes those.
+         */
+        setScores((prev) =>
+          prev.map((s) => ({ ...s, answered: false, correctThisRound: null, stageIndex: 0 })),
+        );
         break;
       }
       case 'stage':
