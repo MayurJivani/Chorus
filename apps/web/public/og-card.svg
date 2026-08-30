@@ -32,9 +32,9 @@
   <!-- Wordmark. "Chorusify", not "Chorus" — the card was still carrying the old name. -->
   <text x="96" y="286" fill="#ffffff" font-size="104" font-weight="800" letter-spacing="-3">Chorusify</text>
 
-  <!-- Tagline covers the whole game, not just the daily: most shared links are rooms and
-       artist challenges, and "a daily music guessing game" described none of them. -->
-  <text x="100" y="348" fill="#9aa0aa" font-size="34" font-weight="500">Guess the song from a few seconds of audio</text>
+  <!-- Word for word the homepage headline. A shared card and the page it opens saying the same
+       thing is what makes the link feel like it landed somewhere expected. -->
+  <text x="100" y="348" fill="#9aa0aa" font-size="34" font-weight="500">Guess your favourite music</text>
 
   <!-- Mode strip, so the card says there is more here than one puzzle a day. -->
   <g font-size="23" font-weight="600">
