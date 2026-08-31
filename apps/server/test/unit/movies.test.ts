@@ -5,7 +5,7 @@ import { __testing } from '../../src/services/movieCatalogService';
 import { buildRoundOptions } from '../../src/services/artistChallengeService';
 import type { ArtistTrack } from '../../src/services/deezerService';
 
-const { buildMoviePool, isNonSong } = __testing;
+const { buildMoviePool, isNonSong, isTooIncomplete } = __testing;
 
 /** A pool row shaped the way movieCatalogService emits them: title is the film. */
 function movieTrack(id: string, movie: string, song: string): ArtistTrack {
@@ -135,5 +135,26 @@ describe('buildRoundOptions for movie rounds', () => {
     ];
     const options = buildRoundOptions(songPool[0]!, songPool, 4);
     expect(options.every((o) => o.artist !== '')).toBe(true);
+  });
+});
+
+describe('isTooIncomplete', () => {
+  it('rejects a build that lost a meaningful share of its films', () => {
+    // The real failure this guards: 69 albums fired at once, Deezer throttled the tail, and 15
+    // films went missing. Nothing surfaced — they simply stopped being possible answers — and
+    // the partial pool was cached as if it were complete.
+    expect(isTooIncomplete(15, 69)).toBe(true);
+  });
+
+  it('tolerates the odd album that genuinely will not load', () => {
+    expect(isTooIncomplete(0, 69)).toBe(false);
+    expect(isTooIncomplete(1, 69)).toBe(false);
+    expect(isTooIncomplete(6, 69)).toBe(false);
+  });
+
+  it('still allows one failure in a small collection', () => {
+    // Without the floor of 1, a 4-film collection would refuse to store on any failure at all.
+    expect(isTooIncomplete(1, 4)).toBe(false);
+    expect(isTooIncomplete(2, 4)).toBe(true);
   });
 });

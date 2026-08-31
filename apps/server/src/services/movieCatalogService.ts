@@ -86,17 +86,30 @@ interface FetchedAlbum {
   seeds: { deezerTrackId: string; previewUrl: string; durationSeconds: number; artist: string }[];
 }
 
+/**
+ * Deezer answers a quota breach with HTTP 200 and an error body rather than a 429, so the only
+ * way to tell "this album does not exist" from "you are going too fast" is to retry and see.
+ */
+async function fetchAlbumBody(album: MovieAlbum): Promise<DeezerAlbumResponse> {
+  let lastError = '';
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch(`https://api.deezer.com/album/${album.albumId}`, {
+      headers: { Referer: 'https://chorusify.com/' },
+    });
+    if (!res.ok) {
+      lastError = `status ${res.status}`;
+    } else {
+      const body = (await res.json()) as DeezerAlbumResponse;
+      if (!body.error) return body;
+      lastError = JSON.stringify(body.error);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)));
+  }
+  throw new Error(`Deezer album ${album.albumId} (${album.movie}) failed: ${lastError}`);
+}
+
 async function fetchMovieAlbum(album: MovieAlbum): Promise<FetchedAlbum> {
-  const res = await fetch(`https://api.deezer.com/album/${album.albumId}`, {
-    headers: { Referer: 'https://chorusify.com/' },
-  });
-  if (!res.ok) {
-    throw new Error(`Deezer album ${album.albumId} fetch failed with status ${res.status}`);
-  }
-  const body = (await res.json()) as DeezerAlbumResponse;
-  if (body.error) {
-    throw new Error(`Deezer album ${album.albumId} (${album.movie}) returned an error`);
-  }
+  const body = await fetchAlbumBody(album);
 
   const cover = body.cover_medium ?? null;
   const out: FetchedAlbum = { tracks: [], seeds: [] };
@@ -138,24 +151,57 @@ function buildMoviePool(rows: ArtistTrack[]): ArtistTrack[] {
   return [...bestByKey.values()].sort((a, b) => a.deezerTrackId.localeCompare(b.deezerTrackId));
 }
 
-async function fetchAllAlbums(albums: MovieAlbum[]): Promise<ArtistTrack[]> {
-  const results = await Promise.allSettled(albums.map((album) => fetchMovieAlbum(album)));
+/**
+ * Deezer allows roughly 50 requests per 5 seconds per IP. The mixed collection is 69 albums, so
+ * firing them all at once puts the tail of the list over the limit — which cost 15 films on the
+ * first real build, every one of them logged as a warning and then silently absent from the
+ * pool. Matches the concurrency the playlist sync already uses.
+ */
+const ALBUM_FETCH_CONCURRENCY = 4;
+
+interface FetchOutcome {
+  tracks: ArtistTrack[];
+  /** Films whose album could not be fetched even after retries. */
+  failed: string[];
+}
+
+async function fetchAllAlbums(albums: MovieAlbum[]): Promise<FetchOutcome> {
   const tracks: ArtistTrack[] = [];
   const seeds: FetchedAlbum['seeds'] = [];
-  for (const [index, result] of results.entries()) {
-    if (result.status === 'fulfilled') {
-      tracks.push(...result.value.tracks);
-      seeds.push(...result.value.seeds);
-    } else {
-      // One dead album id should cost its film, not the whole collection.
-      logger.warn(
-        { err: result.reason, movie: albums[index]?.movie },
-        'Movie album fetch failed; skipping film',
-      );
+  const failed: string[] = [];
+
+  for (let i = 0; i < albums.length; i += ALBUM_FETCH_CONCURRENCY) {
+    const batch = albums.slice(i, i + ALBUM_FETCH_CONCURRENCY);
+    const results = await Promise.allSettled(batch.map((album) => fetchMovieAlbum(album)));
+    for (const [index, result] of results.entries()) {
+      if (result.status === 'fulfilled') {
+        tracks.push(...result.value.tracks);
+        seeds.push(...result.value.seeds);
+      } else {
+        const movie = batch[index]?.movie ?? 'unknown';
+        failed.push(movie);
+        logger.warn({ err: result.reason, movie }, 'Movie album fetch failed');
+      }
     }
   }
+
   seedPreviewCacheFromPlaylist(seeds);
-  return tracks;
+  return { tracks, failed };
+}
+
+/**
+ * How much of a collection may be missing before the result is treated as a bad fetch rather
+ * than a smaller catalogue.
+ *
+ * A film that fails is not a visible error — it just never comes up as an answer — so a
+ * throttled build looks exactly like a working one. Storing that partial pool is the expensive
+ * mistake, because the cache then serves it for the whole refresh window. Refetching next
+ * request is much cheaper than a collection that quietly lost a fifth of its films.
+ */
+const MAX_FAILED_FRACTION = 0.1;
+
+function isTooIncomplete(failedCount: number, total: number): boolean {
+  return failedCount > Math.max(1, Math.floor(total * MAX_FAILED_FRACTION));
 }
 
 async function readPool(collectionId: string) {
@@ -204,7 +250,12 @@ function refreshInBackground(collectionId: string, label: string, albums: MovieA
   refreshing.add(collectionId);
 
   void fetchAllAlbums(albums)
-    .then(async (raw) => {
+    .then(async ({ tracks: raw, failed }) => {
+      // Never overwrite a good stored pool with a throttled one.
+      if (isTooIncomplete(failed.length, albums.length)) {
+        logger.warn({ collectionId, failed }, 'Movie pool refresh incomplete; keeping stored pool');
+        return;
+      }
       const tracks = buildMoviePool(raw);
       if (tracks.length < MIN_MOVIE_TRACKS) return;
       await writePool(collectionId, label, tracks);
@@ -239,9 +290,20 @@ export async function getMovieCatalog(
     return stored.tracks;
   }
 
-  const tracks = buildMoviePool(await fetchAllAlbums(albums));
+  const { tracks: raw, failed } = await fetchAllAlbums(albums);
+  const tracks = buildMoviePool(raw);
   if (tracks.length < MIN_MOVIE_TRACKS) {
     throw new Error(`Not enough playable tracks in ${label}`);
+  }
+
+  /*
+   * A partial fetch is served but not stored. Missing films are invisible in play — they simply
+   * never come up — so caching a throttled build would hide the problem for the whole refresh
+   * window. Playing on a short pool now and rebuilding next request is the better trade.
+   */
+  if (isTooIncomplete(failed.length, albums.length)) {
+    logger.warn({ collectionId, failed }, 'Movie pool incomplete; serving without storing');
+    return tracks;
   }
 
   try {
@@ -252,4 +314,4 @@ export async function getMovieCatalog(
   return tracks;
 }
 
-export const __testing = { buildMoviePool, isNonSong };
+export const __testing = { buildMoviePool, isNonSong, isTooIncomplete };
