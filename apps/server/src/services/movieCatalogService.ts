@@ -17,7 +17,7 @@ import { db } from '../db/client';
 import { artistTrackPools } from '../db/schema';
 import { seedPreviewCacheFromPlaylist, type ArtistTrack } from './deezerService';
 import { isUnwantedVersion, normalizeTitle } from '../utils/trackFilters';
-import type { MovieAlbum } from './movies';
+import type { MovieAlbum, MovieCollectionKind } from './movies';
 import { getSettings } from './settingsService';
 import { logger } from '../logger';
 
@@ -53,11 +53,24 @@ const NON_SONG_TERMS = [
   'sing along',
 ];
 
-function isNonSong(title: string): boolean {
+/**
+ * The only filler worth removing from a score album.
+ *
+ * Applying the full list above to a score collection would delete its best rounds: "Main Title"
+ * on the Star Wars album is the Star Wars theme, "Opening Titles" on Jurassic Park is the
+ * Jurassic Park theme, and the Grand Budapest and Requiem albums both open on an "Overture"
+ * that is the piece everyone knows. What genuinely cannot be guessed is recorded speech —
+ * Avatar's album opens with a line of Jake's narration.
+ */
+const NON_SCORE_TERMS = ['dialogue', 'dialogues', 'outtake', 'commentary'];
+
+function matchesAny(title: string, terms: string[]): boolean {
   const normalized = normalizeTitle(title);
-  return NON_SONG_TERMS.some((term) =>
-    new RegExp(`\\b${normalizeTitle(term)}\\b`).test(normalized),
-  );
+  return terms.some((term) => new RegExp(`\\b${normalizeTitle(term)}\\b`).test(normalized));
+}
+
+function isNonSong(title: string, kind: MovieCollectionKind = 'songs'): boolean {
+  return matchesAny(title, kind === 'score' ? NON_SCORE_TERMS : NON_SONG_TERMS);
 }
 
 interface DeezerAlbumTrack {
@@ -108,14 +121,17 @@ async function fetchAlbumBody(album: MovieAlbum): Promise<DeezerAlbumResponse> {
   throw new Error(`Deezer album ${album.albumId} (${album.movie}) failed: ${lastError}`);
 }
 
-async function fetchMovieAlbum(album: MovieAlbum): Promise<FetchedAlbum> {
+async function fetchMovieAlbum(
+  album: MovieAlbum,
+  kind: MovieCollectionKind,
+): Promise<FetchedAlbum> {
   const body = await fetchAlbumBody(album);
 
   const cover = body.cover_medium ?? null;
   const out: FetchedAlbum = { tracks: [], seeds: [] };
   for (const track of body.tracks?.data ?? []) {
     if (!track.id || !track.title || !track.preview) continue;
-    if (isUnwantedVersion(track.title) || isNonSong(track.title)) continue;
+    if (isUnwantedVersion(track.title) || isNonSong(track.title, kind)) continue;
     const deezerTrackId = String(track.id);
     const songLabel = track.artist?.name ? `${track.title} · ${track.artist.name}` : track.title;
     const durationSeconds = track.duration ?? 0;
@@ -165,14 +181,17 @@ interface FetchOutcome {
   failed: string[];
 }
 
-async function fetchAllAlbums(albums: MovieAlbum[]): Promise<FetchOutcome> {
+async function fetchAllAlbums(
+  albums: MovieAlbum[],
+  kind: MovieCollectionKind,
+): Promise<FetchOutcome> {
   const tracks: ArtistTrack[] = [];
   const seeds: FetchedAlbum['seeds'] = [];
   const failed: string[] = [];
 
   for (let i = 0; i < albums.length; i += ALBUM_FETCH_CONCURRENCY) {
     const batch = albums.slice(i, i + ALBUM_FETCH_CONCURRENCY);
-    const results = await Promise.allSettled(batch.map((album) => fetchMovieAlbum(album)));
+    const results = await Promise.allSettled(batch.map((album) => fetchMovieAlbum(album, kind)));
     for (const [index, result] of results.entries()) {
       if (result.status === 'fulfilled') {
         tracks.push(...result.value.tracks);
@@ -245,11 +264,16 @@ async function writePool(collectionId: string, label: string, tracks: ArtistTrac
 
 const refreshing = new Set<string>();
 
-function refreshInBackground(collectionId: string, label: string, albums: MovieAlbum[]): void {
+function refreshInBackground(
+  collectionId: string,
+  label: string,
+  albums: MovieAlbum[],
+  kind: MovieCollectionKind,
+): void {
   if (refreshing.has(collectionId)) return;
   refreshing.add(collectionId);
 
-  void fetchAllAlbums(albums)
+  void fetchAllAlbums(albums, kind)
     .then(async ({ tracks: raw, failed }) => {
       // Never overwrite a good stored pool with a throttled one.
       if (isTooIncomplete(failed.length, albums.length)) {
@@ -274,6 +298,7 @@ export async function getMovieCatalog(
   collectionId: string,
   label: string,
   albums: MovieAlbum[],
+  kind: MovieCollectionKind = 'songs',
 ): Promise<ArtistTrack[]> {
   let stored;
   try {
@@ -285,12 +310,12 @@ export async function getMovieCatalog(
   if (stored && stored.trackCount >= MIN_MOVIE_TRACKS) {
     const refreshAfterMs = (await getSettings()).categoryPoolRefreshHours * 60 * 60 * 1000;
     if (Date.now() - stored.fetchedAt.getTime() > refreshAfterMs) {
-      void refreshInBackground(collectionId, label, albums);
+      void refreshInBackground(collectionId, label, albums, kind);
     }
     return stored.tracks;
   }
 
-  const { tracks: raw, failed } = await fetchAllAlbums(albums);
+  const { tracks: raw, failed } = await fetchAllAlbums(albums, kind);
   const tracks = buildMoviePool(raw);
   if (tracks.length < MIN_MOVIE_TRACKS) {
     throw new Error(`Not enough playable tracks in ${label}`);

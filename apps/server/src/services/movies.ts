@@ -35,6 +35,16 @@ export interface MovieAlbum {
 }
 
 /**
+ * What kind of music a collection is built from, which decides how hard the track filter is.
+ *
+ * `songs` collections are pop soundtracks where score cues and dialogue are filler to be thrown
+ * away. `score` collections are the opposite: the orchestral cues *are* the content, and the
+ * filter that serves the first kind would delete the best of the second — Star Wars' "Main
+ * Title" and Jurassic Park's "Opening Titles" are the most recognisable tracks on their albums.
+ */
+export type MovieCollectionKind = 'songs' | 'score';
+
+/**
  * Hindi film albums are the cleanest source of this mode by a distance: the album *is* the film,
  * the songs are the country's pop music rather than underscore, and the performing artists are
  * recognisable in their own right.
@@ -124,10 +134,75 @@ const HOLLYWOOD_MOVIES: MovieAlbum[] = [
   { movie: 'Mamma Mia! Here We Go Again', albumId: '79084232' },
 ];
 
+/**
+ * Film scores: the answer is still the film, but the music is orchestral rather than sung.
+ *
+ * This works for a different reason to the song collections. You are not recognising a melody
+ * you know the words to — you are recognising a *sound*, and a composer's palette for a film is
+ * consistent across its whole album. Zimmer's Interstellar organ, Powell's Celtic strings on
+ * How to Train Your Dragon and Hisaishi's Ghibli piano are identifiable from almost any cue on
+ * the record, which is why whole albums work here rather than needing a per-track allow-list.
+ *
+ * Franchises are labelled at franchise level on purpose. Williams' Star Wars main title, Shore's
+ * Fellowship theme and Badelt's Pirates march recur across every film in their series, so
+ * pinning the answer to one instalment would mark a correct recognition wrong. Where that could
+ * not be done honestly the film was dropped instead: Back to the Future's only clean album is
+ * Part III, whose Western cues sound nothing like the theme everyone knows.
+ */
+const SCORE_MOVIES: MovieAlbum[] = [
+  { movie: 'Interstellar', albumId: '185320622' },
+  { movie: 'How to Train Your Dragon', albumId: '12442548' },
+  { movie: 'Inception', albumId: '601778' },
+  { movie: 'The Dark Knight', albumId: '381702' },
+  { movie: 'Pirates of the Caribbean', albumId: '2313131' },
+  { movie: 'Jurassic Park', albumId: '228943' },
+  { movie: 'Gladiator', albumId: '906355442' },
+  { movie: "Schindler's List", albumId: '241510' },
+  { movie: 'E.T. the Extra-Terrestrial', albumId: '226139' },
+  { movie: 'The Matrix', albumId: '243158702' },
+  { movie: 'Blade Runner 2049', albumId: '49296292' },
+  { movie: 'Mad Max: Fury Road', albumId: '90111962' },
+  { movie: 'The Social Network', albumId: '5604281' },
+  { movie: 'TRON: Legacy', albumId: '192529232' },
+  { movie: 'Up', albumId: '394031' },
+  { movie: 'Ratatouille', albumId: '473893' },
+  { movie: 'The Incredibles', albumId: '2310491' },
+  { movie: 'WALL-E', albumId: '81455242' },
+  { movie: 'Spirited Away', albumId: '181915142' },
+  { movie: "Howl's Moving Castle", albumId: '181915712' },
+  { movie: 'Princess Mononoke', albumId: '181915022' },
+  { movie: 'Requiem for a Dream', albumId: '496099' },
+  { movie: 'Oppenheimer', albumId: '463516585' },
+  { movie: 'Arrival', albumId: '14520468' },
+  { movie: 'Sicario', albumId: '11149304' },
+  { movie: 'The Grand Budapest Hotel', albumId: '7406940' },
+  { movie: 'The Good, the Bad and the Ugly', albumId: '299178' },
+  { movie: 'Jaws', albumId: '765228371' },
+  { movie: 'Braveheart', albumId: '6415042' },
+  { movie: 'Avatar', albumId: '528314' },
+  { movie: 'Star Wars', albumId: '20044821' },
+  { movie: 'Harry Potter', albumId: '80310' },
+  { movie: 'The Lord of the Rings', albumId: '338939' },
+  { movie: 'Psycho', albumId: '12980720' },
+  { movie: 'Rocky', albumId: '10145688' },
+  { movie: 'Titanic', albumId: '113048' },
+  { movie: 'Everything Everywhere All at Once', albumId: '1024990721' },
+  { movie: 'The Theory of Everything', albumId: '133720242' },
+  { movie: 'Casino Royale', albumId: '1441812' },
+  { movie: 'Skyfall', albumId: '6025412' },
+  { movie: 'The Revenant', albumId: '152169872' },
+  { movie: 'Black Panther', albumId: '57078512' },
+  { movie: 'Life of Pi', albumId: '6030684' },
+  { movie: 'Dune', albumId: '550485632' },
+  { movie: 'The Godfather', albumId: '386450867' },
+  { movie: 'Joker', albumId: '636227501' },
+];
+
 export interface MovieCollection {
   id: string;
   label: string;
   blurb: string;
+  kind: MovieCollectionKind;
   movies: MovieAlbum[];
 }
 
@@ -136,19 +211,34 @@ export const MOVIE_COLLECTIONS: MovieCollection[] = [
     id: 'movies-bollywood',
     label: 'Guess the Movie: Bollywood',
     blurb: 'Name the Hindi film from its song',
+    kind: 'songs',
     movies: BOLLYWOOD_MOVIES,
   },
   {
     id: 'movies-hollywood',
     label: 'Guess the Movie: Hollywood',
     blurb: 'Name the film from its soundtrack',
+    kind: 'songs',
     movies: HOLLYWOOD_MOVIES,
   },
   {
     id: 'movies-all',
     label: 'Guess the Movie: Mixed',
     blurb: 'Bollywood and Hollywood soundtracks together',
+    kind: 'songs',
     movies: [...BOLLYWOOD_MOVIES, ...HOLLYWOOD_MOVIES],
+  },
+  /*
+   * Kept out of the mixed collection deliberately. Naming a film from its orchestral score is a
+   * different skill to naming it from a pop song on its soundtrack, and shuffling the two
+   * together would make a round's difficulty depend on which kind it happened to draw.
+   */
+  {
+    id: 'movies-scores',
+    label: 'Guess the Movie: Film Scores',
+    blurb: 'Interstellar, Jurassic Park, Ghibli — name the film from its score',
+    kind: 'score',
+    movies: SCORE_MOVIES,
   },
 ];
 

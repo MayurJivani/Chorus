@@ -60,6 +60,17 @@ describe('isNonSong', () => {
     expect(isNonSong('No One Mourns the Wicked (Sing-Along)')).toBe(true);
   });
 
+  it("keeps a score album's title cues, which are its best-known tracks", () => {
+    // Applying the song filter to a score collection would delete exactly the rounds worth
+    // having: these are the themes, not filler.
+    expect(isNonSong('Main Title', 'score')).toBe(false);
+    expect(isNonSong('Opening Titles', 'score')).toBe(false);
+    expect(isNonSong('Overture', 'score')).toBe(false);
+    expect(isNonSong('Prologue', 'score')).toBe(false);
+    // Recorded speech is still unguessable, whatever the collection.
+    expect(isNonSong('"You don\'t dream in cryo. ...." (Dialogue)', 'score')).toBe(true);
+  });
+
   it('keeps real songs whose titles brush against those words', () => {
     // "Theme" is deliberately not a rejected term: these are the recognisable recordings.
     expect(isNonSong('Love Theme From Flashdance')).toBe(false);

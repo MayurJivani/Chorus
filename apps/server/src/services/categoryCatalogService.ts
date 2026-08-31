@@ -124,7 +124,7 @@ export async function getCategoryCatalog(categoryId: string): Promise<ArtistTrac
 
   // Movie collections are categories in every respect except where their tracks come from.
   if (category.movies?.length) {
-    return getMovieCatalog(category.id, category.label, category.movies);
+    return getMovieCatalog(category.id, category.label, category.movies, category.movieKind);
   }
 
   let stored;

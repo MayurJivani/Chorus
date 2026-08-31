@@ -13,7 +13,7 @@
  * editions, verified to return international tracks (Top Hits 2000 is Destiny's Child and
  * Britney; 2024 Pop is Espresso and Texas Hold 'Em).
  */
-import { MOVIE_COLLECTIONS, type MovieAlbum } from './movies';
+import { MOVIE_COLLECTIONS, type MovieAlbum, type MovieCollectionKind } from './movies';
 
 export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world' | 'movie';
 
@@ -33,6 +33,8 @@ export interface Category {
    * how options are rendered.
    */
   movies?: MovieAlbum[];
+  /** Set alongside `movies`: decides how hard the track filter is. See MovieCollectionKind. */
+  movieKind?: MovieCollectionKind;
 }
 
 /** Deezer Charts' live worldwide top 100 plus its 2025 retrospective. */
@@ -259,6 +261,7 @@ const MOVIES: Category[] = MOVIE_COLLECTIONS.map((collection) => ({
   playlistIds: [],
   blurb: collection.blurb,
   movies: collection.movies,
+  movieKind: collection.kind,
 }));
 
 export const CATEGORIES: Category[] = [
