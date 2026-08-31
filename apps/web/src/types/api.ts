@@ -279,7 +279,7 @@ export interface LeaderboardResponse {
 
 // --- Category Mode -------------------------------------------------------------------------
 
-export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world';
+export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world' | 'movie';
 
 export interface Category {
   id: string;

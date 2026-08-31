@@ -17,12 +17,17 @@ const GROUP_LABELS: Record<CategoryGroup, { title: string; subtitle: string }> =
     title: 'Around the World',
     subtitle: 'K-pop, Latin, Afrobeats, Tamil and Punjabi',
   },
+  movie: {
+    title: 'Guess the Movie',
+    subtitle: 'Hear a song, name the film it came from',
+  },
 };
 
-const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'bollywood', 'world', 'genre'];
+const GROUP_ORDER: CategoryGroup[] = ['movie', 'now', 'year', 'bollywood', 'world', 'genre'];
 
 const FILTERS: [CategoryGroup | 'all', string][] = [
   ['all', 'All'],
+  ['movie', 'Movies'],
   ['now', 'Charts'],
   ['bollywood', 'Bollywood'],
   ['year', 'Years'],
@@ -74,7 +79,9 @@ export function CategoryPickerPage() {
         className="flex flex-col items-center gap-1 text-center"
       >
         <h1 className="text-3xl font-extrabold text-white tracking-tight">Categories</h1>
-        <p className="text-sm text-slate-500">Ten songs from one era, chart or genre</p>
+        <p className="text-sm text-slate-500">
+          Ten songs from one era, chart, genre — or name the film they came from
+        </p>
       </motion.div>
 
       {loading && <p className="text-sm text-slate-400">Loading categories…</p>}

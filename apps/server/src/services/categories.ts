@@ -13,17 +13,26 @@
  * editions, verified to return international tracks (Top Hits 2000 is Destiny's Child and
  * Britney; 2024 Pop is Espresso and Texas Hold 'Em).
  */
-export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world';
+import { MOVIE_COLLECTIONS, type MovieAlbum } from './movies';
+
+export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world' | 'movie';
 
 export interface Category {
   /** Stable slug used in URLs and as the catalog cache key. */
   id: string;
   label: string;
   group: CategoryGroup;
-  /** Deezer playlists backing the category. Tracks from all are merged and deduped. */
+  /** Deezer playlists backing the category. Tracks from all are merged and deduped.
+   *  Empty for movie collections, which are built from albums instead. */
   playlistIds: string[];
   /** Shown under the label on the picker. */
   blurb: string;
+  /**
+   * Set only on Guess the Movie collections. Their pool is built from curated soundtrack albums
+   * and the answer is the *film*, not the song — see movieCatalogService for why that changes
+   * how options are rendered.
+   */
+  movies?: MovieAlbum[];
 }
 
 /** Deezer Charts' live worldwide top 100 plus its 2025 retrospective. */
@@ -237,6 +246,21 @@ const BOLLYWOOD: Category[] = BOLLYWOOD_DEFS.map(([label, playlistIds, blurb]) =
   blurb,
 }));
 
+/**
+ * Guess the Movie collections. They ride the category system rather than being a mode of their
+ * own: a category is already "an id, a label, and a way to load a track pool", which is exactly
+ * what these are, so the picker, multiplayer rooms, duel matchmaking, live player counts and
+ * leaderboards all work with no changes. Only the pool builder and the option rendering differ.
+ */
+const MOVIES: Category[] = MOVIE_COLLECTIONS.map((collection) => ({
+  id: collection.id,
+  label: collection.label,
+  group: 'movie' as const,
+  playlistIds: [],
+  blurb: collection.blurb,
+  movies: collection.movies,
+}));
+
 export const CATEGORIES: Category[] = [
   ...NOW,
   ...DECADES,
@@ -245,7 +269,13 @@ export const CATEGORIES: Category[] = [
   ...TIMELESS_GENRES,
   ...WORLD,
   ...BOLLYWOOD,
+  ...MOVIES,
 ];
+
+/** True when the category's rounds ask for a film rather than a song. */
+export function isMovieCategory(category: Category): boolean {
+  return !!category.movies && category.movies.length > 0;
+}
 
 /*
  * Slugs are derived from labels, so a new entry can silently collide with an existing one and

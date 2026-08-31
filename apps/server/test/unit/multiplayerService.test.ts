@@ -71,6 +71,7 @@ function queenSource(pictureUrl: string | null = null) {
     label: 'Queen',
     pictureUrl,
     includeFeatures: false,
+    answerIsMovie: false,
     loadCatalog: () =>
       catalogMocks.getArtistCatalog(412, false) as Promise<ReturnType<typeof mockTracks>>,
   };
@@ -84,6 +85,7 @@ function categorySource() {
     label: 'Top Hits 2020',
     pictureUrl: null,
     includeFeatures: false,
+    answerIsMovie: false,
     loadCatalog: () => Promise.resolve(mockTracks(MP_ROUNDS * 2)),
   };
 }

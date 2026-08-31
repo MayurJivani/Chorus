@@ -93,6 +93,8 @@ categoriesRouter.get(
 
     const source = sourceFor(categoryId);
     const identity = getIdentity(req);
+    // Same reason as multiplayer: you cannot search a song index for a film title.
+    const effectiveMode = source.answerIsMovie ? 'choice' : mode;
 
     let session, challenge, tracks;
     try {
@@ -140,7 +142,9 @@ categoriesRouter.get(
     const currentTrack = playable.track;
 
     const options =
-      mode === 'choice' ? buildRoundOptions(currentTrack, await source.loadCatalog()) : undefined;
+      effectiveMode === 'choice'
+        ? buildRoundOptions(currentTrack, await source.loadCatalog(), 3, source.answerIsMovie)
+        : undefined;
 
     res.json({
       ...base,

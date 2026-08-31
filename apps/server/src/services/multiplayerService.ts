@@ -248,7 +248,9 @@ export async function createRoom(
   rooms.set(code, {
     code,
     source,
-    guessMode: effectiveGameMode === 'speed' ? 'choice' : guessMode,
+    // Movie sources have no searchable answer — a player typing into song search would be
+    // looking for the film by name in a track index. Choice is the only workable mode there.
+    guessMode: effectiveGameMode === 'speed' || source.answerIsMovie ? 'choice' : guessMode,
     gameMode: effectiveGameMode,
     phase: 'lobby',
     hostId: '',
@@ -683,7 +685,9 @@ export async function startGame(playerId: string): Promise<void> {
     // answers or the round is not a fair race.
     room.roundOptions =
       room.guessMode === 'choice'
-        ? chosen.map((track) => buildRoundOptions(track, pool, MP_CHOICE_OPTIONS))
+        ? chosen.map((track) =>
+            buildRoundOptions(track, pool, MP_CHOICE_OPTIONS, room.source.answerIsMovie),
+          )
         : [];
 
     for (const p of room.players.values()) {

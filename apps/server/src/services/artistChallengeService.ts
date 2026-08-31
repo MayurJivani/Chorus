@@ -208,6 +208,7 @@ function artistSourceLite(artistId: number, includeFeatures: boolean): Challenge
     sourceId: String(artistId),
     label: '',
     pictureUrl: null,
+    answerIsMovie: false,
     includeFeatures,
     loadCatalog: () => getArtistCatalog(artistId, includeFeatures),
   };
@@ -610,6 +611,13 @@ export function buildRoundOptions(
   correct: { deezerTrackId: string; title: string; artist: string },
   candidatePool: readonly ArtistTrack[],
   optionCount = 3,
+  /**
+   * Blanks the artist line on every option. Set for Guess the Movie, where `title` is the film
+   * and `artist` is the song that is playing right now — showing it would hand the answer to
+   * anyone who recognises the track, which is a different (and much easier) question than the
+   * one the mode asks. Deduping decoys by title also means no two options are the same film.
+   */
+  hideArtist = false,
 ): RoundOption[] {
   const correctNormalized = normalizeTitle(correct.title);
   const seen = new Set<string>([correctNormalized]);
@@ -624,10 +632,18 @@ export function buildRoundOptions(
 
   const decoys = shuffle(decoyCandidates)
     .slice(0, Math.max(1, optionCount - 1))
-    .map((t) => ({ deezerTrackId: t.deezerTrackId, title: t.title, artist: t.artist }));
+    .map((t) => ({
+      deezerTrackId: t.deezerTrackId,
+      title: t.title,
+      artist: hideArtist ? '' : t.artist,
+    }));
 
   return shuffle([
-    { deezerTrackId: correct.deezerTrackId, title: correct.title, artist: correct.artist },
+    {
+      deezerTrackId: correct.deezerTrackId,
+      title: correct.title,
+      artist: hideArtist ? '' : correct.artist,
+    },
     ...decoys,
   ]);
 }
