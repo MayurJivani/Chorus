@@ -23,15 +23,17 @@ const GROUP_LABELS: Record<CategoryGroup, { title: string; subtitle: string }> =
   },
 };
 
-const GROUP_ORDER: CategoryGroup[] = ['movie', 'now', 'year', 'bollywood', 'world', 'genre'];
+const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'world', 'movie', 'bollywood', 'genre'];
 
+// Kept in the same order as the sections below, so the chips read as a table of contents
+// rather than a second, differently-sorted list of the same thing.
 const FILTERS: [CategoryGroup | 'all', string][] = [
   ['all', 'All'],
-  ['movie', 'Movies'],
   ['now', 'Charts'],
-  ['bollywood', 'Bollywood'],
   ['year', 'Years'],
   ['world', 'Around the World'],
+  ['movie', 'Movies'],
+  ['bollywood', 'Bollywood'],
   ['genre', 'Genres'],
 ];
 
