@@ -5,7 +5,9 @@ import { getCategories } from '../api/categories';
 import { usePageTitle } from '../hooks/usePageTitle';
 import type { Category, CategoryGroup } from '../types/api';
 
-const GROUP_LABELS: Record<CategoryGroup, { title: string; subtitle: string }> = {
+// 'movie' is intentionally absent: Guess the Movie is its own mode at /movies, and the
+// categories endpoint no longer returns those collections.
+const GROUP_LABELS: Partial<Record<CategoryGroup, { title: string; subtitle: string }>> = {
   now: { title: 'Right Now', subtitle: "Live charts and this year's biggest tracks" },
   year: {
     title: 'By Year',
@@ -17,13 +19,9 @@ const GROUP_LABELS: Record<CategoryGroup, { title: string; subtitle: string }> =
     title: 'Around the World',
     subtitle: 'K-pop, Latin, Afrobeats, Tamil and Punjabi',
   },
-  movie: {
-    title: 'Guess the Movie',
-    subtitle: 'Hear a song, name the film it came from',
-  },
 };
 
-const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'world', 'movie', 'bollywood', 'genre'];
+const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'world', 'bollywood', 'genre'];
 
 // Kept in the same order as the sections below, so the chips read as a table of contents
 // rather than a second, differently-sorted list of the same thing.
@@ -32,7 +30,6 @@ const FILTERS: [CategoryGroup | 'all', string][] = [
   ['now', 'Charts'],
   ['year', 'Years'],
   ['world', 'Around the World'],
-  ['movie', 'Movies'],
   ['bollywood', 'Bollywood'],
   ['genre', 'Genres'],
 ];
@@ -81,9 +78,7 @@ export function CategoryPickerPage() {
         className="flex flex-col items-center gap-1 text-center"
       >
         <h1 className="text-3xl font-extrabold text-white tracking-tight">Categories</h1>
-        <p className="text-sm text-slate-500">
-          Ten songs from one era, chart, genre — or name the film they came from
-        </p>
+        <p className="text-sm text-slate-500">Ten songs from one era, chart or genre</p>
       </motion.div>
 
       {loading && <p className="text-sm text-slate-400">Loading categories…</p>}
@@ -129,9 +124,9 @@ export function CategoryPickerPage() {
             <section key={group} className="w-full flex flex-col gap-3">
               <div>
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">
-                  {GROUP_LABELS[group].title}
+                  {GROUP_LABELS[group]?.title}
                 </h2>
-                <p className="text-xs text-slate-500">{GROUP_LABELS[group].subtitle}</p>
+                <p className="text-xs text-slate-500">{GROUP_LABELS[group]?.subtitle}</p>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {items.map((category) => (

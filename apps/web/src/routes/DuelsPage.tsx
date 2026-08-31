@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
 import { getMyDuels, getRatingLeaderboard, type DuelMode } from '../api/duels';
@@ -44,6 +44,8 @@ export function DuelsPage() {
   const [mine, setMine] = useState<DuelView[]>([]);
   const [board, setBoard] = useState<RatingStanding[]>([]);
   const [source, setSource] = useState<PickedSource | null>(null);
+  const [searchParams] = useSearchParams();
+  const preselectMovieId = searchParams.get('movieId') ?? undefined;
   /** Which ladder the board is showing. Ratings are per mode, so it has to say which. */
   const [boardMode, setBoardMode] = useState<DuelMode>('artist');
 
@@ -76,7 +78,9 @@ export function DuelsPage() {
       ? null
       : source.kind === 'artist'
         ? { kind: 'artist', artistId: source.artist.id, label: source.artist.name }
-        : { kind: 'category', categoryId: source.category.id, label: source.category.label };
+        : source.kind === 'movie'
+          ? { kind: 'movie', collectionId: source.collection.id, label: source.collection.label }
+          : { kind: 'category', categoryId: source.category.id, label: source.category.label };
 
   const randomRequest: DuelQueueRequest = { kind: 'random', label: 'Any artist' };
   const queueing = queue.status === 'queued';
@@ -166,7 +170,12 @@ export function DuelsPage() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
               Or race something specific
             </p>
-            <SourcePicker value={source} onChange={setSource} compact />
+            <SourcePicker
+              value={source}
+              onChange={setSource}
+              compact
+              preselectMovieId={preselectMovieId}
+            />
           </div>
 
           {chosen && (
@@ -275,6 +284,7 @@ export function DuelsPage() {
               [
                 ['artist', 'Artist'],
                 ['category', 'Category'],
+                ['movie', 'Movie'],
                 ['random', 'Any'],
               ] as [DuelMode, string][]
             ).map(([value, label]) => (

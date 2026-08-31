@@ -18,6 +18,7 @@ import { artistsRouter } from './routes/artists.routes';
 import { multiplayerRouter } from './routes/multiplayer.routes';
 import { leaderboardRouter } from './routes/leaderboard.routes';
 import { categoriesRouter } from './routes/categories.routes';
+import { moviesRouter } from './routes/movies.routes';
 import { survivalRouter } from './routes/survival.routes';
 import { eraRouter } from './routes/era.routes';
 import { challengesRouter } from './routes/challenges.routes';
@@ -94,6 +95,7 @@ export function createApp(): Express {
   app.use('/api/multiplayer', multiplayerRouter);
   app.use('/api/leaderboard', leaderboardRouter);
   app.use('/api/categories', categoriesRouter);
+  app.use('/api/movies', moviesRouter);
   app.use('/api/survival', survivalRouter);
   app.use('/api/era', eraRouter);
   app.use('/api/challenges', challengesRouter);

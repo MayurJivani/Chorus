@@ -104,6 +104,32 @@ describe('pairing', () => {
     expect(mpMocks.createDuelRoom).not.toHaveBeenCalled();
   });
 
+  it('matches two players waiting on the same movie collection', async () => {
+    asUser({ a: 'user-a', b: 'user-b' });
+
+    await joinQueue('a', { kind: 'movie', collectionId: 'movies-scores' });
+    await joinQueue('b', { kind: 'movie', collectionId: 'movies-scores' });
+
+    expect(mpMocks.createDuelRoom).toHaveBeenCalledTimes(1);
+    // The fourth argument is the rating ladder. Movie duels must not settle on the category
+    // ladder just because they resolve through a category source underneath.
+    expect(mpMocks.createDuelRoom.mock.calls[0]![3]).toBe('movie');
+  });
+
+  it('keeps a movie queue separate from the category queue for the same id', async () => {
+    asUser({ a: 'user-a', b: 'user-b' });
+
+    await joinQueue('a', { kind: 'movie', collectionId: 'movies-scores' });
+    await joinQueue('b', { kind: 'category', categoryId: 'movies-scores' });
+
+    expect(mpMocks.createDuelRoom).not.toHaveBeenCalled();
+    expect(
+      getQueueCounts()
+        .map((c) => c.key)
+        .sort(),
+    ).toEqual(['category:movies-scores', 'movie:movies-scores']);
+  });
+
   /* "Any artist" is one shared line: two people who both said surprise me have agreed, and
      splitting them by whichever artist the server picks would mean nobody ever matched. */
   it('matches two random-artist players with each other', async () => {

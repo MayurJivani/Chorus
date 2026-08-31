@@ -31,9 +31,9 @@ export class DuelError extends Error {}
  * me" reward different things — depth in a catalogue you know versus breadth across music you
  * did not pick — so averaging them into one number described none of them.
  */
-export type DuelMode = 'artist' | 'category' | 'random';
+export type DuelMode = 'artist' | 'category' | 'random' | 'movie';
 
-export const DUEL_MODES: readonly DuelMode[] = ['artist', 'category', 'random'] as const;
+export const DUEL_MODES: readonly DuelMode[] = ['artist', 'category', 'random', 'movie'] as const;
 
 export function isDuelMode(value: string): value is DuelMode {
   return (DUEL_MODES as readonly string[]).includes(value);

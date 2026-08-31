@@ -37,6 +37,12 @@ function AnimatedWaveform({ isPlaying = true }: { isPlaying?: boolean }) {
  */
 const SECONDARY_MODES: { to: string; icon: string; title: string; blurb: string }[] = [
   {
+    to: '/movies',
+    icon: '🎬',
+    title: 'Guess the Movie',
+    blurb: 'Name the film from its soundtrack or score.',
+  },
+  {
     to: '/categories',
     icon: '📻',
     title: 'Categories',

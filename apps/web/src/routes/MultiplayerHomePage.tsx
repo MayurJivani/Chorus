@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { createMultiplayerRoom, MULTIPLAYER_MAX_ROUNDS } from '../api/multiplayer';
 import { SourcePicker, type PickedSource } from '../features/multiplayer/SourcePicker';
@@ -25,6 +25,8 @@ export function MultiplayerHomePage() {
   const { user } = useSession();
 
   const [source, setSource] = useState<PickedSource | null>(null);
+  const [searchParams] = useSearchParams();
+  const preselectMovieId = searchParams.get('movieId') ?? undefined;
   const [gameMode, setGameMode] = useState<MultiplayerGameMode>('speed');
   const [guessMode, setGuessMode] = useState<MultiplayerGuessMode>('search');
   const [rounds, setRounds] = useState<number>(10);
@@ -46,10 +48,14 @@ export function MultiplayerHomePage() {
     setCreating(true);
     setError(null);
     try {
+      // Movie collections are category sources on the server, so a room is created the same
+      // way; only the duel ladder distinguishes them.
       const payload =
         source.kind === 'artist'
           ? { artistId: source.artist.id }
-          : { categoryId: source.category.id };
+          : source.kind === 'movie'
+            ? { categoryId: source.collection.id }
+            : { categoryId: source.category.id };
       const { code } = await createMultiplayerRoom(
         payload,
         guessMode,
@@ -89,7 +95,7 @@ export function MultiplayerHomePage() {
       {/* Only before a source is chosen — see ArtistSearchPage for the same reasoning. */}
       {!source && <MultiplayerGuide />}
 
-      <SourcePicker value={source} onChange={setSource} />
+      <SourcePicker value={source} onChange={setSource} preselectMovieId={preselectMovieId} />
 
       {!source && (
         <motion.div
@@ -198,7 +204,11 @@ export function MultiplayerHomePage() {
             )}
             <div className="min-w-0">
               <h2 className="truncate text-lg font-bold text-white">
-                {source.kind === 'artist' ? source.artist.name : source.category.label}
+                {source.kind === 'artist'
+                  ? source.artist.name
+                  : source.kind === 'movie'
+                    ? source.collection.label
+                    : source.category.label}
               </h2>
               <p className="text-xs text-slate-400">{rounds}-song real-time race</p>
             </div>

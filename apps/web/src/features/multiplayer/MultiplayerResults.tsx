@@ -45,7 +45,9 @@ export function MultiplayerResults({
     onChangeSource(
       picked.kind === 'artist'
         ? { artistId: picked.artist.id }
-        : { categoryId: picked.category.id },
+        : picked.kind === 'movie'
+          ? { categoryId: picked.collection.id }
+          : { categoryId: picked.category.id },
     );
     setPicking(false);
     setPicked(null);
@@ -191,7 +193,11 @@ export function MultiplayerResults({
               <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-300">
                 Like the look of{' '}
                 <span className="font-semibold text-white">
-                  {picked.kind === 'artist' ? picked.artist.name : picked.category.label}
+                  {picked.kind === 'artist'
+                    ? picked.artist.name
+                    : picked.kind === 'movie'
+                      ? picked.collection.label
+                      : picked.category.label}
                 </span>
                 ? Only the host can start it.
               </p>

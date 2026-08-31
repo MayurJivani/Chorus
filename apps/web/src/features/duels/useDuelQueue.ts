@@ -17,6 +17,8 @@ import type { DuelQueueCount } from '../../types/api';
 export type DuelQueueRequest =
   | { kind: 'artist'; artistId: number; label: string }
   | { kind: 'category'; categoryId: string; label: string }
+  /* Its own kind rather than a category, so movie duels are rated on their own ladder. */
+  | { kind: 'movie'; collectionId: string; label: string }
   | { kind: 'random'; label: string };
 
 export type DuelQueueStatus = 'idle' | 'connecting' | 'ready' | 'queued' | 'matched';
@@ -40,6 +42,8 @@ export function queueKeyFor(request: DuelQueueRequest): string {
       return `artist:${request.artistId}`;
     case 'category':
       return `category:${request.categoryId}`;
+    case 'movie':
+      return `movie:${request.collectionId}`;
     case 'random':
       return 'random';
   }
@@ -172,6 +176,8 @@ function toJoinMessage(request: DuelQueueRequest): Record<string, unknown> {
       return { type: 'duel_queue_join', artistId: request.artistId };
     case 'category':
       return { type: 'duel_queue_join', categoryId: request.categoryId };
+    case 'movie':
+      return { type: 'duel_queue_join', movieId: request.collectionId };
     case 'random':
       return { type: 'duel_queue_join', random: true };
   }

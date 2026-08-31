@@ -15,7 +15,8 @@ export async function getMyDuels(): Promise<DuelView[]> {
 }
 
 /** Ranked per mode — a combined board would compare numbers earned in different games. */
-export type DuelMode = 'artist' | 'category' | 'random';
+/** Rating ladders. Separate on purpose: naming a film is not the same skill as naming a song. */
+export type DuelMode = 'artist' | 'category' | 'random' | 'movie';
 
 export function getRatingLeaderboard(mode: DuelMode = 'artist'): Promise<RatingLeaderboard> {
   return apiRequest<RatingLeaderboard>(`/duels/leaderboard?mode=${mode}`);

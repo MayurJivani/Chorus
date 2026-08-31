@@ -61,7 +61,10 @@ categoriesRouter.get('/', (_req, res) => {
   const queued = getQueueCounts();
 
   res.json({
-    categories: CATEGORIES.map((c) => ({
+    /* Movie collections are category sources internally but their own mode to a player, and
+       they have their own endpoint — see movies.routes.ts. Leaving them here too would put
+       them in the category picker as well as the movie one. */
+    categories: CATEGORIES.filter((c) => c.group !== 'movie').map((c) => ({
       id: c.id,
       label: c.label,
       group: c.group,

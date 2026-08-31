@@ -12,6 +12,7 @@ import { AboutPage } from './routes/AboutPage';
 import { ArtistSearchPage } from './routes/ArtistSearchPage';
 import { ArtistPlayPage } from './routes/ArtistPlayPage';
 import { CategoryPickerPage } from './routes/CategoryPickerPage';
+import { MoviePickerPage } from './routes/MoviePickerPage';
 import { CategoryPlayPage } from './routes/CategoryPlayPage';
 import { SurvivalPage } from './routes/SurvivalPage';
 import { EraPlayPage } from './routes/EraPlayPage';
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
       { path: '/artist', element: <ArtistSearchPage /> },
       { path: '/artist/:artistId/play', element: <ArtistPlayPage /> },
       { path: '/categories', element: <CategoryPickerPage /> },
+      { path: '/movies', element: <MoviePickerPage /> },
       { path: '/category/:categoryId/play', element: <CategoryPlayPage /> },
       { path: '/survival', element: <SurvivalPage /> },
       { path: '/era', element: <EraPlayPage /> },

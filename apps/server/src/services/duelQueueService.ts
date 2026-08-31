@@ -38,6 +38,9 @@ const RANDOM_ARTISTS = [
 export type DuelQueueRequest =
   | { kind: 'artist'; artistId: number }
   | { kind: 'category'; categoryId: string }
+  /* Its own kind rather than a category, so movie duels are rated on their own ladder — being
+     good at naming films is not the same skill as naming songs. */
+  | { kind: 'movie'; collectionId: string }
   | { kind: 'random' };
 
 /**
@@ -51,6 +54,8 @@ function queueKey(request: DuelQueueRequest): string {
       return `artist:${request.artistId}`;
     case 'category':
       return `category:${request.categoryId}`;
+    case 'movie':
+      return `movie:${request.collectionId}`;
     case 'random':
       return 'random';
   }
@@ -128,6 +133,8 @@ async function describe(request: DuelQueueRequest): Promise<string> {
     }
     case 'category':
       return findCategory(request.categoryId)?.label ?? request.categoryId;
+    case 'movie':
+      return findCategory(request.collectionId)?.label ?? request.collectionId;
     case 'random':
       return 'Any artist';
   }
@@ -198,6 +205,8 @@ export async function joinQueue(playerId: string, request: DuelQueueRequest): Pr
 /** Resolves a queue request into the pool the duel will be played from. */
 async function resolveSource(request: DuelQueueRequest) {
   if (request.kind === 'category') return resolveCategorySource(request.categoryId);
+  // Movie collections resolve through the same category source: the pool differs, the game does not.
+  if (request.kind === 'movie') return resolveCategorySource(request.collectionId);
   const artistId =
     request.kind === 'artist'
       ? request.artistId

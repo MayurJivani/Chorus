@@ -281,6 +281,18 @@ export interface LeaderboardResponse {
 
 export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world' | 'movie';
 
+/** A Guess the Movie collection. Its own mode, though it plays through the category endpoints. */
+export interface MovieCollection {
+  id: string;
+  label: string;
+  blurb: string;
+  /** 'score' collections are orchestral rather than sung — a different skill, flagged in the UI. */
+  kind: 'songs' | 'score';
+  filmCount: number;
+  playing?: number;
+  queued?: number;
+}
+
 export interface Category {
   id: string;
   label: string;

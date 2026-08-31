@@ -9,6 +9,10 @@ const MODES: [string, string][] = [
     'share a room by QR or code and race friends on the same snippet — fastest correct answer scores most. The host picks how many songs, up to 25, and can switch to a different artist or category between games without anyone leaving the room.',
   ],
   ['Categories', 'ten songs from one chart, year or genre, every track by a different artist.'],
+  [
+    'Guess the Movie',
+    'the answer is the film, not the song. Bollywood and Hollywood soundtracks, plus a scores collection where the music is orchestral rather than sung — Interstellar, Jurassic Park, the Ghibli films. Playable solo, in a room, or as a rated duel on its own ladder.',
+  ],
   ['Survival', 'endless songs, one wrong answer ends the run. How far can you get?'],
   ['Guess the Year', 'hear a song and place it in time. Harder than it sounds.'],
   ['Duels', 'rated 1v1 over the same ten songs. Win and your rating climbs.'],

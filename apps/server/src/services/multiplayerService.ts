@@ -430,6 +430,11 @@ export async function handleClientMessage(playerId: string, message: unknown): P
 function parseDuelRequest(payload: Record<string, unknown>): duelQueue.DuelQueueRequest | null {
   if (payload.random === true) return { kind: 'random' };
   if (typeof payload.artistId === 'number') return { kind: 'artist', artistId: payload.artistId };
+  // Checked before categoryId: movie collections are category sources underneath, so a client
+  // sending both would otherwise be rated on the song ladder rather than the film one.
+  if (typeof payload.movieId === 'string') {
+    return { kind: 'movie', collectionId: payload.movieId };
+  }
   if (typeof payload.categoryId === 'string') {
     return { kind: 'category', categoryId: payload.categoryId };
   }
