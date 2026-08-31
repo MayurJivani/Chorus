@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import type {
   MultiplayerRoomSnapshot,
@@ -78,6 +79,30 @@ export function MultiplayerGame({
   /* Replaces the correct/wrong message with something that is still worth reading while you
      wait, and is the same for everyone regardless of how they did. */
   const waitingOn = scores.filter((s) => !s.answered).length;
+
+  /*
+   * Play the answer during the reveal.
+   *
+   * Naming the song you missed is much less use than hearing it — the clip you were guessing
+   * from was a couple of seconds, and the recognition usually lands on the chorus you never
+   * reached. Volume follows the same stored preference as the in-round player.
+   */
+  const revealAudioRef = useRef<HTMLAudioElement | null>(null);
+  const revealPreview = roundEnd?.correct?.previewUrl ?? null;
+  useEffect(() => {
+    const audio = revealAudioRef.current;
+    if (!audio || !revealPreview) return;
+    try {
+      const saved = localStorage.getItem('snippet-volume');
+      if (saved != null) audio.volume = parseFloat(saved);
+    } catch {
+      /* volume preference is optional */
+    }
+    audio.currentTime = 0;
+    // Autoplay can be refused before the user has interacted; the round is still readable.
+    void audio.play().catch(() => {});
+    return () => audio.pause();
+  }, [revealPreview]);
   /** What this player locked in, so the option list can mark it while the round finishes. */
   const lockedGuessId =
     answered && isChoice && lastGuess ? (lastGuess.guessedTrackId ?? null) : null;
@@ -102,6 +127,7 @@ export function MultiplayerGame({
             className="flex w-full flex-col items-center gap-5 text-center"
           >
             <h2 className="text-lg font-bold text-white">🎵 It was…</h2>
+            {revealPreview && <audio ref={revealAudioRef} src={revealPreview} preload="auto" />}
             <div className="flex w-full max-w-md items-center gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
               {roundEnd.correct?.albumArtUrl ? (
                 <img

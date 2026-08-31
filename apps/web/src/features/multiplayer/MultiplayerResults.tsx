@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import type { MultiplayerGameOver } from './useMultiplayerGame';
 import { MultiplayerScoreboard } from './MultiplayerScoreboard';
+import { SongPreviewButton } from '../game/SongPreviewButton';
 import { SourcePicker, type PickedSource } from './SourcePicker';
 
 interface MultiplayerResultsProps {
@@ -80,6 +81,52 @@ export function MultiplayerResults({
         showMedals
         title="Final standings"
       />
+
+      {/*
+        The set list.
+        A round is a couple of seconds of audio and then it is gone, and the songs worth hearing
+        are usually the ones nobody got. Ending on a scoreboard alone throws away the half of
+        the game people actually want to talk about.
+      */}
+      {gameOver.songs.length > 0 && (
+        <section className="glass w-full rounded-2xl border border-white/10 p-4">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            What you played
+          </h2>
+          <ul className="flex flex-col gap-1.5">
+            {gameOver.songs.map((song, index) => (
+              <li
+                key={`${song.title}-${index}`}
+                className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-2"
+              >
+                <span className="w-4 shrink-0 text-right font-mono text-[11px] text-slate-500">
+                  {index + 1}
+                </span>
+                {song.albumArtUrl ? (
+                  <img
+                    src={song.albumArtUrl}
+                    alt=""
+                    className="h-9 w-9 shrink-0 rounded-lg object-cover ring-1 ring-white/10"
+                  />
+                ) : (
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-sm">
+                    🎵
+                  </div>
+                )}
+                <div className="min-w-0 flex-1 text-left">
+                  <p className="truncate text-sm font-semibold text-white">{song.title}</p>
+                  <p className="truncate text-[11px] text-slate-400">{song.artist}</p>
+                </div>
+                {song.previewUrl && (
+                  <div className="shrink-0">
+                    <SongPreviewButton previewUrl={song.previewUrl} />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="flex w-full max-w-xl flex-col gap-3">
         {canPlayAgain && !picking && (

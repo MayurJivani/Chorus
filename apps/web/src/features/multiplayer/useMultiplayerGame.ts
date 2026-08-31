@@ -40,13 +40,29 @@ export interface MultiplayerGuessResult {
 }
 
 export interface MultiplayerRoundEnd {
-  correct: { title: string; artist: string; albumArtUrl: string | null } | null;
+  correct: {
+    title: string;
+    artist: string;
+    albumArtUrl: string | null;
+    /** Present so the reveal can play the song, not just name it. */
+    previewUrl?: string | null;
+  } | null;
   scores: MultiplayerScoreEntry[];
+}
+
+/** One song the room played, for the set list on the results screen. */
+export interface MultiplayerPlayedSong {
+  title: string;
+  artist: string;
+  albumArtUrl: string | null;
+  previewUrl: string | null;
 }
 
 export interface MultiplayerGameOver {
   scores: MultiplayerScoreEntry[];
   winner: { playerId: string; displayName: string; score: number } | null;
+  /** Everything played, so the results screen can be listened back to. */
+  songs: MultiplayerPlayedSong[];
 }
 
 interface ServerMessage {
@@ -188,6 +204,7 @@ export function useMultiplayerGame(
         setGameOver({
           scores: raw.scores as MultiplayerScoreEntry[],
           winner: raw.winner as MultiplayerGameOver['winner'],
+          songs: (raw.songs as MultiplayerPlayedSong[] | undefined) ?? [],
         });
         setScores(raw.scores as MultiplayerScoreEntry[]);
         break;

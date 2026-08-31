@@ -96,7 +96,7 @@ export const SETTING_DEFS = {
     label: 'Answer reveal time',
     help: 'How long the answer stays on screen between rounds.',
     schema: positiveInt(1, 30),
-    default: 5,
+    default: 10,
     control: { kind: 'number', min: 1, max: 30, unit: 's' },
   } satisfies SettingDef<number>,
 

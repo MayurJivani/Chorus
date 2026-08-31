@@ -29,7 +29,7 @@ export const MP_REVEAL_POINTS = [6, 5, 4, 3, 2, 1] as const;
  */
 export const MP_ROUND_DURATION_MS = 30 * 1000;
 export const MP_ROUNDS = 10;
-export const MP_REVEAL_DURATION_MS = 5000;
+export const MP_REVEAL_DURATION_MS = 10_000;
 export const MP_MAX_PLAYERS = 8;
 export const MP_EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;
 
@@ -866,7 +866,14 @@ function endRound(room: MpRoom): void {
   broadcast(room, {
     type: 'round_end',
     correct: track
-      ? { title: track.title, artist: track.artist, albumArtUrl: track.albumArtUrl }
+      ? {
+          title: track.title,
+          artist: track.artist,
+          albumArtUrl: track.albumArtUrl,
+          // Sent so the reveal can play the song rather than only name it — hearing the bit
+          // you missed is most of why the answer is worth showing at all.
+          previewUrl: room.previewUrls[room.currentRound] ?? null,
+        }
       : null,
     scores: buildScores(room, true),
   });
@@ -905,6 +912,17 @@ function finishGame(room: MpRoom): void {
     type: 'game_over',
     scores,
     winner: computeWinner(scores),
+    /*
+     * Everything the room just played, so the results screen can be a listenable set list.
+     * The rounds go past quickly and the songs you did not get are the ones worth hearing
+     * again; without this the game ends on a scoreboard and the music disappears.
+     */
+    songs: room.tracks.map((track, index) => ({
+      title: track.title,
+      artist: track.artist,
+      albumArtUrl: track.albumArtUrl,
+      previewUrl: room.previewUrls[index] ?? null,
+    })),
   });
 
   if (room.duel && !room.duel.settled) {
