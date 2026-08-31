@@ -13,15 +13,20 @@ const GROUP_LABELS: Record<CategoryGroup, { title: string; subtitle: string }> =
   },
   genre: { title: 'By Genre', subtitle: 'Pop, rock, rap, K-pop and more' },
   bollywood: { title: 'Bollywood', subtitle: 'Hindi film music, romance, and party anthems' },
+  world: {
+    title: 'Around the World',
+    subtitle: 'K-pop, Latin, Afrobeats, Tamil and Punjabi',
+  },
 };
 
-const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'bollywood', 'genre'];
+const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'bollywood', 'world', 'genre'];
 
 const FILTERS: [CategoryGroup | 'all', string][] = [
   ['all', 'All'],
   ['now', 'Charts'],
   ['bollywood', 'Bollywood'],
   ['year', 'Years'],
+  ['world', 'Around the World'],
   ['genre', 'Genres'],
 ];
 

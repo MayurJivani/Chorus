@@ -279,7 +279,7 @@ export interface LeaderboardResponse {
 
 // --- Category Mode -------------------------------------------------------------------------
 
-export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood';
+export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world';
 
 export interface Category {
   id: string;
@@ -355,7 +355,7 @@ export interface ProgressSummary {
   /** Where the XP came from, so the total is explainable rather than magic. */
   sources: { songs: number; dailyWins: number; duelWins: number; survival: number };
   byMode: Record<'artist' | 'category' | 'era', ModeBreakdown>;
-  byCategoryGroup: Partial<Record<'now' | 'year' | 'genre' | 'bollywood', ModeBreakdown>>;
+  byCategoryGroup: Partial<Record<CategoryGroup, ModeBreakdown>>;
   survival: { runs: number; bestStreak: number; totalSongs: number };
   daily: { played: number; won: number };
   duels: { played: number; won: number; rating: number | null };

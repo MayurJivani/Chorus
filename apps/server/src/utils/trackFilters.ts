@@ -16,6 +16,24 @@ const UNWANTED_VERSION_TERMS = [
   'slowed',
   'extended mix',
   'radio edit',
+  /*
+   * Compilations of other songs rather than a song.
+   *
+   * These are unguessable by design — "Emraan Hashmi Mashup (By DJ Angel)" is a DJ set stitched
+   * from a dozen tracks, and it turns up in KK's catalogue only because he is a contributor to
+   * one of them. Being asked to name it is not a hard round, it is an unanswerable one.
+   */
+  'mashup',
+  'mash up',
+  'medley',
+  'megamix',
+  'mega mix',
+  'jukebox',
+  'nonstop',
+  'non stop',
+  'dj mix',
+  'continuous mix',
+  'full album',
   // Spoken-word album filler — these are *about* a song rather than a recording of one,
   // so they are never guessable ("Wood (Track by Track)" is Taylor Swift talking, not "Wood").
   'track by track',

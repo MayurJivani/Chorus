@@ -13,7 +13,7 @@
  * editions, verified to return international tracks (Top Hits 2000 is Destiny's Child and
  * Britney; 2024 Pop is Espresso and Texas Hold 'Em).
  */
-export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood';
+export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world';
 
 export interface Category {
   /** Stable slug used in URLs and as the catalog cache key. */
@@ -145,6 +145,58 @@ const GENRE_DEFS: [label: string, playlistIds: string[]][] = [
   ['Metal 2023', ['11906567941']],
 ];
 
+/**
+ * All-time genre pools, as opposed to the year-pinned lists above.
+ *
+ * The existing genre entries are snapshots of one year, which is a different thing to ask of a
+ * player: "Top Rock 2024" rewards knowing what came out recently, while "Rock Essentials" is a
+ * canon most people can take a swing at. Both are worth having.
+ *
+ * Every id was checked live for size and, more importantly, preview coverage — a playlist whose
+ * tracks have no 30-second previews is unplayable here and looks exactly like a broken game.
+ * Several plausible candidates were rejected on that basis alone (one "R&B Classics" list had
+ * previews on 3 of its first 14 tracks).
+ */
+const TIMELESS_GENRE_DEFS: [label: string, playlistIds: string[], blurb: string][] = [
+  ['Rock Essentials', ['1306931615'], 'AC/DC, Bowie, Pink Floyd and the rest of the canon'],
+  ['New Rock', ['1306978785'], 'What rock sounds like now'],
+  ['Metal Essentials', ['2655390504'], 'Pantera, Megadeth and the heavy end'],
+  ['Electronic Hits', ['1902101402'], 'Dance floor staples old and new'],
+  ['Country Essentials', ['1294431447'], 'Johnny Cash, Patsy Cline and the classics'],
+  ['Reggae Essentials', ['2448918882'], 'Bob Marley and the roots of the sound'],
+  ['Jazz Essentials', ['1615514485'], 'Armstrong, Brubeck, Nina Simone'],
+  ['2000s Hip-Hop & R&B', ['5243303306'], 'Kanye, Nelly, Amerie — the 00s radio years'],
+];
+
+const TIMELESS_GENRES: Category[] = TIMELESS_GENRE_DEFS.map(([label, playlistIds, blurb]) => ({
+  id: `genre-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+  label,
+  group: 'genre' as const,
+  playlistIds,
+  blurb,
+}));
+
+/**
+ * Music from outside the anglophone charts, which the rest of the catalog is heavily weighted
+ * towards. Bollywood already has its own group; this is everywhere else.
+ */
+const WORLD_DEFS: [label: string, playlistIds: string[], blurb: string][] = [
+  ['K-Pop', ['4096400722'], 'BTS, JENNIE and the current top of K-pop'],
+  ['Latin Fuego', ['178699142'], 'Shakira, Quevedo and Latin pop heat'],
+  ['Reggaeton', ['1273315391'], 'Bad Bunny, KAROL G, J Balvin'],
+  ['Afrobeats', ['12325616651'], 'Tyla, Ayra Starr and the Afrobeats wave'],
+  ['Tamil Hits', ['13523718423'], 'Anirudh and the newest Tamil chart'],
+  ['Punjabi', ['4815158244'], '900+ Punjabi tracks, old school to now'],
+];
+
+const WORLD: Category[] = WORLD_DEFS.map(([label, playlistIds, blurb]) => ({
+  id: `world-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+  label,
+  group: 'world' as const,
+  playlistIds,
+  blurb,
+}));
+
 const GENRES: Category[] = GENRE_DEFS.map(([label, playlistIds]) => ({
   id: `genre-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
   label: `Top ${label}`,
@@ -185,7 +237,25 @@ const BOLLYWOOD: Category[] = BOLLYWOOD_DEFS.map(([label, playlistIds, blurb]) =
   blurb,
 }));
 
-export const CATEGORIES: Category[] = [...NOW, ...DECADES, ...YEARS, ...GENRES, ...BOLLYWOOD];
+export const CATEGORIES: Category[] = [
+  ...NOW,
+  ...DECADES,
+  ...YEARS,
+  ...GENRES,
+  ...TIMELESS_GENRES,
+  ...WORLD,
+  ...BOLLYWOOD,
+];
+
+/*
+ * Slugs are derived from labels, so a new entry can silently collide with an existing one and
+ * shadow it in the id map. Cheap to check at import, and the alternative is a category that
+ * quietly plays the wrong songs.
+ */
+const duplicateIds = CATEGORIES.map((c) => c.id).filter((id, i, all) => all.indexOf(id) !== i);
+if (duplicateIds.length > 0) {
+  throw new Error(`Duplicate category ids: ${[...new Set(duplicateIds)].join(', ')}`);
+}
 
 const BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
 

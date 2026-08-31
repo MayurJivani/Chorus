@@ -8,6 +8,37 @@ import {
 } from '../../src/utils/trackFilters';
 
 describe('isUnwantedVersion', () => {
+  /*
+   * A mashup is a DJ set stitched from other songs, not a song — unanswerable rather than hard.
+   * These show up in an artist's catalogue when they are merely a contributor to one of the
+   * tracks inside, which is how "Emraan Hashmi Mashup" ended up in KK's rounds.
+   */
+  it('drops mashups, medleys and other compilations', () => {
+    for (const title of [
+      'Emraan Hashmi Mashup (By DJ Angel)',
+      'Bollywood Mash Up',
+      'Christmas Medley',
+      '90s Megamix',
+      'Party Jukebox',
+      'Nonstop Bhangra',
+      'Summer DJ Mix',
+    ]) {
+      expect(isUnwantedVersion(title)).toBe(true);
+    }
+  });
+
+  it('leaves ordinary titles that merely look similar alone', () => {
+    /*
+     * Word-boundary matching, so a substring is not enough — "Mixed" is not "mix", "Nonsense"
+     * is not "nonstop". A title containing the standalone word "medley" *is* filtered, which is
+     * the intended trade: no real song is called that, and a compilation slipping through is
+     * an unanswerable round.
+     */
+    for (const title of ['Mixed Emotions', 'Nonsense', 'Mixtape Dreams', 'Stop']) {
+      expect(isUnwantedVersion(title)).toBe(false);
+    }
+  });
+
   it.each([
     'Yellow (Acoustic)',
     'Yellow - Live at Wembley',
