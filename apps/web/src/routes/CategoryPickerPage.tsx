@@ -17,7 +17,7 @@ const GROUP_LABELS: Partial<Record<CategoryGroup, { title: string; subtitle: str
   bollywood: { title: 'Bollywood', subtitle: 'Hindi film music, romance, and party anthems' },
   world: {
     title: 'Around the World',
-    subtitle: 'K-pop, Latin, Afrobeats, Tamil and Punjabi',
+    subtitle: 'K-pop, Latin, Afrobeats, Indian indie and more',
   },
 };
 

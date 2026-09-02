@@ -198,6 +198,30 @@ const WORLD_DEFS: [label: string, playlistIds: string[], blurb: string][] = [
   ['Afrobeats', ['12325616651'], 'Tyla, Ayra Starr and the Afrobeats wave'],
   ['Tamil Hits', ['13523718423'], 'Anirudh and the newest Tamil chart'],
   ['Punjabi', ['4815158244'], '900+ Punjabi tracks, old school to now'],
+  /*
+   * Indian independent music — deliberately *not* filed under Bollywood, which is the point of
+   * the scene. Every other Indian category here is film music or film-adjacent.
+   *
+   * Preview coverage decided this list more than taste did. The obvious searches return the
+   * wrong thing entirely (Deezer's "Indian indie" results are mostly yoga and mantra records,
+   * and "Indien" is French for Indian, so half the hits are British indie rock), and the
+   * playlists that *are* right are often unplayable: a well-known Local Train list had previews
+   * on 8 of 40 tracks, and "Indian rock bands" yielded only 21 playable tracks — above the
+   * minimum, but thin enough that a ten-round game would repeat itself.
+   *
+   * Counted in absolute playable tracks rather than percentage, since previewless tracks are
+   * dropped at fetch time: a big playlist with mediocre coverage beats a small clean one.
+   */
+  /*
+   * Kept as two categories rather than one merged pool. Combining them did give a bigger, more
+   * varied catalogue (115 tracks, 76 artists against 49 and 80), but "Desi Flow" carries a lot
+   * of mainstream Punjabi pop — the merged pool opened on Diljit Dosanjh and Sidhu Moose Wala
+   * under a heading promising indie. A category has to play what its name says.
+   */
+  ['Hindi Indie Now', ['15445577861'], 'Anuv Jain, Prateek Kuhad, Aditya Rikhari'],
+  ['Desi Alt & Pop', ['2484273908'], 'Talwiinder, Karan Aujla, Badshah, Bayaan'],
+  ['Desi Indie Rock', ['14238068701'], 'Indus Creed, The Yellow Diary, Sifar, When Chai Met Toast'],
+  ['Indipop Classics', ['9010492782'], 'Lucky Ali, Colonial Cousins, Silk Route — the 90s wave'],
 ];
 
 const WORLD: Category[] = WORLD_DEFS.map(([label, playlistIds, blurb]) => ({
