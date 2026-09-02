@@ -213,15 +213,21 @@ const WORLD_DEFS: [label: string, playlistIds: string[], blurb: string][] = [
    * dropped at fetch time: a big playlist with mediocre coverage beats a small clean one.
    */
   /*
-   * Kept as two categories rather than one merged pool. Combining them did give a bigger, more
-   * varied catalogue (115 tracks, 76 artists against 49 and 80), but "Desi Flow" carries a lot
-   * of mainstream Punjabi pop — the merged pool opened on Diljit Dosanjh and Sidhu Moose Wala
-   * under a heading promising indie. A category has to play what its name says.
+   * One merged pool rather than several small ones, to clear the 200-track floor a category
+   * needs before it stops repeating itself over a ten-round game. Individually these are 234,
+   * 124, 52, 49 and 34 playable tracks; together they dedupe to a single catalogue several
+   * times the size of any of them, and the overlap is the point — an artist on three of the
+   * five lists is a load-bearing part of the scene, not a duplicate to be worried about.
+   *
+   * The last two are what put Lifafa, Parekh & Singh, The F16s and Tajdar Junaid in. Neither
+   * would survive as its own category — "new shit" is 52 tracks across four artists — but
+   * folded into a pool this size they add exactly the names the bigger lists miss.
    */
-  ['Hindi Indie Now', ['15445577861'], 'Anuv Jain, Prateek Kuhad, Aditya Rikhari'],
-  ['Desi Alt & Pop', ['2484273908'], 'Talwiinder, Karan Aujla, Badshah, Bayaan'],
-  ['Desi Indie Rock', ['14238068701'], 'Indus Creed, The Yellow Diary, Sifar, When Chai Met Toast'],
-  ['Indipop Classics', ['9010492782'], 'Lucky Ali, Colonial Cousins, Silk Route — the 90s wave'],
+  [
+    'Indian Indie',
+    ['15368219983', '14238068701', '15445577861', '14468097423', '15343188863'],
+    'Prateek Kuhad, The Local Train, Lifafa, Parekh & Singh',
+  ],
 ];
 
 const WORLD: Category[] = WORLD_DEFS.map(([label, playlistIds, blurb]) => ({
