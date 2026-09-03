@@ -54,7 +54,10 @@ export function SourcePicker({
   useEffect(() => {
     if (kind !== 'category' || categories.length > 0) return;
     getCategories()
-      .then(setCategories)
+      // Movie collections come back from /categories too (they are browsable there), but this
+      // picker has its own Movie tab. Choosing one from the Category tab would queue a duel on
+      // the category rating ladder instead of the movie one, so they are filtered out here.
+      .then((all) => setCategories(all.filter((c) => c.group !== 'movie')))
       .catch(() => setError('Could not load categories.'));
   }, [kind, categories.length]);
 

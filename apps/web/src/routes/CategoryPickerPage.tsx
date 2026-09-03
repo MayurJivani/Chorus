@@ -5,8 +5,6 @@ import { getCategories } from '../api/categories';
 import { usePageTitle } from '../hooks/usePageTitle';
 import type { Category, CategoryGroup } from '../types/api';
 
-// 'movie' is intentionally absent: Guess the Movie is its own mode at /movies, and the
-// categories endpoint no longer returns those collections.
 const GROUP_LABELS: Partial<Record<CategoryGroup, { title: string; subtitle: string }>> = {
   now: { title: 'Right Now', subtitle: "Live charts and this year's biggest tracks" },
   year: {
@@ -19,9 +17,13 @@ const GROUP_LABELS: Partial<Record<CategoryGroup, { title: string; subtitle: str
     title: 'Around the World',
     subtitle: 'K-pop, Latin, Afrobeats, Indian indie and more',
   },
+  movie: {
+    title: 'Guess the Movie',
+    subtitle: 'Name the film from its soundtrack or score',
+  },
 };
 
-const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'world', 'bollywood', 'genre'];
+const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'world', 'movie', 'bollywood', 'genre'];
 
 // Kept in the same order as the sections below, so the chips read as a table of contents
 // rather than a second, differently-sorted list of the same thing.
@@ -30,6 +32,7 @@ const FILTERS: [CategoryGroup | 'all', string][] = [
   ['now', 'Charts'],
   ['year', 'Years'],
   ['world', 'Around the World'],
+  ['movie', 'Movies'],
   ['bollywood', 'Bollywood'],
   ['genre', 'Genres'],
 ];
@@ -78,7 +81,9 @@ export function CategoryPickerPage() {
         className="flex flex-col items-center gap-1 text-center"
       >
         <h1 className="text-3xl font-extrabold text-white tracking-tight">Categories</h1>
-        <p className="text-sm text-slate-500">Ten songs from one era, chart or genre</p>
+        <p className="text-sm text-slate-500">
+          Ten songs from one era, chart, genre — or name the film they came from
+        </p>
       </motion.div>
 
       {loading && <p className="text-sm text-slate-400">Loading categories…</p>}
@@ -170,27 +175,35 @@ export function CategoryPickerPage() {
           className="glass sticky bottom-4 w-full rounded-2xl border border-white/10 p-4 flex flex-col gap-3"
         >
           <p className="text-base font-bold text-white">{selected.label}</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => startGame('search')}
-              className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm font-medium text-white transition-all hover:bg-white/[0.07] hover:border-white/20 active:scale-[0.97]"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                className="h-4 w-4 text-slate-400"
+          {/*
+            Guess the Movie has no search mode. The answer is a film, and the search box looks
+            up songs — you cannot find "Jab We Met" in a track index. The server already forces
+            these to multiple choice, so offering the button would not break anything; it would
+            just promise a way to play that does not exist.
+          */}
+          <div className={selected.group === 'movie' ? 'grid gap-2' : 'grid grid-cols-2 gap-2'}>
+            {selected.group !== 'movie' && (
+              <button
+                type="button"
+                onClick={() => startGame('search')}
+                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm font-medium text-white transition-all hover:bg-white/[0.07] hover:border-white/20 active:scale-[0.97]"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
-                />
-              </svg>
-              Type to search
-            </button>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className="h-4 w-4 text-slate-400"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+                  />
+                </svg>
+                Type to search
+              </button>
+            )}
             <button
               type="button"
               onClick={() => startGame('choice')}
@@ -209,7 +222,7 @@ export function CategoryPickerPage() {
                   d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
                 />
               </svg>
-              Multiple choice
+              {selected.group === 'movie' ? 'Play' : 'Multiple choice'}
             </button>
           </div>
         </motion.div>

@@ -61,10 +61,16 @@ categoriesRouter.get('/', (_req, res) => {
   const queued = getQueueCounts();
 
   res.json({
-    /* Movie collections are category sources internally but their own mode to a player, and
-       they have their own endpoint — see movies.routes.ts. Leaving them here too would put
-       them in the category picker as well as the movie one. */
-    categories: CATEGORIES.filter((c) => c.group !== 'movie').map((c) => ({
+    /* Movie collections appear here *and* at /api/movies, on purpose. They are their own mode
+       with its own page, but they are also a perfectly good thing to find while browsing the
+       category list, and a player looking for something to play should not have to already
+       know the mode exists. /api/movies stays the richer listing (film counts, score/songs
+       kind); this is the browse entry point.
+
+       One consumer deliberately filters them back out: the multiplayer source picker, which
+       has a separate Movie tab. Picking a collection from its Category tab would queue a duel
+       on the category rating ladder rather than the movie one. */
+    categories: CATEGORIES.map((c) => ({
       id: c.id,
       label: c.label,
       group: c.group,
