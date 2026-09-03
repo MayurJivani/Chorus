@@ -6,6 +6,7 @@ import type {
   SongSearchResult,
 } from '../../types/api';
 import type { GuessAttempt } from '../game/useGameState';
+import { useGameConfig } from '../../hooks/useGameConfig';
 
 export interface RunSongEntry {
   song: RevealedSong;
@@ -67,6 +68,7 @@ export function useChallengeGameState(
   guessMode: 'search' | 'choice',
   sharedChallengeId?: number,
 ): ChallengeGameState {
+  const { maxGuesses } = useGameConfig();
   const [status, setStatus] = useState<ChallengeGameStatus>('loading');
   const [challenge, setChallenge] = useState<ArtistChallengeResponse | null>(null);
   const [attemptNumber, setAttemptNumber] = useState(1);
@@ -143,7 +145,18 @@ export function useChallengeGameState(
         // sites, so narrow it back down here.
         const result = await endpointsRef.current.guess({
           deezerTrackId: song?.id as string | undefined,
-          guessNumber: song === null ? 6 : attemptNumber,
+          /*
+           * A skip spends the whole round, so it reports the *last* attempt rather than the
+           * one the player is on — that is what makes the server treat it as final and reveal
+           * the answer.
+           *
+           * This used to be a hardcoded 6, from when the snippet schedule had six stages. The
+           * schedule is an admin setting and its default is now five, and the server rejects
+           * any guess number past the end of it — so every Skip in Artist and Category mode
+           * was answering "Something went wrong submitting that". Reading the live length
+           * keeps it correct whatever the setting is changed to.
+           */
+          guessNumber: song === null ? maxGuesses : attemptNumber,
           guessMode,
         });
         setRoundHistory((prev) => [...prev, { song, correct: result.correct }]);
@@ -191,7 +204,7 @@ export function useChallengeGameState(
         setSubmitting(false);
       }
     },
-    [status, submitting, attemptNumber, guessMode],
+    [status, submitting, attemptNumber, guessMode, maxGuesses],
   );
 
   const guess = useCallback((song: SongSearchResult) => submit(song), [submit]);

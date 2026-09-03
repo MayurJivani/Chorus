@@ -531,15 +531,24 @@ export async function resolvePlayableRoundForSource(
   source: ChallengeSource,
   usedTrackIds: readonly string[],
 ): Promise<{ track: ArtistChallengeTrack; previewUrl: string } | null> {
+  /*
+   * Guess the Movie stores the *song* in `artist` ("Katiya Karun · Harshdeep Kaur"), because
+   * `title` holds the film — the answer. Refreshing that column from Deezer would replace it
+   * with a contributor list ("Harshdeep Kaur, A.R. Rahman") and throw away the only thing the
+   * reveal has to say which song was playing. The refresh exists to keep real artist names
+   * current, which is not what this column means for these sources.
+   */
+  const refreshArtist = !source.answerIsMovie;
+
   const direct = await getFreshPreviewUrl(track.deezerTrackId);
   if (direct) {
-    if (direct.artist && direct.artist !== track.artist) {
+    if (refreshArtist && direct.artist && direct.artist !== track.artist) {
       await db
         .update(artistChallengeTracks)
         .set({ artist: direct.artist })
         .where(eq(artistChallengeTracks.id, track.id));
     }
-    const resolved = direct.artist ? { ...track, artist: direct.artist } : track;
+    const resolved = refreshArtist && direct.artist ? { ...track, artist: direct.artist } : track;
     return { track: resolved, previewUrl: direct.previewUrl };
   }
 
@@ -561,7 +570,8 @@ export async function resolvePlayableRoundForSource(
       .set({
         deezerTrackId: candidate.deezerTrackId,
         title: candidate.title,
-        artist: fresh.artist ?? candidate.artist,
+        // Same reasoning: the pool's label is authoritative for movie sources.
+        artist: (refreshArtist ? fresh.artist : null) ?? candidate.artist,
         albumArtUrl: candidate.albumArtUrl,
         durationSeconds: candidate.durationSeconds,
       })
