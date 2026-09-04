@@ -104,9 +104,37 @@ describe('getOrCreateArtistChallenge', () => {
     );
   });
 
-  it('throws when the artist has fewer than ARTIST_CHALLENGE_SIZE playable tracks', async () => {
+  /*
+   * A thin catalogue plays short rather than not at all — K/DA and similar have a handful of
+   * tracks, and refusing them read as a bug rather than "this artist has six songs". These used
+   * to assert the old refuse-everything rule and had been failing since the behaviour changed.
+   */
+  it('plays a short run when the artist has fewer tracks than the run length', async () => {
     vi.mocked(deezerService.getArtistTopTracks).mockResolvedValue(mockTracks(3));
-    await expect(getOrCreateArtistChallenge(412, '2026-01-01')).rejects.toThrow(/not enough/i);
+
+    const { challenge, tracks } = await getOrCreateArtistChallenge(412, '2026-01-01');
+
+    expect(tracks).toHaveLength(3);
+    expect(challenge.totalRounds).toBe(3);
+  });
+
+  it('excludes a short run from ranking, so it is not a comparable score', async () => {
+    vi.mocked(deezerService.getArtistTopTracks).mockResolvedValue(mockTracks(3));
+
+    const { challenge } = await getOrCreateArtistChallenge(412, '2026-01-02');
+
+    expect(challenge.ranked).toBe(false);
+  });
+
+  it('still ranks a run that reaches the full configured length', async () => {
+    const { challenge } = await getOrCreateArtistChallenge(412, '2026-01-03');
+    expect(challenge.ranked).toBe(true);
+  });
+
+  it('refuses an artist too thin to make a game at all', async () => {
+    // Below MIN_PLAYABLE_ROUNDS a "run" is a coin toss, not a game, so this still throws.
+    vi.mocked(deezerService.getArtistTopTracks).mockResolvedValue(mockTracks(2));
+    await expect(getOrCreateArtistChallenge(412, '2026-01-04')).rejects.toThrow(/not enough/i);
   });
 
   it('throws when the artist cannot be found', async () => {
@@ -667,13 +695,16 @@ describe('configurable run length', () => {
     expect(new Set(tracks.map((t) => t.deezerTrackId)).size).toBe(15);
   });
 
-  it('rejects an artist whose catalog is smaller than the configured run length', async () => {
+  it('caps the run at the catalog size when the setting asks for more', async () => {
     vi.mocked(deezerService.getArtistTopTracks).mockResolvedValue(mockTracks(12));
     await updateSettings([{ key: 'challengeRounds', value: 20 }], null);
 
-    await expect(getOrCreateArtistChallenge(412, 'rounds-20')).rejects.toThrow(
-      /Not enough playable tracks/,
-    );
+    const { challenge, tracks } = await getOrCreateArtistChallenge(412, 'rounds-20');
+
+    expect(tracks).toHaveLength(12);
+    expect(challenge.totalRounds).toBe(12);
+    // Short of the configured 20, so it happens but does not count.
+    expect(challenge.ranked).toBe(false);
   });
 
   /**
