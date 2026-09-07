@@ -31,8 +31,8 @@ const PROFILES: Record<
    */
   default: { baseHz: 18000, spacingHz: 125, syncHz: 19125, symbolMs: 30, volume: 0.2 },
   /**
-   * Audible chime. The tones sit in the top octaves of a piano and the symbol is doubled to
-   * 60ms, which is the difference between a buzz and something you hear as notes.
+   * Audible chime. Bell-register tones with a short symbol, tuned after the first version
+   * decoded far more slowly than the silent one in a real room.
    *
    * Two real reasons to prefer it over the silent one, neither cosmetic:
    *
@@ -42,10 +42,20 @@ const PROFILES: Record<
    *   - A sound nobody can hear gives a player no idea whether anything is happening. A chime
    *     is its own feedback.
    *
-   * The cost is that it lives where music does, so it is only reliable in the lobby before a
-   * game starts — which is when people join anyway.
+   * Why 4kHz and not the piano register it started in. The first attempt sat at 880–1870Hz,
+   * squarely inside the speech band, and phones fight for that band on purpose: handset voice
+   * processing keeps suppressing and gating there even when `noiseSuppression` is asked for
+   * and reported off. Frames were being eaten rather than misread, so the receiver simply
+   * waited through repeat after repeat. Above ~4kHz the voice chain mostly stops caring, while
+   * the tones stay far below the 16kHz ceiling a 32kHz capture imposes.
+   *
+   * The other half of the delay was the symbol: 60ms made every frame take 1.6s before a
+   * retry could even begin. 40ms is still long enough to read as notes rather than a buzz.
+   *
+   * It still lives closer to music than the silent profile does, so it is at its best in the
+   * lobby before a game starts — which is when people join anyway.
    */
-  jingle: { baseHz: 880, spacingHz: 110, syncHz: 1870, symbolMs: 60, volume: 0.12 },
+  jingle: { baseHz: 4000, spacingHz: 250, syncHz: 6250, symbolMs: 40, volume: 0.18 },
 };
 
 export function knockProfile(jingle: boolean): KnockProfile {

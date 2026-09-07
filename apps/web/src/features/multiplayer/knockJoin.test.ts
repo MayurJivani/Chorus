@@ -12,7 +12,22 @@ describe('knock profiles', () => {
   it('keeps the silent profile above hearing and the chime inside it', () => {
     // The whole point of the split: one is meant to be inaudible, the other audible.
     expect(PROFILES.default.baseHz).toBeGreaterThanOrEqual(17000);
-    expect(PROFILES.jingle.syncHz).toBeLessThan(4000);
+    expect(PROFILES.jingle.syncHz).toBeLessThan(16000);
+    expect(PROFILES.jingle.baseHz).toBeLessThan(15000);
+  });
+
+  it('keeps the chime clear of the speech band phones actively process', () => {
+    // The delay that made the chime unusable: at 880-1870Hz handset voice processing kept
+    // eating frames, so the receiver sat through repeat after repeat. Voice chains stop
+    // fighting for the spectrum above roughly 3.4kHz.
+    expect(PROFILES.jingle.baseHz).toBeGreaterThan(3400);
+  });
+
+  it('keeps a chime frame short enough to retry quickly', () => {
+    // 27 symbols carry a six-character room code. At 60ms that was 1.6s before a retry could
+    // even start, which is most of what "takes too long" was.
+    const frameMs = 27 * PROFILES.jingle.symbolMs;
+    expect(frameMs).toBeLessThan(1250);
   });
 
   it('keeps every jingle tone under the Nyquist limit of a resampled microphone', () => {
