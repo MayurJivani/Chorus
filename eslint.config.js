@@ -7,7 +7,20 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '**/*.db', 'apps/server/public/**', '*.ts', '*.tsx', '*.mts', '*.cts'],
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/*.db',
+      'apps/server/public/**',
+      // Vendored third-party source. Linting a copy we are not allowed to edit only produces
+      // findings that cannot be actioned — see apps/web/src/vendor/knock/README.md.
+      'apps/web/src/vendor/**',
+      '*.ts',
+      '*.tsx',
+      '*.mts',
+      '*.cts',
+    ],
   },
   js.configs.recommended,
   {

@@ -109,6 +109,29 @@ export const SETTING_DEFS = {
     control: { kind: 'number', min: 2, max: 16, unit: 'players' },
   } satisfies SettingDef<number>,
 
+  /*
+   * Join-by-sound (Beta). Off by default: it needs microphone permission on the joining phone
+   * and does not work at all on some browsers, so it has to be opted into rather than
+   * appearing unannounced in a room full of people.
+   */
+  knockJoinEnabled: {
+    group: 'multiplayer',
+    label: 'Join by sound (Beta)',
+    help: 'In Host Only audio rooms, the host screen announces the room code as sound and nearby phones can join without typing it. Needs microphone permission on the joining phone.',
+    schema: z.boolean(),
+    default: false,
+    control: { kind: 'boolean' },
+  } satisfies SettingDef<boolean>,
+
+  knockJoinJingle: {
+    group: 'multiplayer',
+    label: 'Use the audible chime',
+    help: 'Off sends the code above hearing (silent, and works while music is playing). On sends it as an audible chime — the only version Firefox phones can receive, since they resample the microphone too low to hear the silent one, and the only one that tells a player something is happening. Both ends must agree, so changing this mid-game stops joins until pages reload.',
+    schema: z.boolean(),
+    default: false,
+    control: { kind: 'boolean' },
+  } satisfies SettingDef<boolean>,
+
   dailyCuratedOnly: {
     group: 'daily',
     label: 'Curated songs only',
@@ -364,6 +387,9 @@ export interface PublicGameConfig {
   snippetSchedule: number[];
   maxGuesses: number;
   challengeRounds: number;
+  /** Join-by-sound, Beta. Both the broadcasting host and the listening phone read these. */
+  knockJoinEnabled: boolean;
+  knockJoinJingle: boolean;
 }
 
 export async function getPublicGameConfig(): Promise<PublicGameConfig> {
@@ -372,5 +398,7 @@ export async function getPublicGameConfig(): Promise<PublicGameConfig> {
     snippetSchedule: settings.snippetScheduleSeconds,
     maxGuesses: settings.snippetScheduleSeconds.length,
     challengeRounds: settings.challengeRounds,
+    knockJoinEnabled: settings.knockJoinEnabled,
+    knockJoinJingle: settings.knockJoinJingle,
   };
 }

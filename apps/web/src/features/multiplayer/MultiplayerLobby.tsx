@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import type { MultiplayerRoomSnapshot, MultiplayerScoreEntry } from '../../types/api';
 import { MultiplayerScoreboard } from './MultiplayerScoreboard';
+import { KnockAnnounceButton } from './KnockAnnounceButton';
 import { ensureMediaUnlocked } from '../game/SnippetPlayer';
 
 interface MultiplayerLobbyProps {
@@ -88,6 +89,13 @@ export function MultiplayerLobby({ room, selfId, onStart, onLeave }: Multiplayer
             hostId={room.hostId}
           />
         </div>
+
+        {/*
+          Host Only rooms only. There the host device is already the room's speaker, so it is
+          the one thing in the room that can announce the code; when every phone plays its own
+          audio there is no single speaker, and several transmitting at once smear each other.
+        */}
+        {isHost && room.hostOnlyAudio && <KnockAnnounceButton code={room.code} />}
 
         {isHost ? (
           <button

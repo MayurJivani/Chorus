@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { createMultiplayerRoom, MULTIPLAYER_MAX_ROUNDS } from '../api/multiplayer';
 import { SourcePicker, type PickedSource } from '../features/multiplayer/SourcePicker';
 import { QrScanner } from '../features/multiplayer/QrScanner';
+import { KnockListenButton } from '../features/multiplayer/KnockListenButton';
 import { MultiplayerGuide } from '../features/game/ModeGuide';
 import type { MultiplayerGameMode, MultiplayerGuessMode } from '../types/api';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -181,6 +182,13 @@ export function MultiplayerHomePage() {
               </button>
             </form>
           )}
+
+          {/*
+            The third way in, after scanning and typing. Renders itself away unless an admin has
+            turned the Beta on, so nobody is offered a microphone prompt for a feature the room
+            is not using.
+          */}
+          {!scanning && <KnockListenButton onCode={(code) => navigate(`/room/${code}`)} />}
         </motion.div>
       )}
 
