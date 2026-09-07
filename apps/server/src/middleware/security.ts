@@ -9,7 +9,20 @@ export function applySecurityMiddleware(app: Express): void {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
+          /*
+           * `blob:` is here for one thing: join-by-sound builds its AudioWorklet from a Blob,
+           * and a worklet module is fetched under script-src. Without it `addModule` rejects
+           * *after* the microphone permission has already been granted, which reads to a
+           * player as "microphone unavailable" and is impossible to diagnose from the UI.
+           *
+           * It does widen the policy — blob: URLs are same-origin-ish and script from one is
+           * script. The narrower fix is for the library to load a same-origin worklet file
+           * instead of a Blob, which is an upstream change to Knock rather than a local one.
+           */
+          scriptSrc: ["'self'", 'blob:'],
+          // Worklets and workers fall back to script-src in some browsers and worker-src in
+          // others; setting both means the policy does not depend on which.
+          workerSrc: ["'self'", 'blob:'],
           // Allow Google Fonts stylesheet (Inter)
           styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           // Allow Google Fonts glyphs

@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { knockProfile, listenForRoom, type KnockListener } from './knockJoin';
 import { useGameConfig } from '../../hooks/useGameConfig';
 
-type State = 'idle' | 'starting' | 'listening' | 'unusable' | 'denied';
+type State = 'idle' | 'starting' | 'listening' | 'unusable' | 'denied' | 'blocked';
 
 interface KnockListenButtonProps {
   onCode: (code: string) => void;
@@ -57,9 +57,17 @@ export function KnockListenButton({ onCode }: KnockListenButtonProps) {
        */
       setState(rx.usable ? 'listening' : 'unusable');
       if (!rx.usable) stop();
-    } catch {
-      // Permission refused, or no microphone at all.
-      setState('denied');
+    } catch (err) {
+      /*
+       * Only a permission failure is a permission failure.
+       *
+       * This used to report every error as "microphone unavailable", which was actively
+       * misleading: the microphone is opened first and the AudioWorklet second, so the common
+       * failure is the *worklet* being refused while permission was granted fine. Someone who
+       * had just tapped Allow was told the microphone was unavailable, with nothing to act on.
+       */
+      const name = err instanceof Error ? err.name : '';
+      setState(name === 'NotAllowedError' || name === 'NotFoundError' ? 'denied' : 'blocked');
     }
   };
 
@@ -68,7 +76,8 @@ export function KnockListenButton({ onCode }: KnockListenButtonProps) {
     starting: 'Starting…',
     listening: 'Listening — hold near the host screen',
     unusable: 'This browser cannot hear it',
-    denied: 'Microphone unavailable',
+    denied: 'Microphone permission needed',
+    blocked: 'Audio setup failed on this device',
   };
 
   return (
@@ -90,11 +99,13 @@ export function KnockListenButton({ onCode }: KnockListenButtonProps) {
           Beta
         </span>
       </button>
-      {(state === 'unusable' || state === 'denied') && (
+      {(state === 'unusable' || state === 'denied' || state === 'blocked') && (
         <p className="text-center text-[11px] text-slate-500">
           {state === 'unusable'
             ? 'Firefox resamples the microphone too low for the silent signal. Scan or type the code.'
-            : 'Allow microphone access, or scan or type the code instead.'}
+            : state === 'denied'
+              ? 'Allow microphone access, or scan or type the code instead.'
+              : 'The browser refused the audio processor. Reload the page, or scan or type the code.'}
         </p>
       )}
     </div>
