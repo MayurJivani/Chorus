@@ -6,7 +6,7 @@
  * loads is a bad neighbour even when the sound is inaudible.
  */
 import { useEffect, useRef, useState } from 'react';
-import { announceRoom, knockProfile, type KnockBroadcast } from './knockJoin';
+import { announceRoom, type KnockBroadcast } from './knockJoin';
 import { useGameConfig } from '../../hooks/useGameConfig';
 
 interface KnockAnnounceButtonProps {
@@ -14,7 +14,7 @@ interface KnockAnnounceButtonProps {
 }
 
 export function KnockAnnounceButton({ code }: KnockAnnounceButtonProps) {
-  const { knockJoinEnabled, knockJoinJingle } = useGameConfig();
+  const { knockJoinEnabled } = useGameConfig();
   const [announcing, setAnnouncing] = useState(false);
   const [failed, setFailed] = useState(false);
   const txRef = useRef<KnockBroadcast | null>(null);
@@ -29,8 +29,6 @@ export function KnockAnnounceButton({ code }: KnockAnnounceButtonProps) {
 
   if (!knockJoinEnabled) return null;
 
-  const jingle = knockJoinJingle;
-
   const toggle = async () => {
     if (txRef.current) {
       txRef.current.stop();
@@ -40,7 +38,7 @@ export function KnockAnnounceButton({ code }: KnockAnnounceButtonProps) {
     }
     setFailed(false);
     try {
-      txRef.current = await announceRoom(code, knockProfile(jingle));
+      txRef.current = await announceRoom(code);
       setAnnouncing(true);
     } catch {
       // Autoplay policy, a missing AudioContext, or an output device that refuses the rate.
@@ -70,9 +68,7 @@ export function KnockAnnounceButton({ code }: KnockAnnounceButtonProps) {
       <p className="text-center text-[11px] text-slate-500">
         {failed
           ? 'This device would not play the signal. Share the code instead.'
-          : jingle
-            ? 'Plays a short chime on repeat. Everyone still needs the join page open.'
-            : 'Silent — above hearing. Everyone still needs the join page open.'}
+          : 'Silent — above hearing. Everyone still needs the join page open.'}
       </p>
     </div>
   );

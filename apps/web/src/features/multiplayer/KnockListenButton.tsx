@@ -6,7 +6,7 @@
  * characters.
  */
 import { useEffect, useRef, useState } from 'react';
-import { knockProfile, listenForRoom, type KnockListener } from './knockJoin';
+import { listenForRoom, type KnockListener } from './knockJoin';
 import { useGameConfig } from '../../hooks/useGameConfig';
 
 type State = 'idle' | 'starting' | 'listening' | 'unusable' | 'denied' | 'blocked';
@@ -16,7 +16,7 @@ interface KnockListenButtonProps {
 }
 
 export function KnockListenButton({ onCode }: KnockListenButtonProps) {
-  const { knockJoinEnabled, knockJoinJingle } = useGameConfig();
+  const { knockJoinEnabled } = useGameConfig();
   const [state, setState] = useState<State>('idle');
   const rxRef = useRef<KnockListener | null>(null);
 
@@ -42,7 +42,7 @@ export function KnockListenButton({ onCode }: KnockListenButtonProps) {
     }
     setState('starting');
     try {
-      const rx = await listenForRoom(knockProfile(knockJoinJingle), (code) => {
+      const rx = await listenForRoom((code) => {
         // The transmitter repeats, so this can fire more than once. Stop on the first hit,
         // otherwise the microphone stays open behind the navigation.
         stop();
@@ -51,9 +51,9 @@ export function KnockListenButton({ onCode }: KnockListenButtonProps) {
       });
       rxRef.current = rx;
       /*
-       * `usable: false` means the browser resampled the microphone below what the profile's
-       * band needs — Firefox on the silent profile. Nothing will ever arrive, so say so
-       * instead of leaving a listening spinner running forever.
+       * `usable: false` means the browser resampled the microphone below what the band needs
+       * — Firefox, mostly. Nothing will ever arrive, so say so instead of leaving a listening
+       * spinner running forever.
        */
       setState(rx.usable ? 'listening' : 'unusable');
       if (!rx.usable) stop();
@@ -102,7 +102,7 @@ export function KnockListenButton({ onCode }: KnockListenButtonProps) {
       {(state === 'unusable' || state === 'denied' || state === 'blocked') && (
         <p className="text-center text-[11px] text-slate-500">
           {state === 'unusable'
-            ? 'Firefox resamples the microphone too low for the silent signal. Scan or type the code.'
+            ? 'Firefox resamples the microphone too low to hear the signal. Scan or type the code.'
             : state === 'denied'
               ? 'Allow microphone access, or scan or type the code instead.'
               : 'The browser refused the audio processor. Reload the page, or scan or type the code.'}

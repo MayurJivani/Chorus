@@ -14,9 +14,8 @@ export interface GameConfig {
   snippetSchedule: number[];
   maxGuesses: number;
   challengeRounds: number;
-  /** Join-by-sound (Beta). Host and joiner both read these so their tones agree. */
+  /** Join-by-sound (Beta). */
   knockJoinEnabled: boolean;
-  knockJoinJingle: boolean;
 }
 
 const FALLBACK: GameConfig = {
@@ -26,7 +25,6 @@ const FALLBACK: GameConfig = {
   // Beta and off unless an admin turns it on, so a failed config fetch never starts listening
   // on a microphone the player did not agree to.
   knockJoinEnabled: false,
-  knockJoinJingle: false,
 };
 
 const GameConfigContext = createContext<GameConfig>(FALLBACK);

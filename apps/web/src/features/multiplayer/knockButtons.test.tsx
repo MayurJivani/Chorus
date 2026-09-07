@@ -11,15 +11,13 @@ vi.mock('./knockJoin', async (orig) => ({
 
 const config = { snippetSchedule: [2, 4], maxGuesses: 2, challengeRounds: 10 };
 let knockJoinEnabled = false;
-let knockJoinJingle = false;
 
 vi.mock('../../hooks/useGameConfig', () => ({
-  useGameConfig: () => ({ ...config, knockJoinEnabled, knockJoinJingle }),
+  useGameConfig: () => ({ ...config, knockJoinEnabled }),
 }));
 
 beforeEach(() => {
   knockJoinEnabled = false;
-  knockJoinJingle = false;
 });
 
 describe('join-by-sound visibility', () => {
@@ -44,14 +42,11 @@ describe('join-by-sound visibility', () => {
     expect(screen.getByRole('button', { name: /listen for a room nearby/i })).toBeTruthy();
   });
 
-  it('tells the host which variant is playing, since one of them is inaudible', () => {
+  it('tells the host the signal is silent, since there is nothing to hear', () => {
+    // Without this line a host has no way to tell a working transmitter from a broken one.
     knockJoinEnabled = true;
-    const silent = render(<KnockAnnounceButton code="ESXT2B" />);
-    expect(silent.getByText(/silent — above hearing/i)).toBeTruthy();
-
-    knockJoinJingle = true;
-    const chime = render(<KnockAnnounceButton code="ESXT2B" />);
-    expect(chime.getByText(/plays a short chime/i)).toBeTruthy();
+    render(<KnockAnnounceButton code="ESXT2B" />);
+    expect(screen.getByText(/silent — above hearing/i)).toBeTruthy();
   });
 
   it('marks both as Beta', () => {
