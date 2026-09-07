@@ -16,17 +16,33 @@ describe('knock profiles', () => {
     expect(PROFILES.jingle.baseHz).toBeLessThan(15000);
   });
 
-  it('keeps the chime clear of the speech band phones actively process', () => {
-    // The delay that made the chime unusable: at 880-1870Hz handset voice processing kept
-    // eating frames, so the receiver sat through repeat after repeat. Voice chains stop
-    // fighting for the spectrum above roughly 3.4kHz.
-    expect(PROFILES.jingle.baseHz).toBeGreaterThan(3400);
+  it('keeps the chime above the noise a room actually makes', () => {
+    /*
+     * Three things share the audible spectrum with this carrier, and the band has to clear
+     * all of them:
+     *   - the speech band phones actively gate and suppress (to ~3.4kHz)
+     *   - consonant energy, which is mostly 4-8kHz — an "s" is almost all of it
+     *   - hi-hats and cymbals, the loudest thing in most music above 4kHz
+     * Fans roll off steeply with frequency and are a non-issue this high.
+     */
+    expect(PROFILES.jingle.baseHz).toBeGreaterThanOrEqual(8000);
+  });
+
+  it('keeps a noisy-room margin between neighbouring tones', () => {
+    // Wide spacing is what makes a noisy bin have to be very wrong to beat the real tone.
+    expect(PROFILES.jingle.spacingHz).toBeGreaterThanOrEqual(300);
+  });
+
+  it('gives the chime a longer preamble than the silent profile', () => {
+    // Frame lock is the part a burst of noise breaks, and it is the cheapest place to buy
+    // reliability back.
+    expect(PROFILES.jingle.syncSymbols).toBeGreaterThan(PROFILES.default.syncSymbols);
   });
 
   it('keeps a chime frame short enough to retry quickly', () => {
     // 27 symbols carry a six-character room code. At 60ms that was 1.6s before a retry could
     // even start, which is most of what "takes too long" was.
-    const frameMs = 27 * PROFILES.jingle.symbolMs;
+    const frameMs = (PROFILES.jingle.syncSymbols + 24) * PROFILES.jingle.symbolMs;
     expect(frameMs).toBeLessThan(1250);
   });
 

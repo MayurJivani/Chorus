@@ -22,40 +22,68 @@ export type KnockProfile = 'default' | 'jingle';
  */
 const PROFILES: Record<
   KnockProfile,
-  { baseHz: number; spacingHz: number; syncHz: number; symbolMs: number; volume: number }
+  {
+    baseHz: number;
+    spacingHz: number;
+    syncHz: number;
+    symbolMs: number;
+    /** Preamble length. Longer locks more reliably in a noisy room, at a little time. */
+    syncSymbols: number;
+    volume: number;
+  }
 > = {
   /**
    * The library's tuned set: eight tones from 18kHz, above almost everyone's hearing. Silent
    * to the room, and — the reason it is the default — clear of where music has its energy, so
    * it still decodes with a song playing.
    */
-  default: { baseHz: 18000, spacingHz: 125, syncHz: 19125, symbolMs: 30, volume: 0.2 },
+  default: {
+    baseHz: 18000,
+    spacingHz: 125,
+    syncHz: 19125,
+    symbolMs: 30,
+    syncSymbols: 3,
+    volume: 0.2,
+  },
   /**
-   * Audible chime. Bell-register tones with a short symbol, tuned after the first version
-   * decoded far more slowly than the silent one in a real room.
+   * Audible chime, placed for a noisy room rather than for prettiness.
    *
-   * Two real reasons to prefer it over the silent one, neither cosmetic:
+   * Why it exists at all: Firefox resamples microphone input to 32kHz and cannot carry an
+   * 18kHz tone, so this is the only variant those phones can receive — and a signal nobody
+   * can hear gives a player nothing to tell them it is working.
    *
-   *   - Firefox resamples microphone input to 32kHz, which cannot carry an 18kHz tone at all.
-   *     `listen()` reports that as `usable: false`. This profile is well inside what any
-   *     capture rate carries, so it is the only variant those phones can hear.
-   *   - A sound nobody can hear gives a player no idea whether anything is happening. A chime
-   *     is its own feedback.
+   * The band has moved twice, both times for the same reason: an audible carrier has to share
+   * the spectrum with the room, and the room is not quiet.
    *
-   * Why 4kHz and not the piano register it started in. The first attempt sat at 880–1870Hz,
-   * squarely inside the speech band, and phones fight for that band on purpose: handset voice
-   * processing keeps suppressing and gating there even when `noiseSuppression` is asked for
-   * and reported off. Frames were being eaten rather than misread, so the receiver simply
-   * waited through repeat after repeat. Above ~4kHz the voice chain mostly stops caring, while
-   * the tones stay far below the 16kHz ceiling a 32kHz capture imposes.
+   *   - 880-1870Hz failed because that is the speech band, which handset voice processing
+   *     suppresses and gates on purpose even when `noiseSuppression` is reported off. Frames
+   *     were eaten rather than misread, so the receiver waited through repeat after repeat.
+   *   - 4000-6250Hz was better but still exposed: consonants put a lot of energy in 4-8kHz
+   *     (an "s" is mostly that), and hi-hats and cymbals sit there too. Talking or music in
+   *     the room would still cost frames.
    *
-   * The other half of the delay was the symbol: 60ms made every frame take 1.6s before a
-   * retry could even begin. 40ms is still long enough to read as notes rather than a buzz.
+   * 8000-11600Hz is the highest band that is still plainly audible while staying clear of the
+   * 16kHz ceiling a 32kHz capture imposes. Above sibilance, above nearly all musical content
+   * except cymbal shimmer, and far above a fan — fan and air-conditioning noise is broadband
+   * but rolls off steeply with frequency, so it is a non-issue this high.
    *
-   * It still lives closer to music than the silent profile does, so it is at its best in the
-   * lobby before a game starts — which is when people join anyway.
+   * Spacing is wide (400Hz) so a noisy bin has to be very wrong to beat the real tone, the
+   * preamble is a symbol longer so frame lock survives a burst of noise, and the level is up
+   * because unlike the silent profile this one has competition.
+   *
+   * Honest trade: this sounds like a high shimmer, not a tune. Musical registers are exactly
+   * where voices and instruments are, so "sounds nice" and "survives a room" pull against each
+   * other. Robustness wins here — the silent profile is still the one to use when a game is
+   * actually playing.
    */
-  jingle: { baseHz: 4000, spacingHz: 250, syncHz: 6250, symbolMs: 40, volume: 0.18 },
+  jingle: {
+    baseHz: 8000,
+    spacingHz: 400,
+    syncHz: 11600,
+    symbolMs: 40,
+    syncSymbols: 4,
+    volume: 0.22,
+  },
 };
 
 export function knockProfile(jingle: boolean): KnockProfile {
