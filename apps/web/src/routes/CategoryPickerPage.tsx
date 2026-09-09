@@ -18,8 +18,8 @@ const GROUP_LABELS: Partial<Record<CategoryGroup, { title: string; subtitle: str
     subtitle: 'K-pop, Latin, Afrobeats, Indian indie and more',
   },
   movie: {
-    title: 'Guess the Movie',
-    subtitle: 'Name the film from its soundtrack or score',
+    title: 'Guess the Movie or Game',
+    subtitle: 'Name the film or game from its soundtrack or score',
   },
 };
 

@@ -11,7 +11,11 @@ export const DEFAULTS = {
   syncHz: 19125, // preamble, two spacings clear of the top data tone
   symbolMs: 30, // 1440 samples at 48k
   syncSymbols: 3, // preamble length
+  syncFactor: 2.5, // preamble tone must beat the mean of the data tones by this
   hopsPerSymbol: 8, // receiver search grid
+  repairSymbols: 3, // least-confident symbols to retry on CRC failure; 0 disables
+  combineFrames: 4, // failed frames to stack and decode together; 0 or 1 disables
+  combineWindowMs: 8000, // how long a failed frame is worth keeping to combine
   maxPayload: 64, // bytes; anything longer is a mis-decode
 };
 
@@ -149,6 +153,9 @@ export class Decoder {
     this.origin = 0; // absolute index of buf[0]
     this.n = 0; // samples held
     this.nextHopEnd = this.L; // absolute index one past the next search window
+    // Failed frames held for combining. Deliberately outside reset(), which
+    // runs at the end of every frame — the whole point is to outlive one.
+    this.stacked = [];
 
     this.reset();
   }
@@ -159,6 +166,9 @@ export class Decoder {
     this.prevD = null; // previous (sync - bestData), for the edge crossing
     this.prevEnd = 0;
     this.symbols = null; // non-null while reading a frame
+    this.alt = null; // per-symbol runner-up tone
+    this.conf = null; // per-symbol peak-to-mean
+    this.frameMags = null; // flat per-symbol tone shapes, for combining
     this.symbolStart = 0;
     this.expected = 0;
     this.margin = 0; // running sum of per-symbol peak-to-mean
@@ -202,15 +212,27 @@ export class Decoder {
       if (this.symbols && end >= this.symbolStart + this.L) {
         const m = this.#mags(this.symbolStart, 0, TONES);
         let best = 0;
-        let sum = 0;
-        for (let i = 0; i < TONES; i++) {
+        let second = 1;
+        let sum = m[0] + m[1];
+        if (m[1] > m[0]) ((best = 1), (second = 0));
+        for (let i = 2; i < TONES; i++) {
           sum += m[i];
-          if (m[i] > m[best]) best = i;
+          if (m[i] > m[best]) ((second = best), (best = i));
+          else if (m[i] > m[second]) second = i;
         }
         // How far the winning tone stood above the pack, kept so the caller can
-        // tell a frame that barely made it from one that arrived clean.
-        this.margin += sum > 0 ? (m[best] * TONES) / sum : 0;
+        // tell a frame that barely made it from one that arrived clean — and so
+        // a failed frame knows which symbol to doubt first.
+        const conf = sum > 0 ? (m[best] * TONES) / sum : 0;
+        this.margin += conf;
         this.symbols.push(best);
+        this.alt.push(second);
+        this.conf.push(conf);
+        // Keep the shape of this symbol, normalised by its own mean, so failed
+        // frames can be stacked. Normalising per symbol is what makes stacking
+        // safe across frames that arrived at different levels: a loud frame
+        // must not outvote a quiet one just for being loud.
+        for (let i = 0; i < TONES; i++) this.frameMags.push(sum > 0 ? (m[i] * TONES) / sum : 0);
         this.symbolStart += this.L;
         const resumeAt = this.symbolStart;
         this.#onSymbols();
@@ -234,11 +256,106 @@ export class Decoder {
       this.expected = symbolCount(len);
     }
     if (this.expected && this.symbols.length >= this.expected) {
-      const payload = decode(this.symbols, this.cfg);
       const marginDb = 20 * Math.log10(Math.max(1, this.margin / this.symbols.length));
+      const at = this.origin + this.n;
+
+      let { payload, repaired } = this.#tryDecode(this.symbols, this.alt, this.conf);
+      let combined = 0;
+
+      // Nothing on its own. The transmitter repeats, so stack this frame's
+      // symbol shapes with recent failures and decide on the sum: noise is
+      // independent between frames and the tones are not, so the tones add up
+      // faster than the noise does.
+      if (!payload && this.cfg.combineFrames > 1) {
+        const stacked = this.#stack(at);
+        if (stacked) {
+          const r = this.#tryDecode(stacked.symbols, stacked.alt, stacked.conf);
+          if (r.payload) {
+            payload = r.payload;
+            repaired = r.repaired;
+            combined = this.stacked.length;
+          }
+        }
+      }
+      // A frame that got through ends the run; anything held was the same
+      // payload and is now just clutter.
+      if (payload) this.stacked = [];
+
       this.reset();
-      if (payload) this.onPayload?.(payload, { marginDb });
+      if (payload) this.onPayload?.(payload, { marginDb, repaired, combined });
     }
+  }
+
+  /**
+   * Decode a symbol run, doubting the least confident symbols if the CRC fails.
+   *
+   * At the edge of range almost every frame that fails fails by exactly one
+   * symbol, and it is usually the least confident one — measured at the 50%
+   * point, 95% of bad frames had a single error. So try the runner-up tone for
+   * the weakest few. Every attempt still has to clear CRC-16.
+   */
+  #tryDecode(symbols, alt, conf) {
+    let payload = decode(symbols, this.cfg);
+    if (payload) return { payload, repaired: false };
+
+    const doubtful = conf.map((_, i) => i).sort((a, b) => conf[a] - conf[b]);
+    for (let k = 0; k < this.cfg.repairSymbols; k++) {
+      const i = doubtful[k];
+      if (i === undefined || symbols[i] === alt[i]) continue;
+      const was = symbols[i];
+      symbols[i] = alt[i];
+      payload = decode(symbols, this.cfg);
+      if (payload) return { payload, repaired: true };
+      symbols[i] = was;
+    }
+    return { payload: null, repaired: false };
+  }
+
+  /**
+   * Add the frame just failed to the stack and decide on the sum of them all.
+   *
+   * The transmitter sends the same payload several times before its nonce
+   * rotates, and each copy is corrupted independently. Summing the per-symbol
+   * tone shapes lets the real tone accumulate while the noise partly cancels —
+   * the same processing gain a longer symbol would buy, without lengthening a
+   * symbol. Frames whose length disagrees, or which are too old to still be the
+   * same payload, are dropped rather than mixed in.
+   *
+   * A wrong stack is not dangerous, only wasted: the sum still has to clear the
+   * CRC, exactly like a single frame does.
+   */
+  #stack(at) {
+    const n = this.symbols.length;
+    const window = (this.cfg.combineWindowMs / 1000) * this.sampleRate;
+    this.stacked = this.stacked.filter((f) => f.n === n && at - f.at <= window);
+    this.stacked.push({ at, n, mags: this.frameMags });
+    while (this.stacked.length > this.cfg.combineFrames) this.stacked.shift();
+    if (this.stacked.length < 2) return null;
+
+    const sum = new Float64Array(n * TONES);
+    for (const f of this.stacked) {
+      for (let i = 0; i < sum.length; i++) sum[i] += f.mags[i];
+    }
+
+    const symbols = [];
+    const alt = [];
+    const conf = [];
+    for (let s = 0; s < n; s++) {
+      const o = s * TONES;
+      let best = 0;
+      let second = 1;
+      let total = sum[o] + sum[o + 1];
+      if (sum[o + 1] > sum[o]) ((best = 1), (second = 0));
+      for (let i = 2; i < TONES; i++) {
+        total += sum[o + i];
+        if (sum[o + i] > sum[o + best]) ((second = best), (best = i));
+        else if (sum[o + i] > sum[o + second]) second = i;
+      }
+      symbols.push(best);
+      alt.push(second);
+      conf.push(total > 0 ? (sum[o + best] * TONES) / total : 0);
+    }
+    return { symbols, alt, conf };
   }
 
   #search(startAbs) {
@@ -266,7 +383,7 @@ export class Decoder {
       sum += m[i];
       if (m[i] > best) best = m[i];
     }
-    const dominant = sync > 3 * (sum / TONES);
+    const dominant = sync > this.cfg.syncFactor * (sum / TONES);
     if (this.armed < 0 && !dominant) this.floor += (sync - this.floor) * 0.01;
     this.syncRun = dominant ? this.syncRun + 1 : 0;
 
@@ -287,6 +404,9 @@ export class Decoder {
         const cross = this.prevEnd + t * (startAbs - this.prevEnd);
         this.reset();
         this.symbols = [];
+        this.alt = [];
+        this.conf = [];
+        this.frameMags = [];
         this.expected = 0;
         this.symbolStart = Math.round(cross + this.L / 2);
       }

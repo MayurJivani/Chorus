@@ -123,6 +123,10 @@ const BOLLYWOOD_MOVIES: MovieAlbum[] = [
   { movie: 'OK Jaanu', albumId: '14975295' },
   { movie: 'Jab Harry Met Sejal', albumId: '45765772' },
   { movie: 'Street Dancer 3D', albumId: '694052171' },
+  { movie: 'Kabhi Alvida Naa Kehna', albumId: '1209527' },
+  { movie: 'Namastey London', albumId: '827347721' },
+  { movie: 'Hum Aapke Hain Koun', albumId: '680594031' },
+  { movie: 'Kaho Naa Pyaar Hai', albumId: '60057432' },
 ];
 
 /**
@@ -258,6 +262,53 @@ const SCORE_MOVIES: MovieAlbum[] = [
   { movie: 'Get Out', albumId: '127074472' },
   { movie: 'Hereditary', albumId: '130049982' },
   { movie: 'Midsommar', albumId: '140733232' },
+  { movie: 'Gravity', albumId: '90108322' },
+];
+
+/**
+ * Video game soundtracks. The answer is the game, and the collection rides the same machinery
+ * as the film ones — `title` holds the answer, `artist` the track that is playing.
+ *
+ * Games turn out to be the easiest of the three to source: this music is written to be owned
+ * rather than licensed, so the composer's own album is on Deezer in full, complete with
+ * previews. Almost every candidate resolved first try, which is not true of Hollywood.
+ *
+ * Franchise-level labels, same rule as the film scores: Korb's Hades palette, McCreary's God of
+ * War themes and Larkin's Hollow Knight writing all recur across their sequels, so pinning an
+ * answer to one instalment would mark a correct recognition wrong.
+ *
+ * Two were rejected rather than fudged. "Halo" on Deezer is the TV series score, not Martin
+ * O'Donnell's game music — a different thing wearing the same name. And plain NieR sits beside
+ * NieR: Automata sharing composer and themes closely enough that a round could not fairly
+ * distinguish them, so only Automata is here.
+ */
+const GAME_SOUNDTRACKS: MovieAlbum[] = [
+  { movie: 'The Last of Us', albumId: '409638277' },
+  { movie: 'Journey', albumId: '206992352' },
+  { movie: 'Minecraft', albumId: '894481492' },
+  { movie: 'Undertale', albumId: '49333512' },
+  { movie: 'Celeste', albumId: '193375342' },
+  { movie: 'Hollow Knight', albumId: '819144161' },
+  { movie: 'NieR: Automata', albumId: '417822547' },
+  { movie: 'DOOM', albumId: '941543521' },
+  { movie: 'Cyberpunk 2077', albumId: '191001362' },
+  { movie: 'The Witcher 3', albumId: '54723492' },
+  { movie: 'Hades', albumId: '854241482' },
+  { movie: 'Ori and the Blind Forest', albumId: '9730700' },
+  { movie: 'God of War', albumId: '369191727' },
+  { movie: 'Elden Ring', albumId: '351595207' },
+  { movie: 'Stardew Valley', albumId: '14124862' },
+  { movie: 'Portal 2', albumId: '956350181' },
+  { movie: 'Mass Effect', albumId: '108889842' },
+  { movie: 'Death Stranding', albumId: '260094522' },
+  { movie: 'Disco Elysium', albumId: '386053877' },
+  { movie: 'Outer Wilds', albumId: '349891417' },
+  { movie: 'Silent Hill 2', albumId: '666275041' },
+  { movie: 'Life is Strange', albumId: '658853791' },
+  { movie: 'Bastion', albumId: '88139982' },
+  { movie: 'Transistor', albumId: '7814163' },
+  { movie: 'Persona 5', albumId: '506559661' },
+  { movie: 'Katana ZERO', albumId: '95719332' },
 ];
 
 export interface MovieCollection {
@@ -295,6 +346,18 @@ export const MOVIE_COLLECTIONS: MovieCollection[] = [
    * different skill to naming it from a pop song on its soundtrack, and shuffling the two
    * together would make a round's difficulty depend on which kind it happened to draw.
    */
+  /*
+   * Its own collection rather than folded into the film scores: naming a game from its music is
+   * a different body of knowledge, and mixing the two would make a round's difficulty depend on
+   * which kind it happened to draw.
+   */
+  {
+    id: 'movies-games',
+    label: 'Guess the Game: Video Games',
+    blurb: 'Elden Ring, Minecraft, Undertale — name the game from its soundtrack',
+    kind: 'score',
+    movies: GAME_SOUNDTRACKS,
+  },
   {
     id: 'movies-scores',
     label: 'Guess the Movie: Film Scores',

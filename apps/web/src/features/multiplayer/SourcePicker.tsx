@@ -143,7 +143,7 @@ export function SourcePicker({
               }))
             : movies.map((m) => ({
                 id: m.id,
-                label: m.label.replace(/^Guess the Movie:\s*/, ''),
+                label: m.label.replace(/^Guess the (?:Movie|Game):\s*/, ''),
                 here: (m.playing ?? 0) + (m.queued ?? 0),
                 pick: () => onChange({ kind: 'movie' as const, collection: m }),
               }))

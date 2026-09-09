@@ -9,8 +9,16 @@ export interface Config {
   symbolMs: number;
   /** Preamble length in symbols. Default 3. */
   syncSymbols: number;
+  /** Preamble tone must beat mean of data tones by this factor. Default 2.5. */
+  syncFactor: number;
   /** Receiver search grid resolution. Default 8. */
   hopsPerSymbol: number;
+  /** Least-confident symbols to retry on CRC failure; 0 disables. Default 3. */
+  repairSymbols: number;
+  /** Failed frames to stack and decode together; 0 or 1 disables. Default 4. */
+  combineFrames: number;
+  /** How long a failed frame is worth keeping to combine, ms. Default 8000. */
+  combineWindowMs: number;
   /** Longest payload accepted, bytes. Default 64. */
   maxPayload: number;
 }
@@ -21,6 +29,10 @@ export const DEFAULTS: Config;
 export interface Reception {
   /** Winning tone's ratio to the mean of the pack, averaged over the frame, dB. */
   marginDb: number;
+  /** True if the frame was recovered by substituting a runner-up tone. */
+  repaired: boolean;
+  /** How many frames were stacked to decode this one; 0 if it stood alone. */
+  combined: number;
 }
 
 export interface BroadcastOptions extends Partial<Config> {

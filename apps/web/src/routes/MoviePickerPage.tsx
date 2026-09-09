@@ -31,7 +31,7 @@ export function MoviePickerPage() {
       <header className="mb-6 text-center">
         <h1 className="text-3xl font-extrabold text-white sm:text-4xl">Guess the Movie</h1>
         <p className="mt-1 text-sm text-slate-400">
-          A few seconds of a soundtrack. Name the film it came from.
+          A few seconds of a soundtrack. Name what it came from.
         </p>
       </header>
 
@@ -60,7 +60,7 @@ export function MoviePickerPage() {
                 <h2 className="min-w-0 truncate text-lg font-bold text-white">
                   {/* The mode's name is already the page title; repeating it on every card
                       just pushed the part that distinguishes them off small screens. */}
-                  {collection.label.replace(/^Guess the Movie:\s*/, '')}
+                  {collection.label.replace(/^Guess the (?:Movie|Game):\s*/, '')}
                 </h2>
                 <div className="flex shrink-0 items-center gap-1.5">
                   {collection.kind === 'score' && (
@@ -69,7 +69,7 @@ export function MoviePickerPage() {
                     </span>
                   )}
                   <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
-                    {collection.filmCount} films
+                    {collection.filmCount} titles
                   </span>
                 </div>
               </div>
