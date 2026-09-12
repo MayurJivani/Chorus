@@ -17,6 +17,7 @@ import type {
   MultiplayerRoundEnd,
 } from './useMultiplayerGame';
 import { useCountdownTo } from './useCountdownTo';
+import { useGameConfig } from '../../hooks/useGameConfig';
 
 interface MultiplayerGameProps {
   room: MultiplayerRoomSnapshot;
@@ -49,6 +50,7 @@ export function MultiplayerGame({
   onNextRound,
   onLeave,
 }: MultiplayerGameProps) {
+  const { revealContinuesSnippet } = useGameConfig();
   const isHost = selfId === room.hostId;
   /**
    * Answered state comes from `scores`, not the room snapshot.
@@ -98,11 +100,24 @@ export function MultiplayerGame({
     } catch {
       /* volume preference is optional */
     }
-    audio.currentTime = 0;
+    /*
+     * Pick up where the snippet stopped.
+     *
+     * The round plays the track from zero up to the current stage, so restarting the reveal at
+     * zero replays seconds everyone has just heard — and when a round is answered in five
+     * seconds that is most of the reveal spent on audio nobody needed to hear twice. Continuing
+     * from `stageSeconds` is the first moment that is actually new.
+     *
+     * Clamped against the track length because a preview is only about thirty seconds: a long
+     * snippet schedule could otherwise seek past the end and play nothing at all.
+     */
+    const resumeAt = revealContinuesSnippet ? stageSeconds : 0;
+    const limit = Number.isFinite(audio.duration) ? audio.duration - 1 : Infinity;
+    audio.currentTime = Math.max(0, Math.min(resumeAt, limit));
     // Autoplay can be refused before the user has interacted; the round is still readable.
     void audio.play().catch(() => {});
     return () => audio.pause();
-  }, [revealPreview]);
+  }, [revealPreview, revealContinuesSnippet, stageSeconds]);
   /** What this player locked in, so the option list can mark it while the round finishes. */
   const lockedGuessId =
     answered && isChoice && lastGuess ? (lastGuess.guessedTrackId ?? null) : null;

@@ -16,6 +16,8 @@ export interface GameConfig {
   challengeRounds: number;
   /** Join-by-sound (Beta). */
   knockJoinEnabled: boolean;
+  /** Reveal picks up where the snippet stopped rather than restarting the track. */
+  revealContinuesSnippet: boolean;
 }
 
 const FALLBACK: GameConfig = {
@@ -25,6 +27,7 @@ const FALLBACK: GameConfig = {
   // Beta and off unless an admin turns it on, so a failed config fetch never starts listening
   // on a microphone the player did not agree to.
   knockJoinEnabled: false,
+  revealContinuesSnippet: true,
 };
 
 const GameConfigContext = createContext<GameConfig>(FALLBACK);
