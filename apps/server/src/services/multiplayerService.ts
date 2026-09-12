@@ -734,21 +734,38 @@ function startRound(room: MpRoom, roundIndex: number): void {
   const isSpeed = room.gameMode === 'speed';
   const roundDuration = isSpeed ? room.speedRoundDurationMs : room.roundDurationMs;
 
-  broadcast(room, {
-    type: 'round_start',
-    roundIndex,
-    totalRounds: room.rounds,
-    startedAt: room.roundStartedAt,
-    roundDurationMs: roundDuration,
-    snippetSchedule: isSpeed ? [room.speedSnippetSeconds] : room.revealSchedule,
-    previewUrl: room.previewUrls[roundIndex] ?? null,
-    albumArtUrl: track?.albumArtUrl ?? null,
-    pictureUrl: room.source.pictureUrl,
-    revealDurationMs: room.revealDurationMs,
-    guessMode: room.guessMode,
-    gameMode: room.gameMode,
-    ...(room.guessMode === 'choice' ? { options: room.roundOptions[roundIndex] ?? [] } : {}),
-  });
+  /*
+   * Sent per player rather than broadcast, so everyone gets the same four options in a
+   * different order.
+   *
+   * The *set* has to match or the round is not a fair race, but a shared order turns the game
+   * into "watch the person next to you" — one player answering fast tells the rest which
+   * position to tap, and on a phone that is faster than recognising the song. Shuffling the
+   * arrangement keeps the race about the audio.
+   *
+   * Seeded on player and round rather than randomised per send: a reconnect mid-round would
+   * otherwise deal a new arrangement and move the answer out from under someone's finger.
+   */
+  const options = room.roundOptions[roundIndex] ?? [];
+  for (const player of room.players.values()) {
+    sendTo(player.playerId, {
+      type: 'round_start',
+      roundIndex,
+      totalRounds: room.rounds,
+      startedAt: room.roundStartedAt,
+      roundDurationMs: roundDuration,
+      snippetSchedule: isSpeed ? [room.speedSnippetSeconds] : room.revealSchedule,
+      previewUrl: room.previewUrls[roundIndex] ?? null,
+      albumArtUrl: track?.albumArtUrl ?? null,
+      pictureUrl: room.source.pictureUrl,
+      revealDurationMs: room.revealDurationMs,
+      guessMode: room.guessMode,
+      gameMode: room.gameMode,
+      ...(room.guessMode === 'choice'
+        ? { options: seededShuffle(options, `${player.playerId}:${roundIndex}`) }
+        : {}),
+    });
+  }
 
   /*
    * Publish the cleared per-round state.

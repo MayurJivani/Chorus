@@ -734,7 +734,7 @@ describe('multiplayerService guess mode', () => {
     expect(lastOf(host, 'error')).toBeUndefined();
   });
 
-  it('gives every player in the room the same three options', async () => {
+  it('gives every player the same options, arranged differently', async () => {
     const { code } = await createRoom(queenSource(), 'choice');
     const host = register('host', 'hostaaaa');
     const guest = register('guest', 'guestbbb');
@@ -744,10 +744,26 @@ describe('multiplayerService guess mode', () => {
     handleClientMessage('host', { type: 'start_game' });
     await vi.advanceTimersByTimeAsync(0);
 
-    const hostOptions = lastOf(host, 'round_start')?.options;
-    const guestOptions = lastOf(guest, 'round_start')?.options;
-    // A race is only fair if both players are choosing between the same answers.
-    expect(guestOptions).toEqual(hostOptions);
+    const ids = (sock: FakeSocket) =>
+      ((lastOf(sock, 'round_start')?.options ?? []) as { deezerTrackId: string }[]).map(
+        (o) => o.deezerTrackId,
+      );
+    const hostIds = ids(host);
+    const guestIds = ids(guest);
+
+    expect(hostIds.length).toBeGreaterThan(1);
+    // A race is only fair if both players are choosing between the same answers...
+    expect([...guestIds].sort()).toEqual([...hostIds].sort());
+    /*
+     * ...but not the same *arrangement*. A shared order turns the game into "watch the person
+     * next to you": one player answering fast tells the rest which position to tap, and on a
+     * phone that beats recognising the song.
+     *
+     * Asserted on these two seeds specifically rather than looping until they differ — the
+     * shuffle is seeded on player and round, so this pair is deterministic, and a loop would
+     * hide the day it stops permuting.
+     */
+    expect(guestIds).not.toEqual(hostIds);
   });
 
   it('carries the mode on the room snapshot so joiners see it in the lobby', async () => {
