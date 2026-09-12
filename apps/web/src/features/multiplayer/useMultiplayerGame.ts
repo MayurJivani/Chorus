@@ -207,6 +207,18 @@ export function useMultiplayerGame(
           songs: (raw.songs as MultiplayerPlayedSong[] | undefined) ?? [],
         });
         setScores(raw.scores as MultiplayerScoreEntry[]);
+        /*
+         * The finished round has to go with it.
+         *
+         * The room page renders the results screen when `gameOver` is set and the game screen
+         * when `round` is set, in that order. Leaving the last round behind meant the moment
+         * results stopped being shown — starting another game, a re-render — the page fell
+         * through to the stale round, remounted the game, and the reveal effect autoplayed the
+         * song that had just been missed. Nothing on the results screen reads either of these;
+         * it has its own scores and set list.
+         */
+        setRound(null);
+        setRoundEnd(null);
         break;
       case 'error':
         setError(raw.message as string);

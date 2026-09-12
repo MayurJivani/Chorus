@@ -28,6 +28,7 @@ export function MultiplayerResults({
 }: MultiplayerResultsProps) {
   const iWon = gameOver.winner?.playerId === selfId;
   const [picking, setPicking] = useState(false);
+  const [showSongs, setShowSongs] = useState(false);
   const [picked, setPicked] = useState<PickedSource | null>(null);
 
   useEffect(() => {
@@ -92,10 +93,31 @@ export function MultiplayerResults({
       */}
       {gameOver.songs.length > 0 && (
         <section className="glass w-full rounded-2xl border border-white/10 p-4">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            What you played
-          </h2>
-          <ul className="flex flex-col gap-1.5">
+          {/*
+            Collapsed by default. At twenty-five rounds the set list pushed the scoreboard and
+            the "play again" controls off the screen entirely, so the thing everyone wants to
+            look at first was below the thing they wanted to browse afterwards.
+          */}
+          <button
+            type="button"
+            onClick={() => setShowSongs((v) => !v)}
+            aria-expanded={showSongs}
+            className="flex w-full items-center justify-between gap-2 text-left"
+          >
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              What you played
+              <span className="ml-1.5 font-normal normal-case tracking-normal text-slate-500">
+                ({gameOver.songs.length})
+              </span>
+            </h2>
+            <span
+              aria-hidden="true"
+              className={`text-slate-400 transition-transform duration-200 ${showSongs ? 'rotate-180' : ''}`}
+            >
+              ▾
+            </span>
+          </button>
+          <ul className={`mt-2 flex-col gap-1.5 ${showSongs ? 'flex' : 'hidden'}`}>
             {gameOver.songs.map((song, index) => (
               <li
                 key={`${song.title}-${index}`}

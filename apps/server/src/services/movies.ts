@@ -212,9 +212,6 @@ const SCORE_MOVIES: MovieAlbum[] = [
   { movie: 'Ratatouille', albumId: '473893' },
   { movie: 'The Incredibles', albumId: '2310491' },
   { movie: 'WALL-E', albumId: '81455242' },
-  { movie: 'Spirited Away', albumId: '181915142' },
-  { movie: "Howl's Moving Castle", albumId: '181915712' },
-  { movie: 'Princess Mononoke', albumId: '181915022' },
   { movie: 'Requiem for a Dream', albumId: '496099' },
   { movie: 'Oppenheimer', albumId: '463516585' },
   { movie: 'Arrival', albumId: '14520468' },
@@ -311,6 +308,48 @@ const GAME_SOUNDTRACKS: MovieAlbum[] = [
   { movie: 'Katana ZERO', albumId: '95719332' },
 ];
 
+/**
+ * Anime, film and series together, because the music does not respect the split — a composer's
+ * palette for a long-running series is as recognisable as any film score, and viewers do not
+ * think of them as different things.
+ *
+ * The Ghibli entries moved here out of the film scores, where they were the only non-Western
+ * thing in a list of Hollywood. Hisaishi belongs next to Sawano and Ushio rather than next to
+ * Zimmer.
+ *
+ * Franchise-labelled for the same reason as everywhere else: what Deezer carries is usually one
+ * season or one film of a series (Attack on Titan Season 3, Evangelion III, Naruto's Road to
+ * Ninja), and those share their themes with the rest, so pinning the answer to the instalment
+ * would mark a correct recognition wrong.
+ *
+ * Cowboy Bebop was rejected. The album that comes back is the Netflix *live-action* series, and
+ * although it is Seatbelts playing, it is not the thing anyone means by Cowboy Bebop. Your Name,
+ * Akira, Ghost in the Shell, A Silent Voice, Paprika and Perfect Blue simply are not on Deezer —
+ * this is the one area where the catalogue has real gaps rather than bad matches.
+ */
+const ANIME_TITLES: MovieAlbum[] = [
+  { movie: 'Spirited Away', albumId: '181915142' },
+  { movie: "Howl's Moving Castle", albumId: '181915712' },
+  { movie: 'Princess Mononoke', albumId: '181915022' },
+  { movie: 'My Neighbor Totoro', albumId: '181915672' },
+  { movie: "Kiki's Delivery Service", albumId: '181916442' },
+  { movie: 'Ponyo', albumId: '181915702' },
+  { movie: 'Suzume', albumId: '372101037' },
+  { movie: 'Attack on Titan', albumId: '100049482' },
+  { movie: 'Jujutsu Kaisen', albumId: '955540351' },
+  { movie: 'Neon Genesis Evangelion', albumId: '383249417' },
+  { movie: 'Naruto', albumId: '257074532' },
+  { movie: 'Death Note', albumId: '548659902' },
+  { movie: 'Fullmetal Alchemist', albumId: '309993217' },
+  { movie: 'Your Lie in April', albumId: '462685495' },
+  { movie: 'Made in Abyss', albumId: '368207467' },
+  { movie: 'Steins;Gate', albumId: '432611347' },
+  { movie: 'Cyberpunk: Edgerunners', albumId: '499327601' },
+  { movie: 'Chainsaw Man', albumId: '397326747' },
+  { movie: 'Spy x Family', albumId: '386244647' },
+  { movie: 'Vinland Saga', albumId: '183223872' },
+];
+
 export interface MovieCollection {
   id: string;
   label: string;
@@ -334,23 +373,18 @@ export const MOVIE_COLLECTIONS: MovieCollection[] = [
     kind: 'songs',
     movies: HOLLYWOOD_MOVIES,
   },
-  {
-    id: 'movies-all',
-    label: 'Guess the Movie: Mixed',
-    blurb: 'Bollywood and Hollywood soundtracks together',
-    kind: 'songs',
-    movies: [...BOLLYWOOD_MOVIES, ...HOLLYWOOD_MOVIES],
-  },
-  /*
-   * Kept out of the mixed collection deliberately. Naming a film from its orchestral score is a
-   * different skill to naming it from a pop song on its soundtrack, and shuffling the two
-   * together would make a round's difficulty depend on which kind it happened to draw.
-   */
   /*
    * Its own collection rather than folded into the film scores: naming a game from its music is
    * a different body of knowledge, and mixing the two would make a round's difficulty depend on
    * which kind it happened to draw.
    */
+  {
+    id: 'movies-anime',
+    label: 'Guess the Anime',
+    blurb: 'Ghibli, Attack on Titan, Chainsaw Man — name the anime from its score',
+    kind: 'score',
+    movies: ANIME_TITLES,
+  },
   {
     id: 'movies-games',
     label: 'Guess the Game: Video Games',
