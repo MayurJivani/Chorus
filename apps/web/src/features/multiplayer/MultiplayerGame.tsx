@@ -121,11 +121,24 @@ export function MultiplayerGame({
      * eagerly meant the reveal often played nothing at all, which is worse than the restart it
      * was meant to fix.
      */
+    /*
+     * Resume only when doing so leaves something worth hearing.
+     *
+     * Clamping the resume point to just inside the track was wrong: a snippet stage at or past
+     * the preview's length landed a second from the end, so the reveal played for about a
+     * second and stopped. A preview is only about thirty seconds, so this is not an edge case —
+     * it is what happens to anyone who reveals a few stages on a short preview.
+     *
+     * Below that threshold the beginning is the better answer. Restarting audio someone has
+     * partly heard is a small cost; a reveal that plays for one second is a broken one.
+     */
+    const MIN_REMAINING_SECONDS = 6;
+
     const startPlayback = () => {
+      const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
       const resumeAt = revealContinuesSnippet ? stageSeconds : 0;
-      const limit = Number.isFinite(audio.duration) ? Math.max(0, audio.duration - 1) : 0;
-      // Only seek when there is somewhere real to seek to; otherwise play from the top.
-      if (limit > 0 && resumeAt > 0) audio.currentTime = Math.min(resumeAt, limit);
+      const leavesEnough = duration - resumeAt >= MIN_REMAINING_SECONDS;
+      audio.currentTime = resumeAt > 0 && leavesEnough ? resumeAt : 0;
       // Autoplay can be refused before the user has interacted; the round is still readable.
       void audio.play().catch(() => {});
     };
