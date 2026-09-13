@@ -83,13 +83,19 @@ const REJECT = [
   'instrumental version',
 ];
 
-/** The only words allowed between a title and the end of an album name. */
+/**
+ * The only words allowed between a title and the end of an album name.
+ *
+ * Instalment words are deliberately absent. Allowing "part", "vol" and "ii" let "Back to the
+ * Future" match "Back To The Future Part II" — a different film, not a different pressing of
+ * the same one, which is the exact thing this check exists to prevent.
+ */
 const EDITION_WORDS = new Set(
   (
     'original motion picture soundtrack music from and inspired by the album score ost deluxe ' +
     'expanded edition extended anniversary collection collector s remastered remaster special ' +
-    'complete recordings vol volume part pt ii iii soundtracks version bonus tracks feature film ' +
-    'television series movie songs'
+    'complete recordings soundtracks version bonus tracks feature film television series movie ' +
+    'songs recording sound track'
   )
     .split(' ')
     .filter(Boolean),
@@ -160,6 +166,12 @@ async function main() {
   const accepted: { movie: string; albumId: string }[] = [];
 
   for (const { movie, query } of candidates) {
+    // Wikitext bold/italic markers survive naive link extraction ("''Grease''"), and a title
+    // with stray quoting would be shown to a player exactly as written.
+    if (/['"\u2018\u2019\u201c\u201d]/.test(movie)) {
+      console.log(`SKIP\t${movie}\tmarkup or quoting in title`);
+      continue;
+    }
     const search = await fetchJson(
       `https://api.deezer.com/search/album?q=${encodeURIComponent(query ?? movie)}&limit=12`,
     );
