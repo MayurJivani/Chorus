@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import type {
   MultiplayerRoomSnapshot,
@@ -10,6 +9,7 @@ import { SnippetProgressBar } from '../game/SnippetProgressBar';
 import { GuessInput } from '../game/GuessInput';
 import { MultipleChoiceGuess } from '../artist/MultipleChoiceGuess';
 import { RevealMoreButton } from '../game/RevealMoreButton';
+import { SongPreviewButton } from '../game/SongPreviewButton';
 import { MultiplayerScoreboard } from './MultiplayerScoreboard';
 import type {
   MultiplayerGuessResult,
@@ -17,7 +17,6 @@ import type {
   MultiplayerRoundEnd,
 } from './useMultiplayerGame';
 import { useCountdownTo } from './useCountdownTo';
-import { useGameConfig } from '../../hooks/useGameConfig';
 
 interface MultiplayerGameProps {
   room: MultiplayerRoomSnapshot;
@@ -50,7 +49,6 @@ export function MultiplayerGame({
   onNextRound,
   onLeave,
 }: MultiplayerGameProps) {
-  const { revealContinuesSnippet } = useGameConfig();
   const isHost = selfId === room.hostId;
   /**
    * Answered state comes from `scores`, not the room snapshot.
@@ -85,75 +83,15 @@ export function MultiplayerGame({
   const waitingOn = scores.filter((s) => !s.answered).length;
 
   /*
-   * Play the answer during the reveal.
+   * The answer is offered rather than played.
    *
-   * Naming the song you missed is much less use than hearing it — the clip you were guessing
-   * from was a couple of seconds, and the recognition usually lands on the chorus you never
-   * reached. Volume follows the same stored preference as the in-round player.
+   * Autoplaying it was a persistent source of faults — seeking before metadata loaded, resuming
+   * into the last second of a short preview, restarting when the effect re-ran — and every one
+   * of those was a worse experience than silence. A button also puts the room in control: the
+   * reveal is when people are talking about the song, and audio starting over the top of that
+   * is an interruption as often as it is useful.
    */
-  const revealAudioRef = useRef<HTMLAudioElement | null>(null);
   const revealPreview = roundEnd?.correct?.previewUrl ?? null;
-  useEffect(() => {
-    const audio = revealAudioRef.current;
-    if (!audio || !revealPreview) return;
-    try {
-      const saved = localStorage.getItem('snippet-volume');
-      if (saved != null) audio.volume = parseFloat(saved);
-    } catch {
-      /* volume preference is optional */
-    }
-    /*
-     * Pick up where the snippet stopped.
-     *
-     * The round plays the track from zero up to the current stage, so restarting the reveal at
-     * zero replays seconds everyone has just heard — and when a round is answered in five
-     * seconds that is most of the reveal spent on audio nobody needed to hear twice. Continuing
-     * from `stageSeconds` is the first moment that is actually new.
-     *
-     * Clamped against the track length because a preview is only about thirty seconds: a long
-     * snippet schedule could otherwise seek past the end and play nothing at all.
-     */
-    /*
-     * Seek only once the element knows how long the track is.
-     *
-     * Setting `currentTime` before metadata has loaded is not reliable — `duration` is NaN, so
-     * there is nothing to clamp against, and browsers may ignore or abort the seek. Doing it
-     * eagerly meant the reveal often played nothing at all, which is worse than the restart it
-     * was meant to fix.
-     */
-    /*
-     * Resume only when doing so leaves something worth hearing.
-     *
-     * Clamping the resume point to just inside the track was wrong: a snippet stage at or past
-     * the preview's length landed a second from the end, so the reveal played for about a
-     * second and stopped. A preview is only about thirty seconds, so this is not an edge case —
-     * it is what happens to anyone who reveals a few stages on a short preview.
-     *
-     * Below that threshold the beginning is the better answer. Restarting audio someone has
-     * partly heard is a small cost; a reveal that plays for one second is a broken one.
-     */
-    const MIN_REMAINING_SECONDS = 6;
-
-    const startPlayback = () => {
-      const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
-      const resumeAt = revealContinuesSnippet ? stageSeconds : 0;
-      const leavesEnough = duration - resumeAt >= MIN_REMAINING_SECONDS;
-      audio.currentTime = resumeAt > 0 && leavesEnough ? resumeAt : 0;
-      // Autoplay can be refused before the user has interacted; the round is still readable.
-      void audio.play().catch(() => {});
-    };
-
-    if (audio.readyState >= 1) startPlayback();
-    else audio.addEventListener('loadedmetadata', startPlayback, { once: true });
-
-    return () => {
-      audio.removeEventListener('loadedmetadata', startPlayback);
-      audio.pause();
-    };
-    // `stageSeconds` is deliberately not a dependency: it changes as a player reveals more, and
-    // re-running this mid-reveal would pause and restart the answer they are listening to.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealPreview, revealContinuesSnippet]);
   /** What this player locked in, so the option list can mark it while the round finishes. */
   const lockedGuessId =
     answered && isChoice && lastGuess ? (lastGuess.guessedTrackId ?? null) : null;
@@ -178,7 +116,6 @@ export function MultiplayerGame({
             className="flex w-full flex-col items-center gap-5 text-center"
           >
             <h2 className="text-lg font-bold text-white">🎵 It was…</h2>
-            {revealPreview && <audio ref={revealAudioRef} src={revealPreview} preload="auto" />}
             <div className="flex w-full max-w-md items-center gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
               {roundEnd.correct?.albumArtUrl ? (
                 <img
@@ -198,6 +135,8 @@ export function MultiplayerGame({
                 <p className="truncate text-xs text-slate-400">{roundEnd.correct?.artist ?? ''}</p>
               </div>
             </div>
+
+            {revealPreview && <SongPreviewButton previewUrl={revealPreview} />}
 
             <p className="text-sm text-slate-400">
               Next round in <span className="font-semibold text-slate-200">{secondsLeft}s</span>

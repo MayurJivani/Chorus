@@ -109,15 +109,6 @@ export const SETTING_DEFS = {
     control: { kind: 'number', min: 2, max: 16, unit: 'players' },
   } satisfies SettingDef<number>,
 
-  revealContinuesSnippet: {
-    group: 'multiplayer',
-    label: 'Reveal continues the song',
-    help: 'When the answer plays at the end of a round, carry on from where the snippet stopped instead of restarting from the top. Restarting replays seconds everyone just heard, which is most of the reveal when a round is answered quickly. Turn off to always start from the beginning.',
-    schema: z.boolean(),
-    default: true,
-    control: { kind: 'boolean' },
-  } satisfies SettingDef<boolean>,
-
   /*
    * Join-by-sound (Beta). Off by default: it needs microphone permission on the joining phone
    * and does not work at all on some browsers, so it has to be opted into rather than
@@ -389,7 +380,6 @@ export interface PublicGameConfig {
   challengeRounds: number;
   /** Join-by-sound, Beta. Both the broadcasting host and the listening phone read this. */
   knockJoinEnabled: boolean;
-  revealContinuesSnippet: boolean;
 }
 
 export async function getPublicGameConfig(): Promise<PublicGameConfig> {
@@ -399,6 +389,5 @@ export async function getPublicGameConfig(): Promise<PublicGameConfig> {
     maxGuesses: settings.snippetScheduleSeconds.length,
     challengeRounds: settings.challengeRounds,
     knockJoinEnabled: settings.knockJoinEnabled,
-    revealContinuesSnippet: settings.revealContinuesSnippet,
   };
 }
