@@ -230,25 +230,35 @@ categoriesRouter.post(
     }
 
     const snippetSchedule = await getSnippetSchedule();
-    if (guessNumber > snippetSchedule.length) {
-      throw new HttpError(400, 'That guess number is past the end of the snippet schedule');
-    }
+    /*
+     * Clamped rather than rejected.
+     *
+     * A guess number past the end of the schedule means "this is my last attempt", which is a
+     * sane thing to act on — the old behaviour was a 400 that reached the player as "Something
+     * went wrong submitting that", with nothing to do about it. It shipped for real: Skip sent
+     * a hardcoded 6 from when the schedule had six stages, and every Skip failed once an admin
+     * shortened it to five. Treating an over-large number as the final attempt makes that class
+     * of client/settings drift harmless instead of fatal.
+     */
+    const effectiveGuessNumber = Math.min(guessNumber, snippetSchedule.length);
 
     const correct = deezerTrackId !== undefined && deezerTrackId === currentTrack.deezerTrackId;
 
     // For multiple choice, there's only one chance to guess correctly per round.
     const final =
-      guessMode === 'choice' ? true : isFinalAttempt(guessNumber, correct, snippetSchedule.length);
+      guessMode === 'choice'
+        ? true
+        : isFinalAttempt(effectiveGuessNumber, correct, snippetSchedule.length);
 
     if (!final) {
       res.json({ correct, isFinal: false });
       return;
     }
 
-    const snippetStageSeconds = snippetSecondsForGuess(guessNumber, snippetSchedule);
+    const snippetStageSeconds = snippetSecondsForGuess(effectiveGuessNumber, snippetSchedule);
 
     const { sessionComplete, songsCorrect, totalGuessesUsed, timeTakenSeconds, totalRounds } =
-      await recordArtistRoundResult(session.id, correct, guessNumber, snippetStageSeconds);
+      await recordArtistRoundResult(session.id, correct, effectiveGuessNumber, snippetStageSeconds);
 
     res.json({
       correct,
