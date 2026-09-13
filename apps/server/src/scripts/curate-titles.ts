@@ -83,6 +83,18 @@ const REJECT = [
   'instrumental version',
 ];
 
+/** The only words allowed between a title and the end of an album name. */
+const EDITION_WORDS = new Set(
+  (
+    'original motion picture soundtrack music from and inspired by the album score ost deluxe ' +
+    'expanded edition extended anniversary collection collector s remastered remaster special ' +
+    'complete recordings vol volume part pt ii iii soundtracks version bonus tracks feature film ' +
+    'television series movie songs'
+  )
+    .split(' ')
+    .filter(Boolean),
+);
+
 const norm = (s: string) =>
   s
     .toLowerCase()
@@ -104,7 +116,20 @@ function titleOk(albumTitle: string, wanted: string): boolean {
   // so a real boundary means the remainder is empty or starts with a space.
   if (rest !== '' && !rest.startsWith(' ')) return false;
   // A number straight after the title is a different instalment: "Moana" -> "Moana 2".
-  return !/^\d/.test(rest.trim());
+  const tail = rest.trim();
+  if (/^\d/.test(tail)) return false;
+  /*
+   * Whatever follows the title must be edition or format words and nothing else.
+   *
+   * A boundary alone is not enough: "Brave of Goldgoldran Original Motion Picture Soundtrack"
+   * begins with "brave " and is a Japanese anime. Requiring the remainder to be *only* the
+   * vocabulary labels use for editions means a different work whose name merely starts the same
+   * way is rejected, because it carries its own extra words.
+   */
+  return tail
+    .split(' ')
+    .filter(Boolean)
+    .every((w) => EDITION_WORDS.has(w));
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
