@@ -891,6 +891,16 @@ function endRound(room: MpRoom): void {
   const track = room.tracks[room.currentRound];
   broadcast(room, {
     type: 'round_end',
+    /*
+     * When the reveal actually ends, rather than leaving the client to infer it.
+     *
+     * A round can finish early — the moment everyone has answered — but the client was working
+     * the reveal countdown out from `startedAt + roundDurationMs`, the time the round was
+     * *scheduled* to end. Answer a round in five seconds and that instant is still twenty-odd
+     * seconds away, so the reveal counted down from a number that had nothing to do with when
+     * the next round would start.
+     */
+    revealEndsAt: Date.now() + room.revealDurationMs,
     correct: track
       ? {
           title: track.title,

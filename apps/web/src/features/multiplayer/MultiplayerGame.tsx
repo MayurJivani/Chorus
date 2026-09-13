@@ -72,7 +72,9 @@ export function MultiplayerGame({
   const atMaxStage = isSpeed || clampedStage >= round.snippetSchedule.length - 1;
   const nextSeconds = round.snippetSchedule[clampedStage + 1];
   const roundEndsAt = round.startedAt + round.roundDurationMs;
-  const nextRoundAt = roundEndsAt + round.revealDurationMs;
+  /* The server says when the reveal ends, because a round that everybody answers finishes early
+     and the scheduled round end is then a time that never happened. */
+  const nextRoundAt = roundEnd?.revealEndsAt ?? roundEndsAt + round.revealDurationMs;
   const secondsLeft = useCountdownTo(roundEnd ? nextRoundAt : roundEndsAt);
 
   const handleGuess = (song: SongSearchResult) => onSubmitGuess(String(song.id));
@@ -111,13 +113,34 @@ export function MultiplayerGame({
      * Clamped against the track length because a preview is only about thirty seconds: a long
      * snippet schedule could otherwise seek past the end and play nothing at all.
      */
-    const resumeAt = revealContinuesSnippet ? stageSeconds : 0;
-    const limit = Number.isFinite(audio.duration) ? audio.duration - 1 : Infinity;
-    audio.currentTime = Math.max(0, Math.min(resumeAt, limit));
-    // Autoplay can be refused before the user has interacted; the round is still readable.
-    void audio.play().catch(() => {});
-    return () => audio.pause();
-  }, [revealPreview, revealContinuesSnippet, stageSeconds]);
+    /*
+     * Seek only once the element knows how long the track is.
+     *
+     * Setting `currentTime` before metadata has loaded is not reliable — `duration` is NaN, so
+     * there is nothing to clamp against, and browsers may ignore or abort the seek. Doing it
+     * eagerly meant the reveal often played nothing at all, which is worse than the restart it
+     * was meant to fix.
+     */
+    const startPlayback = () => {
+      const resumeAt = revealContinuesSnippet ? stageSeconds : 0;
+      const limit = Number.isFinite(audio.duration) ? Math.max(0, audio.duration - 1) : 0;
+      // Only seek when there is somewhere real to seek to; otherwise play from the top.
+      if (limit > 0 && resumeAt > 0) audio.currentTime = Math.min(resumeAt, limit);
+      // Autoplay can be refused before the user has interacted; the round is still readable.
+      void audio.play().catch(() => {});
+    };
+
+    if (audio.readyState >= 1) startPlayback();
+    else audio.addEventListener('loadedmetadata', startPlayback, { once: true });
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', startPlayback);
+      audio.pause();
+    };
+    // `stageSeconds` is deliberately not a dependency: it changes as a player reveals more, and
+    // re-running this mid-reveal would pause and restart the answer they are listening to.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealPreview, revealContinuesSnippet]);
   /** What this player locked in, so the option list can mark it while the round finishes. */
   const lockedGuessId =
     answered && isChoice && lastGuess ? (lastGuess.guessedTrackId ?? null) : null;

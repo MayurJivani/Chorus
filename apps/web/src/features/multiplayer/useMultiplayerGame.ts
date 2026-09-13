@@ -40,6 +40,8 @@ export interface MultiplayerGuessResult {
 }
 
 export interface MultiplayerRoundEnd {
+  /** When the reveal ends, from the server. Absent only if an old client meets a new server. */
+  revealEndsAt?: number;
   correct: {
     title: string;
     artist: string;
@@ -197,6 +199,7 @@ export function useMultiplayerGame(
         setRoundEnd({
           correct: raw.correct as MultiplayerRoundEnd['correct'],
           scores: raw.scores as MultiplayerScoreEntry[],
+          revealEndsAt: raw.revealEndsAt as number | undefined,
         });
         setScores(raw.scores as MultiplayerScoreEntry[]);
         break;
