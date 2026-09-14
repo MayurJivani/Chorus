@@ -172,6 +172,24 @@ async function main() {
       console.log(`SKIP\t${movie}\tmarkup or quoting in title`);
       continue;
     }
+
+    /*
+     * Titles too short or too generic to identify anything.
+     *
+     * A list page contributes stray fragments — "(38th)" from an awards table, "26" from a film
+     * called 26 nyeon, "Gonzo" from a studio link rather than a work — and each matched a
+     * completely unrelated album, because a two-character needle matches everything. A leftover
+     * bracket is always a fragment; a bare number or ordinal never identifies a film.
+     */
+    if (/[()[\]]/.test(movie) || /^\d+(st|nd|rd|th)?$/i.test(movie.trim())) {
+      console.log(`SKIP\t${movie}\tfragment or bare number`);
+      continue;
+    }
+    // Below this a title carries too little signal to trust a prefix match on.
+    if (movie.replace(/[^a-z0-9]/gi, '').length < 4) {
+      console.log(`SKIP\t${movie}\ttoo short to identify`);
+      continue;
+    }
     const search = await fetchJson(
       `https://api.deezer.com/search/album?q=${encodeURIComponent(query ?? movie)}&limit=12`,
     );

@@ -21,20 +21,30 @@ const MIN_ALBUM_TRACKS = 4;
 /** A category draws ten rounds from one pool; under this it repeats itself or refuses to start. */
 const MIN_PLAYLIST_TRACKS = 10;
 
-/** Deezer answers a quota breach with HTTP 200 and an error body, so retry rather than trust it. */
+/**
+ * Deezer answers a quota breach with HTTP 200 and an error body, so a response has to be read
+ * rather than trusted — and over a run this long the limiter is hit constantly.
+ *
+ * Patience here is the whole point of the tool. An impatient version reported 31 albums dead
+ * across a 1831-id run and every one of them was alive on a calm retry; acting on that report
+ * would have deleted 31 good albums from the catalogue. A false "dead" is far more expensive
+ * than a slow check, so this backs off hard and only gives up after it has really tried.
+ */
 async function fetchJson(url: string): Promise<Record<string, unknown> | null> {
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     try {
       const res = await fetch(url, { headers: { Referer: 'https://chorusify.com/' } });
       const body = (await res.json()) as Record<string, unknown>;
-      const error = body.error as { type?: string } | undefined;
-      if (error?.type === 'QuotaException') {
-        await new Promise((r) => setTimeout(r, 2500));
+      const error = body.error as { type?: string; code?: number } | undefined;
+      // Quota and the generic "no data" both come back under load; only a repeated failure
+      // across every attempt is evidence an id has actually gone.
+      if (error) {
+        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
         continue;
       }
       return body;
     } catch {
-      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
     }
   }
   return null;
@@ -83,7 +93,7 @@ async function main() {
           reason: `${n} playable tracks`,
         });
       }
-      await new Promise((r) => setTimeout(r, 80));
+      await new Promise((r) => setTimeout(r, 150));
     }
   }
 
