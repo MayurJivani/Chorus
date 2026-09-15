@@ -30,6 +30,7 @@ export const MP_REVEAL_POINTS = [6, 5, 4, 3, 2, 1] as const;
 export const MP_ROUND_DURATION_MS = 30 * 1000;
 export const MP_ROUNDS = 10;
 export const MP_REVEAL_DURATION_MS = 10_000;
+/** Fallback only; the live limit is the `multiplayerMaxPlayers` setting, which goes far higher. */
 export const MP_MAX_PLAYERS = 8;
 export const MP_EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;
 

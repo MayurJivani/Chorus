@@ -103,10 +103,16 @@ export const SETTING_DEFS = {
   multiplayerMaxPlayers: {
     group: 'multiplayer',
     label: 'Players per room',
-    help: 'Upper limit on a room. Rooms already over the new limit are not kicked.',
-    schema: positiveInt(2, 16),
+    help: 'Upper limit on a room. Eight suits a group of friends; raise it for an audience, where one host plays to a crowd. Rooms already over a lowered limit are not kicked.',
+    /*
+     * The old ceiling was 16, which made a streamer's room impossible regardless of how fast
+     * the server was — the first load test filled at eight and the other 142 clients were told
+     * the room was full. Broadcasts are one serialisation and the scoreboard is capped, so the
+     * cost per extra player is now a socket write rather than a share of O(N^2) work.
+     */
+    schema: positiveInt(2, 20000),
     default: 8,
-    control: { kind: 'number', min: 2, max: 16, unit: 'players' },
+    control: { kind: 'number', min: 2, max: 20000, unit: 'players' },
   } satisfies SettingDef<number>,
 
   /*
