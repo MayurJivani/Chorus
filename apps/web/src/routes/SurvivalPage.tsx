@@ -40,6 +40,9 @@ export function SurvivalPage() {
   const [status, setStatus] = useState<Status>('picking-mode');
   const [round, setRound] = useState<SurvivalRound | null>(null);
   const [revealed, setRevealed] = useState<RevealedSong | null>(null);
+  /* What the player tapped, so the reveal can mark it. Without this the only signal that an
+     answer landed was the streak counter at the top ticking up, which nobody watches. */
+  const [pickedId, setPickedId] = useState<string | null>(null);
   const [lastPreviewUrl, setLastPreviewUrl] = useState<string | null>(null);
   const [finalStreak, setFinalStreak] = useState(0);
   const [personalBest, setPersonalBest] = useState<number | null>(null);
@@ -59,6 +62,7 @@ export function SurvivalPage() {
     const m = mode ?? guessModeRef.current;
     setStatus('loading');
     setRevealed(null);
+    setPickedId(null);
     setLastPreviewUrl(null);
     setRevealCount(0);
     try {
@@ -93,6 +97,7 @@ export function SurvivalPage() {
 
       try {
         const currentPreview = round?.previewUrl ?? null;
+        setPickedId((song?.id as string | undefined) ?? null);
         const result = await submitSurvivalGuess(song?.id as string | undefined);
         setRevealed(result.song);
 
@@ -354,8 +359,11 @@ export function SurvivalPage() {
             onRevealMore={revealMore}
             canRevealMore={canRevealMore}
             disabled={submitting}
-            revealedSong={null}
-            roundEnded={false}
+            // The options stay on screen through the reveal and mark themselves: the pick turns
+            // green when it was right and red when it was not, with the real answer highlighted.
+            revealedSong={revealed}
+            roundEnded={revealed !== null}
+            selectedGuessId={pickedId}
           />
         ) : (
           <GuessInput
