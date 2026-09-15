@@ -107,19 +107,19 @@ describe('pairing', () => {
   it('matches two players waiting on the same movie collection', async () => {
     asUser({ a: 'user-a', b: 'user-b' });
 
-    await joinQueue('a', { kind: 'movie', collectionId: 'movies-scores' });
-    await joinQueue('b', { kind: 'movie', collectionId: 'movies-scores' });
+    await joinQueue('a', { kind: 'soundtrack', collectionId: 'movies-scores' });
+    await joinQueue('b', { kind: 'soundtrack', collectionId: 'movies-scores' });
 
     expect(mpMocks.createDuelRoom).toHaveBeenCalledTimes(1);
     // The fourth argument is the rating ladder. Movie duels must not settle on the category
     // ladder just because they resolve through a category source underneath.
-    expect(mpMocks.createDuelRoom.mock.calls[0]![3]).toBe('movie');
+    expect(mpMocks.createDuelRoom.mock.calls[0]![3]).toBe('soundtrack');
   });
 
   it('keeps a movie queue separate from the category queue for the same id', async () => {
     asUser({ a: 'user-a', b: 'user-b' });
 
-    await joinQueue('a', { kind: 'movie', collectionId: 'movies-scores' });
+    await joinQueue('a', { kind: 'soundtrack', collectionId: 'movies-scores' });
     await joinQueue('b', { kind: 'category', categoryId: 'movies-scores' });
 
     expect(mpMocks.createDuelRoom).not.toHaveBeenCalled();

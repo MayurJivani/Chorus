@@ -17,7 +17,7 @@ import {
   stripAnyTrailingQualifier,
 } from '../utils/trackFilters';
 import { findCategory } from './categories';
-import { getMovieCatalog } from './movieCatalogService';
+import { getSoundtrackCatalog } from './soundtrackCatalogService';
 import { getSettings } from './settingsService';
 import { logger } from '../logger';
 
@@ -123,8 +123,13 @@ export async function getCategoryCatalog(categoryId: string): Promise<ArtistTrac
   if (!category) throw new Error(`Unknown category: ${categoryId}`);
 
   // Movie collections are categories in every respect except where their tracks come from.
-  if (category.movies?.length) {
-    return getMovieCatalog(category.id, category.label, category.movies, category.movieKind);
+  if (category.titles?.length) {
+    return getSoundtrackCatalog(
+      category.id,
+      category.label,
+      category.titles,
+      category.soundtrackKind,
+    );
   }
 
   let stored;

@@ -74,7 +74,7 @@ export function MultiplayerScoreboard({
                 <span className="w-8 text-right font-mono text-xs">
                   {/*
                     Three states, not two. While a round is running the server withholds the
-                    outcome, so `correctThisRound` is null for everyone who has answered —
+                    outcome, so `correctThisRound` is null for everyone who has answered -
                     treating that as falsy printed ✗ against them, telling the whole room they
                     got it wrong before anybody knew.
                   */}

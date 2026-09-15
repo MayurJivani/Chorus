@@ -526,7 +526,7 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
           setMousePos({ x: 0.5, y: 0.5 });
         }}
       >
-        {/* Gradient border wrapper — borderImage kills border-radius, so we
+        {/* Gradient border wrapper - borderImage kills border-radius, so we
             use a background gradient on the outer shell and inset the card */}
         <div
           className="rounded-2xl p-[2px]"
@@ -551,7 +551,7 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
               background: style.bg,
             }}
           >
-            {/* Holo rainbow overlay — follows mouse */}
+            {/* Holo rainbow overlay - follows mouse */}
             {hasHoloEffect && (
               <div
                 className="absolute inset-0 pointer-events-none z-[1] mix-blend-overlay"
@@ -575,7 +575,7 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
               />
             )}
 
-            {/* Diamond prismatic sweep — extra layer of luminance */}
+            {/* Diamond prismatic sweep - extra layer of luminance */}
             {isDiamond && (
               <div
                 className="absolute inset-0 pointer-events-none z-[1] mix-blend-color-dodge"
@@ -591,7 +591,7 @@ export function FandomCard({ membership, displayName }: FandomCardProps) {
               />
             )}
 
-            {/* Rainbow shimmer band — sweeps across on hover */}
+            {/* Rainbow shimmer band - sweeps across on hover */}
             {hasHoloEffect && isHovered && (
               <div
                 className="absolute inset-0 pointer-events-none z-[1]"

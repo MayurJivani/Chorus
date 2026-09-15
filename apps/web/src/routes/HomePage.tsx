@@ -77,7 +77,7 @@ export function HomePage() {
   // the middle of the viewport.
   return (
     <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center gap-4 px-4 pt-2 pb-8 sm:gap-8 sm:pt-4 sm:pb-14">
-      {/* Hero kept at its original scale and wording — it is the page's anchor, and shrinking
+      {/* Hero kept at its original scale and wording - it is the page's anchor, and shrinking
           it to buy vertical space made the whole page read as a settings screen. */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
@@ -140,7 +140,7 @@ export function HomePage() {
 
       {/*
         No "how a round works" panel here on purpose. Explaining the scoring ladder on the
-        landing page was teaching mechanics to someone who hasn't picked a mode yet — the job
+        landing page was teaching mechanics to someone who hasn't picked a mode yet - the job
         of this page is to get them into one. The trade is now taught where it applies, on the
         reveal control inside a round, which states the cost and the seconds gained directly.
       */}
@@ -188,8 +188,8 @@ export function HomePage() {
 
       {/*
         The daily, demoted from the page's main button to a single strip.
-        It still needs to be reachable and still needs to show the streak — that is what brings
-        people back tomorrow — but as the loudest thing on the page it was absorbing nearly every
+        It still needs to be reachable and still needs to show the streak - that is what brings
+        people back tomorrow - but as the loudest thing on the page it was absorbing nearly every
         first click, so nobody discovered the modes above.
       */}
       <motion.div

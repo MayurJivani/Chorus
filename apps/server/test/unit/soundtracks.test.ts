@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { MOVIE_COLLECTIONS } from '../../src/services/movies';
-import { CATEGORIES, findCategory, isMovieCategory } from '../../src/services/categories';
-import { __testing } from '../../src/services/movieCatalogService';
+import { SOUNDTRACK_COLLECTIONS } from '../../src/services/soundtracks';
+import { CATEGORIES, findCategory, isSoundtrackCategory } from '../../src/services/categories';
+import { __testing } from '../../src/services/soundtrackCatalogService';
 import { buildRoundOptions } from '../../src/services/artistChallengeService';
 import type { ArtistTrack } from '../../src/services/deezerService';
 
-const { buildMoviePool, isNonSong, isTooIncomplete } = __testing;
+const { buildSoundtrackPool, isNonSong, isTooIncomplete } = __testing;
 
 /** A pool row shaped the way movieCatalogService emits them: title is the film. */
 function movieTrack(id: string, movie: string, song: string): ArtistTrack {
@@ -20,31 +20,31 @@ function movieTrack(id: string, movie: string, song: string): ArtistTrack {
 
 describe('movie collections', () => {
   it('registers each collection as a playable category', () => {
-    for (const collection of MOVIE_COLLECTIONS) {
+    for (const collection of SOUNDTRACK_COLLECTIONS) {
       const category = findCategory(collection.id);
       expect(category, `${collection.id} should be a category`).toBeTruthy();
-      expect(category!.group).toBe('movie');
-      expect(isMovieCategory(category!)).toBe(true);
+      expect(category!.group).toBe('soundtrack');
+      expect(isSoundtrackCategory(category!)).toBe(true);
     }
   });
 
   it('leaves every non-movie category unaffected', () => {
-    const nonMovie = CATEGORIES.filter((c) => c.group !== 'movie');
+    const nonMovie = CATEGORIES.filter((c) => c.group !== 'soundtrack');
     expect(nonMovie.length).toBeGreaterThan(50);
-    expect(nonMovie.every((c) => !isMovieCategory(c))).toBe(true);
+    expect(nonMovie.every((c) => !isSoundtrackCategory(c))).toBe(true);
     // Playlist-backed categories must still have playlists, or they silently stop loading.
     expect(nonMovie.every((c) => c.playlistIds.length > 0)).toBe(true);
   });
 
   it('gives every collection enough films to fill a four-option round', () => {
-    for (const collection of MOVIE_COLLECTIONS) {
-      expect(collection.movies.length, collection.id).toBeGreaterThanOrEqual(4);
+    for (const collection of SOUNDTRACK_COLLECTIONS) {
+      expect(collection.titles.length, collection.id).toBeGreaterThanOrEqual(4);
     }
   });
 
   it('never points two films at the same album', () => {
-    for (const collection of MOVIE_COLLECTIONS) {
-      const ids = collection.movies.map((m) => m.albumId);
+    for (const collection of SOUNDTRACK_COLLECTIONS) {
+      const ids = collection.titles.map((m) => m.albumId);
       expect(new Set(ids).size, `${collection.id} has a duplicate album id`).toBe(ids.length);
     }
   });
@@ -82,11 +82,11 @@ describe('isNonSong', () => {
   });
 });
 
-describe('buildMoviePool', () => {
+describe('buildSoundtrackPool', () => {
   it('keeps every song from a film rather than collapsing them into one row', () => {
     // The pool's `title` is the film, so a title-keyed dedupe would reduce each album to a
     // single track and leave the mode with one round per movie.
-    const pool = buildMoviePool([
+    const pool = buildSoundtrackPool([
       movieTrack('1', 'Jab We Met', 'Tum Se Hi · Mohit Chauhan'),
       movieTrack('2', 'Jab We Met', 'Mauja Hi Mauja · Mika Singh'),
       movieTrack('3', 'Jab We Met', 'Ye Ishq Hai · Shreya Ghoshal'),
@@ -95,7 +95,7 @@ describe('buildMoviePool', () => {
   });
 
   it('drops the same song listed twice', () => {
-    const pool = buildMoviePool([
+    const pool = buildSoundtrackPool([
       movieTrack('1', 'Jab We Met', 'Tum Se Hi · Mohit Chauhan'),
       movieTrack('2', 'Jab We Met', 'Tum Se Hi · Mohit Chauhan'),
     ]);

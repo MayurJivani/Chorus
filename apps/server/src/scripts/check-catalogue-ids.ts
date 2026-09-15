@@ -13,7 +13,7 @@
  * Deliberately a script rather than a server job: it is slow, it is bursty against a
  * rate-limited API, and nothing in a request path should depend on it.
  */
-import { MOVIE_COLLECTIONS } from '../services/movies';
+import { SOUNDTRACK_COLLECTIONS } from '../services/soundtracks';
 import { CATEGORIES } from '../services/categories';
 
 /** Below this an album contributes so little that it is effectively absent from its collection. */
@@ -71,8 +71,8 @@ async function main() {
   let albums = 0;
   let playlists = 0;
 
-  for (const collection of MOVIE_COLLECTIONS) {
-    for (const { movie, albumId } of collection.movies) {
+  for (const collection of SOUNDTRACK_COLLECTIONS) {
+    for (const { movie, albumId } of collection.titles) {
       albums++;
       const body = await fetchJson(`https://api.deezer.com/album/${albumId}`);
       const n = playableCount(body);

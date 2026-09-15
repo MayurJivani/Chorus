@@ -74,7 +74,7 @@ export function KnockListenButton({ onCode }: KnockListenButtonProps) {
   const label: Record<State, string> = {
     idle: 'Listen for a room nearby',
     starting: 'Starting…',
-    listening: 'Listening — hold near the host screen',
+    listening: 'Listening - hold near the host screen',
     unusable: 'This browser cannot hear it',
     denied: 'Microphone permission needed',
     blocked: 'Audio setup failed on this device',

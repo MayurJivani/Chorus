@@ -43,7 +43,7 @@ function eraSource(): ChallengeSource {
     label: 'Guess the Year',
     pictureUrl: null,
     includeFeatures: false,
-    answerIsMovie: false,
+    answerIsTitle: false,
     loadCatalog: requireEraPool,
   };
 }

@@ -250,7 +250,7 @@ export async function createRoom(
     source,
     // Movie sources have no searchable answer — a player typing into song search would be
     // looking for the film by name in a track index. Choice is the only workable mode there.
-    guessMode: effectiveGameMode === 'speed' || source.answerIsMovie ? 'choice' : guessMode,
+    guessMode: effectiveGameMode === 'speed' || source.answerIsTitle ? 'choice' : guessMode,
     gameMode: effectiveGameMode,
     phase: 'lobby',
     hostId: '',
@@ -432,8 +432,8 @@ function parseDuelRequest(payload: Record<string, unknown>): duelQueue.DuelQueue
   if (typeof payload.artistId === 'number') return { kind: 'artist', artistId: payload.artistId };
   // Checked before categoryId: movie collections are category sources underneath, so a client
   // sending both would otherwise be rated on the song ladder rather than the film one.
-  if (typeof payload.movieId === 'string') {
-    return { kind: 'movie', collectionId: payload.movieId };
+  if (typeof payload.soundtrackId === 'string') {
+    return { kind: 'soundtrack', collectionId: payload.soundtrackId };
   }
   if (typeof payload.categoryId === 'string') {
     return { kind: 'category', categoryId: payload.categoryId };
@@ -691,7 +691,7 @@ export async function startGame(playerId: string): Promise<void> {
     room.roundOptions =
       room.guessMode === 'choice'
         ? chosen.map((track) =>
-            buildRoundOptions(track, pool, MP_CHOICE_OPTIONS, room.source.answerIsMovie),
+            buildRoundOptions(track, pool, MP_CHOICE_OPTIONS, room.source.answerIsTitle),
           )
         : [];
 

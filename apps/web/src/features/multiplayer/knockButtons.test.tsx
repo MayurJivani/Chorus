@@ -46,7 +46,7 @@ describe('join-by-sound visibility', () => {
     // Without this line a host has no way to tell a working transmitter from a broken one.
     knockJoinEnabled = true;
     render(<KnockAnnounceButton code="ESXT2B" />);
-    expect(screen.getByText(/silent — above hearing/i)).toBeTruthy();
+    expect(screen.getByText(/silent - above hearing/i)).toBeTruthy();
   });
 
   it('marks both as Beta', () => {

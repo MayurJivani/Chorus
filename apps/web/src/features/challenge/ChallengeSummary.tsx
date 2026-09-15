@@ -119,7 +119,7 @@ export function ChallengeSummary({
       </div>
 
       {/* A guest has just earned a score they can never be ranked with, so this is the moment
-          the offer is worth making — right beside the leaderboard they are missing from. */}
+          the offer is worth making - right beside the leaderboard they are missing from. */}
       {!user && (
         <div className="w-full rounded-2xl border border-chorusify-accent/30 bg-chorusify-accent/10 p-4">
           <p className="text-sm font-semibold text-white">

@@ -28,7 +28,7 @@ async function main() {
   }[];
   const source = await readFile(MOVIES_TS, 'utf8');
 
-  const start = source.indexOf(`const ${listName}: MovieAlbum[] = [`);
+  const start = source.indexOf(`const ${listName}: SoundtrackTitle[] = [`);
   if (start === -1) throw new Error(`No list called ${listName} in movies.ts`);
   const end = source.indexOf('];', start);
 

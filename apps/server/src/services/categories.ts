@@ -13,9 +13,9 @@
  * editions, verified to return international tracks (Top Hits 2000 is Destiny's Child and
  * Britney; 2024 Pop is Espresso and Texas Hold 'Em).
  */
-import { MOVIE_COLLECTIONS, type MovieAlbum, type MovieCollectionKind } from './movies';
+import { SOUNDTRACK_COLLECTIONS, type SoundtrackTitle, type SoundtrackKind } from './soundtracks';
 
-export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world' | 'movie';
+export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world' | 'soundtrack';
 
 export interface Category {
   /** Stable slug used in URLs and as the catalog cache key. */
@@ -32,9 +32,9 @@ export interface Category {
    * and the answer is the *film*, not the song — see movieCatalogService for why that changes
    * how options are rendered.
    */
-  movies?: MovieAlbum[];
-  /** Set alongside `movies`: decides how hard the track filter is. See MovieCollectionKind. */
-  movieKind?: MovieCollectionKind;
+  titles?: SoundtrackTitle[];
+  /** Set alongside `movies`: decides how hard the track filter is. See SoundtrackKind. */
+  soundtrackKind?: SoundtrackKind;
 }
 
 /** Deezer Charts' live worldwide top 100 plus its 2025 retrospective. */
@@ -176,7 +176,7 @@ const TIMELESS_GENRE_DEFS: [label: string, playlistIds: string[], blurb: string]
   ['Country Essentials', ['1294431447'], 'Johnny Cash, Patsy Cline and the classics'],
   ['Reggae Essentials', ['2448918882'], 'Bob Marley and the roots of the sound'],
   ['Jazz Essentials', ['1615514485'], 'Armstrong, Brubeck, Nina Simone'],
-  ['2000s Hip-Hop & R&B', ['5243303306'], 'Kanye, Nelly, Amerie — the 00s radio years'],
+  ['2000s Hip-Hop & R&B', ['5243303306'], 'Kanye, Nelly, Amerie - the 00s radio years'],
 ];
 
 const TIMELESS_GENRES: Category[] = TIMELESS_GENRE_DEFS.map(([label, playlistIds, blurb]) => ({
@@ -284,14 +284,14 @@ const BOLLYWOOD: Category[] = BOLLYWOOD_DEFS.map(([label, playlistIds, blurb]) =
  * what these are, so the picker, multiplayer rooms, duel matchmaking, live player counts and
  * leaderboards all work with no changes. Only the pool builder and the option rendering differ.
  */
-const MOVIES: Category[] = MOVIE_COLLECTIONS.map((collection) => ({
+const MOVIES: Category[] = SOUNDTRACK_COLLECTIONS.map((collection) => ({
   id: collection.id,
   label: collection.label,
-  group: 'movie' as const,
+  group: 'soundtrack' as const,
   playlistIds: [],
   blurb: collection.blurb,
-  movies: collection.movies,
-  movieKind: collection.kind,
+  titles: collection.titles,
+  soundtrackKind: collection.kind,
 }));
 
 export const CATEGORIES: Category[] = [
@@ -306,8 +306,8 @@ export const CATEGORIES: Category[] = [
 ];
 
 /** True when the category's rounds ask for a film rather than a song. */
-export function isMovieCategory(category: Category): boolean {
-  return !!category.movies && category.movies.length > 0;
+export function isSoundtrackCategory(category: Category): boolean {
+  return !!category.titles && category.titles.length > 0;
 }
 
 /*

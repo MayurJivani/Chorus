@@ -329,7 +329,7 @@ function ChatView({
         false,
         true,
       );
-      const msg = await sendMessageToFriend(friend.userId, `Come play — room ${code}`, {
+      const msg = await sendMessageToFriend(friend.userId, `Come play - room ${code}`, {
         type: 'multiplayer',
         id: code,
       });
@@ -356,7 +356,7 @@ function ChatView({
 
       {/*
         No "invite to duel" any more: duels are live matchmaking now, so there is no duel to
-        link someone to — you queue and are paired. Inviting to a room is the thing that still
+        link someone to - you queue and are paired. Inviting to a room is the thing that still
         makes sense between two people who already know each other.
       */}
       <div className="mb-4 flex flex-col gap-1.5">

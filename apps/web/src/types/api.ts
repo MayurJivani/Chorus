@@ -279,10 +279,10 @@ export interface LeaderboardResponse {
 
 // --- Category Mode -------------------------------------------------------------------------
 
-export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world' | 'movie';
+export type CategoryGroup = 'now' | 'year' | 'genre' | 'bollywood' | 'world' | 'soundtrack';
 
 /** A Guess the Movie collection. Its own mode, though it plays through the category endpoints. */
-export interface MovieCollection {
+export interface SoundtrackCollection {
   id: string;
   label: string;
   blurb: string;

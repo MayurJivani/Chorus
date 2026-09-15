@@ -11,24 +11,24 @@
  * returns movie collections, and play still goes through the category challenge endpoints.
  */
 import { Router } from 'express';
-import { MOVIE_COLLECTIONS } from '../services/movies';
+import { SOUNDTRACK_COLLECTIONS } from '../services/soundtracks';
 import { playersBySource } from '../services/multiplayerService';
 import { getQueueCounts } from '../services/duelQueueService';
 
-export const moviesRouter = Router();
+export const soundtracksRouter = Router();
 
-moviesRouter.get('/', (_req, res) => {
+soundtracksRouter.get('/', (_req, res) => {
   const inRooms = playersBySource();
   const queued = getQueueCounts();
 
   res.json({
-    collections: MOVIE_COLLECTIONS.map((c) => ({
+    collections: SOUNDTRACK_COLLECTIONS.map((c) => ({
       id: c.id,
       label: c.label,
       blurb: c.blurb,
       kind: c.kind,
       /** How many films are in play, which is the only real measure of a collection's size. */
-      filmCount: c.movies.length,
+      filmCount: c.titles.length,
       playing: inRooms[`category:${c.id}`] ?? 0,
       // Movie duels queue under their own key, so the count has to look there rather than at
       // `category:` — the same collection can have people in both lines at once.

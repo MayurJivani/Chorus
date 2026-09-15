@@ -27,7 +27,7 @@
  * mode of a dead album id is "not enough playable tracks", which reads like a bug in the game.
  */
 
-export interface MovieAlbum {
+export interface SoundtrackTitle {
   /** The answer players pick. Written by hand; never derived from the album title. */
   movie: string;
   /** Deezer album id, verified by track listing. */
@@ -42,14 +42,14 @@ export interface MovieAlbum {
  * filter that serves the first kind would delete the best of the second — Star Wars' "Main
  * Title" and Jurassic Park's "Opening Titles" are the most recognisable tracks on their albums.
  */
-export type MovieCollectionKind = 'songs' | 'score';
+export type SoundtrackKind = 'songs' | 'score';
 
 /**
  * Hindi film albums are the cleanest source of this mode by a distance: the album *is* the film,
  * the songs are the country's pop music rather than underscore, and the performing artists are
  * recognisable in their own right.
  */
-const BOLLYWOOD_MOVIES: MovieAlbum[] = [
+const BOLLYWOOD_MOVIES: SoundtrackTitle[] = [
   { movie: 'Kal Ho Naa Ho', albumId: '6651452' },
   { movie: 'Kabhi Khushi Kabhie Gham', albumId: '6794841' },
   { movie: 'Dil To Pagal Hai', albumId: '198978042' },
@@ -527,7 +527,7 @@ const BOLLYWOOD_MOVIES: MovieAlbum[] = [
  * Sequels are labelled as the film they actually are — the album Deezer returns for "Mamma Mia!"
  * is Here We Go Again, and calling that "Mamma Mia!" would mark a correct answer wrong.
  */
-const HOLLYWOOD_MOVIES: MovieAlbum[] = [
+const HOLLYWOOD_MOVIES: SoundtrackTitle[] = [
   { movie: 'Pulp Fiction', albumId: '89920242' },
   { movie: 'Grease', albumId: '115882092' },
   { movie: 'Saturday Night Fever', albumId: '51429672' },
@@ -1559,7 +1559,7 @@ const HOLLYWOOD_MOVIES: MovieAlbum[] = [
  * not be done honestly the film was dropped instead: Back to the Future's only clean album is
  * Part III, whose Western cues sound nothing like the theme everyone knows.
  */
-const SCORE_MOVIES: MovieAlbum[] = [
+const SCORE_MOVIES: SoundtrackTitle[] = [
   { movie: 'Interstellar', albumId: '185320622' },
   { movie: 'How to Train Your Dragon', albumId: '12442548' },
   { movie: 'Inception', albumId: '601778' },
@@ -1645,7 +1645,7 @@ const SCORE_MOVIES: MovieAlbum[] = [
  * NieR: Automata sharing composer and themes closely enough that a round could not fairly
  * distinguish them, so only Automata is here.
  */
-const GAME_SOUNDTRACKS: MovieAlbum[] = [
+const GAME_SOUNDTRACKS: SoundtrackTitle[] = [
   { movie: 'The Last of Us', albumId: '409638277' },
   { movie: 'Journey', albumId: '206992352' },
   { movie: 'Minecraft', albumId: '894481492' },
@@ -1891,7 +1891,7 @@ const GAME_SOUNDTRACKS: MovieAlbum[] = [
  * Akira, Ghost in the Shell, A Silent Voice, Paprika and Perfect Blue simply are not on Deezer —
  * this is the one area where the catalogue has real gaps rather than bad matches.
  */
-const ANIME_TITLES: MovieAlbum[] = [
+const ANIME_TITLES: SoundtrackTitle[] = [
   { movie: 'Spirited Away', albumId: '181915142' },
   { movie: "Howl's Moving Castle", albumId: '181915712' },
   { movie: 'Princess Mononoke', albumId: '181915022' },
@@ -1959,28 +1959,28 @@ const ANIME_TITLES: MovieAlbum[] = [
   { movie: 'hype', albumId: '311016007' },
 ];
 
-export interface MovieCollection {
+export interface SoundtrackCollection {
   id: string;
   label: string;
   blurb: string;
-  kind: MovieCollectionKind;
-  movies: MovieAlbum[];
+  kind: SoundtrackKind;
+  titles: SoundtrackTitle[];
 }
 
-export const MOVIE_COLLECTIONS: MovieCollection[] = [
+export const SOUNDTRACK_COLLECTIONS: SoundtrackCollection[] = [
   {
     id: 'movies-bollywood',
     label: 'Bollywood Films',
     blurb: 'Name the Hindi film from its song',
     kind: 'songs',
-    movies: BOLLYWOOD_MOVIES,
+    titles: BOLLYWOOD_MOVIES,
   },
   {
     id: 'movies-hollywood',
     label: 'Hollywood Films',
     blurb: 'Name the film from its soundtrack',
     kind: 'songs',
-    movies: HOLLYWOOD_MOVIES,
+    titles: HOLLYWOOD_MOVIES,
   },
   /*
    * Its own collection rather than folded into the film scores: naming a game from its music is
@@ -1990,23 +1990,23 @@ export const MOVIE_COLLECTIONS: MovieCollection[] = [
   {
     id: 'movies-anime',
     label: 'Anime',
-    blurb: 'Ghibli, Attack on Titan, Chainsaw Man — name the anime from its score',
+    blurb: 'Ghibli, Attack on Titan, Chainsaw Man - name the anime from its score',
     kind: 'score',
-    movies: ANIME_TITLES,
+    titles: ANIME_TITLES,
   },
   {
     id: 'movies-games',
     label: 'Video Games',
-    blurb: 'Elden Ring, Minecraft, Undertale — name the game from its soundtrack',
+    blurb: 'Elden Ring, Minecraft, Undertale - name the game from its soundtrack',
     kind: 'score',
-    movies: GAME_SOUNDTRACKS,
+    titles: GAME_SOUNDTRACKS,
   },
   {
     id: 'movies-scores',
     label: 'Film Scores',
-    blurb: 'Interstellar, Jurassic Park, Ghibli — name the film from its score',
+    blurb: 'Interstellar, Jurassic Park, Ghibli - name the film from its score',
     kind: 'score',
-    movies: SCORE_MOVIES,
+    titles: SCORE_MOVIES,
   },
 ];
 
@@ -2015,10 +2015,10 @@ export const MOVIE_COLLECTIONS: MovieCollection[] = [
  * that accepts the other film's name — a scoring bug rather than a visible crash. Same reasoning
  * as the duplicate-slug guard in categories.ts: cheap at import, silent and confusing otherwise.
  */
-for (const collection of MOVIE_COLLECTIONS) {
+for (const collection of SOUNDTRACK_COLLECTIONS) {
   const seenAlbums = new Map<string, string>();
   const seenMovies = new Set<string>();
-  for (const { movie, albumId } of collection.movies) {
+  for (const { movie, albumId } of collection.titles) {
     const owner = seenAlbums.get(albumId);
     if (owner) {
       throw new Error(`Album ${albumId} is used by both "${owner}" and "${movie}"`);

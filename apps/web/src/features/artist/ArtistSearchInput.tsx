@@ -44,8 +44,8 @@ export function ArtistSearchInput({ onSelect }: ArtistSearchInputProps) {
 
   return (
     /* Width is the parent's call, not this component's. The `max-w-md` that used to live here
-       capped the field at 448px while every sibling — the artist/category tabs, the join-room
-       card — filled the page's `max-w-xl`, so the search bar sat visibly narrower than the
+       capped the field at 448px while every sibling - the artist/category tabs, the join-room
+       card - filled the page's `max-w-xl`, so the search bar sat visibly narrower than the
        column it belongs to and stopped stretching on desktop. */
     <div className="relative w-full">
       <div className="relative flex items-center">

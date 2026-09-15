@@ -138,7 +138,7 @@ export function QrScanner({ onScan, onClose }: QrScannerProps) {
           className="h-full w-full object-cover"
           aria-label="Camera viewfinder"
         />
-        {/* Framing guide — purely decorative, so it must not swallow taps on the video. */}
+        {/* Framing guide - purely decorative, so it must not swallow taps on the video. */}
         <div className="pointer-events-none absolute inset-6 rounded-xl border-2 border-chorusify-accent2/70" />
         {error && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 px-6 text-center">

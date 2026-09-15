@@ -63,7 +63,7 @@ export function RevealMoreButton({
       <span className="flex flex-col items-start leading-tight">
         <span className="text-sm">Hear more{gain != null && gain > 0 ? ` (+${gain}s)` : ''}</span>
         {/*
-          Only the warning is worth a second line. "Free — no guess used" was reassurance nobody
+          Only the warning is worth a second line. "Free - no guess used" was reassurance nobody
           needed once the button stopped looking like Skip, and it sat under every reveal for the
           whole run. The cost case still has to be said: on the daily, advancing the snippet *is*
           the guess, and staying silent there would teach the wrong rule on most players' first

@@ -153,7 +153,7 @@ export function MultipleChoiceGuess({
                 <span className={`truncate font-semibold ${dense ? 'text-sm' : 'text-base'}`}>
                   {option.title}
                 </span>
-                {/* Guess the Movie sends options with no artist line — the option is a film, and
+                {/* Guess the Movie sends options with no artist line - the option is a film, and
                     the field that would sit here holds the song that is currently playing.
                     Rendering it empty would just leave a dead row of padding under each title. */}
                 {option.artist && (

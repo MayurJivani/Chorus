@@ -172,7 +172,7 @@ export function MultiplayerGame({
               !isSpeed &&
               (atMaxStage ? (
                 <p className="w-full max-w-md rounded-xl border border-white/10 bg-white/5 py-2.5 text-center text-sm text-slate-400">
-                  Full snippet unlocked — go on, guess!
+                  Full snippet unlocked - go on, guess!
                 </p>
               ) : (
                 <div className="flex w-full max-w-md">
@@ -190,7 +190,7 @@ export function MultiplayerGame({
               <div className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 w-full max-w-md">
                 <p className="text-sm font-medium text-slate-300">Streaming mode</p>
                 <p className="text-xs text-slate-500">
-                  You&apos;re the DJ — sit back and play the music
+                  You&apos;re the DJ - sit back and play the music
                 </p>
               </div>
             ) : isChoice ? (
@@ -233,7 +233,7 @@ export function MultiplayerGame({
                 <p className="text-xs text-slate-400">
                   {waitingOn > 0
                     ? `Waiting on ${waitingOn} more ${waitingOn === 1 ? 'player' : 'players'}…`
-                    : 'No changing it — the answer comes with the reveal.'}
+                    : 'No changing it - the answer comes with the reveal.'}
                 </p>
               </motion.div>
             ) : (

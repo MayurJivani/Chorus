@@ -8,19 +8,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { getMovieCollections } from '../api/movies';
+import { getSoundtrackCollections } from '../api/soundtracks';
 import { usePageTitle } from '../hooks/usePageTitle';
-import type { MovieCollection } from '../types/api';
+import type { SoundtrackCollection } from '../types/api';
 
-export function MoviePickerPage() {
+export function SoundtrackPickerPage() {
   usePageTitle('Soundtracks');
   const navigate = useNavigate();
-  const [collections, setCollections] = useState<MovieCollection[]>([]);
+  const [collections, setCollections] = useState<SoundtrackCollection[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    getMovieCollections()
+    getSoundtrackCollections()
       .then(setCollections)
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
@@ -96,14 +96,14 @@ export function MoviePickerPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => navigate(`/multiplayer?movieId=${collection.id}`)}
+                    onClick={() => navigate(`/multiplayer?soundtrackId=${collection.id}`)}
                     className="btn-secondary flex-1 !rounded-xl !py-2.5 !text-sm"
                   >
                     Multiplayer
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate(`/duels?movieId=${collection.id}`)}
+                    onClick={() => navigate(`/duels?soundtrackId=${collection.id}`)}
                     className="btn-ghost flex-1 !rounded-xl !py-2.5 !text-sm"
                   >
                     Duel

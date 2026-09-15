@@ -14,7 +14,7 @@
 import { getArtistById, type ArtistTrack } from './deezerService';
 import { getArtistCatalog } from './artistCatalogService';
 import { getCategoryCatalog } from './categoryCatalogService';
-import { findCategory, isMovieCategory } from './categories';
+import { findCategory, isSoundtrackCategory } from './categories';
 
 export type ChallengeSourceType = 'artist' | 'category' | 'era' | 'daily';
 
@@ -37,7 +37,7 @@ export interface ChallengeSource {
    * holds the song. Options must hide `artist` for these, or a player who recognises the track
    * by ear reads the answer off the option list instead of naming the film.
    */
-  answerIsMovie: boolean;
+  answerIsTitle: boolean;
   /** The full playable pool the ten rounds are drawn from, and that decoys/search read. */
   loadCatalog: () => Promise<ArtistTrack[]>;
 }
@@ -56,7 +56,7 @@ export async function resolveArtistSource(
     label: artist.name,
     pictureUrl: artist.pictureUrl,
     includeFeatures,
-    answerIsMovie: false,
+    answerIsTitle: false,
     loadCatalog: () => catalogPromise,
   };
 }
@@ -71,7 +71,7 @@ export function resolveCategorySource(categoryId: string): ChallengeSource {
     label: category.label,
     pictureUrl: null,
     includeFeatures: false,
-    answerIsMovie: isMovieCategory(category),
+    answerIsTitle: isSoundtrackCategory(category),
     loadCatalog: () => getCategoryCatalog(category.id),
   };
 }
@@ -94,7 +94,7 @@ export function resolveDailySource(_dateStr: string): ChallengeSource {
     label: 'Daily Challenge',
     pictureUrl: null,
     includeFeatures: false,
-    answerIsMovie: false,
+    answerIsTitle: false,
     loadCatalog: async () => {
       const validIds = DAILY_POOL_CATEGORIES.filter((id) => findCategory(id));
       const pools = await Promise.all(validIds.map((id) => getCategoryCatalog(id)));

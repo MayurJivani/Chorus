@@ -201,7 +201,7 @@ function TopPlayers({
 
       {players.length === 0 ? (
         <p className="py-4 text-center text-sm text-slate-400">
-          {/* Not "nobody has played yet" — the list above may well show finished runs. They were
+          {/* Not "nobody has played yet" - the list above may well show finished runs. They were
               just played by guests, who are never ranked. */}
           {emptyMessage}
         </p>

@@ -46,7 +46,7 @@ export function MultiplayerResults({
     onChangeSource(
       picked.kind === 'artist'
         ? { artistId: picked.artist.id }
-        : picked.kind === 'movie'
+        : picked.kind === 'soundtrack'
           ? { categoryId: picked.collection.id }
           : { categoryId: picked.category.id },
     );
@@ -185,7 +185,7 @@ export function MultiplayerResults({
             </p>
             <p className="text-xs text-slate-400">
               {canPlayAgain
-                ? 'Everyone stays in the room — scores reset for the new race.'
+                ? 'Everyone stays in the room - scores reset for the new race.'
                 : 'Browse while the host decides. Shout if you see something good.'}
             </p>
             <SourcePicker value={picked} onChange={setPicked} compact />
@@ -217,7 +217,7 @@ export function MultiplayerResults({
                 <span className="font-semibold text-white">
                   {picked.kind === 'artist'
                     ? picked.artist.name
-                    : picked.kind === 'movie'
+                    : picked.kind === 'soundtrack'
                       ? picked.collection.label
                       : picked.category.label}
                 </span>

@@ -27,7 +27,7 @@ export function NotFoundPage() {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col items-center gap-4"
       >
-        {/* A record that skipped — the same vinyl motif as the logo, stopped mid-spin. */}
+        {/* A record that skipped - the same vinyl motif as the logo, stopped mid-spin. */}
         <div className="relative flex h-24 w-24 items-center justify-center" aria-hidden="true">
           <svg viewBox="0 0 32 32" className="h-full w-full opacity-70">
             <circle cx="16" cy="16" r="15.5" fill="#151515" stroke="#252525" strokeWidth="0.5" />

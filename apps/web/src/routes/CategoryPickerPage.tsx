@@ -17,13 +17,13 @@ const GROUP_LABELS: Partial<Record<CategoryGroup, { title: string; subtitle: str
     title: 'Around the World',
     subtitle: 'K-pop, Latin, Afrobeats, Indian indie and more',
   },
-  movie: {
+  soundtrack: {
     title: 'Soundtracks',
     subtitle: 'Name the film, game or anime from its music',
   },
 };
 
-const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'world', 'movie', 'bollywood', 'genre'];
+const GROUP_ORDER: CategoryGroup[] = ['now', 'year', 'world', 'soundtrack', 'bollywood', 'genre'];
 
 // Kept in the same order as the sections below, so the chips read as a table of contents
 // rather than a second, differently-sorted list of the same thing.
@@ -32,7 +32,7 @@ const FILTERS: [CategoryGroup | 'all', string][] = [
   ['now', 'Charts'],
   ['year', 'Years'],
   ['world', 'Around the World'],
-  ['movie', 'Soundtracks'],
+  ['soundtrack', 'Soundtracks'],
   ['bollywood', 'Bollywood'],
   ['genre', 'Genres'],
 ];
@@ -82,7 +82,7 @@ export function CategoryPickerPage() {
       >
         <h1 className="text-3xl font-extrabold text-white tracking-tight">Categories</h1>
         <p className="text-sm text-slate-500">
-          Ten songs from one era, chart or genre — or name what a soundtrack is from
+          Ten songs from one era, chart or genre - or name what a soundtrack is from
         </p>
       </motion.div>
 
@@ -177,12 +177,14 @@ export function CategoryPickerPage() {
           <p className="text-base font-bold text-white">{selected.label}</p>
           {/*
             Soundtrack collections have no search mode. The answer is a film, game or anime and
-            the search box looks up songs — you cannot find "Jab We Met" in a track index. The
+            the search box looks up songs - you cannot find "Jab We Met" in a track index. The
             server already forces these to multiple choice, so offering the button would not
             break anything; it would just promise a way to play that does not exist.
           */}
-          <div className={selected.group === 'movie' ? 'grid gap-2' : 'grid grid-cols-2 gap-2'}>
-            {selected.group !== 'movie' && (
+          <div
+            className={selected.group === 'soundtrack' ? 'grid gap-2' : 'grid grid-cols-2 gap-2'}
+          >
+            {selected.group !== 'soundtrack' && (
               <button
                 type="button"
                 onClick={() => startGame('search')}
@@ -222,7 +224,7 @@ export function CategoryPickerPage() {
                   d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
                 />
               </svg>
-              {selected.group === 'movie' ? 'Play' : 'Multiple choice'}
+              {selected.group === 'soundtrack' ? 'Play' : 'Multiple choice'}
             </button>
           </div>
         </motion.div>

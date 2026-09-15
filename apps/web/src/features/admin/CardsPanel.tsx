@@ -21,7 +21,7 @@ function zaynCard(overrides: Partial<FandomInfo> & { id: number }): FandomInfo {
 
 const PREVIEW_CARDS: { membership: FandomInfo; label: string }[] = [
   {
-    label: 'Diamond — Top 0.01%',
+    label: 'Diamond - Top 0.01%',
     membership: zaynCard({
       id: 1,
       fanScore: 9500,
@@ -32,7 +32,7 @@ const PREVIEW_CARDS: { membership: FandomInfo; label: string }[] = [
     }),
   },
   {
-    label: 'Platinum — Top 0.1%',
+    label: 'Platinum - Top 0.1%',
     membership: zaynCard({
       id: 2,
       fanScore: 7200,
@@ -43,7 +43,7 @@ const PREVIEW_CARDS: { membership: FandomInfo; label: string }[] = [
     }),
   },
   {
-    label: 'Gold — Top 1%',
+    label: 'Gold - Top 1%',
     membership: zaynCard({
       id: 3,
       fanScore: 4800,
@@ -54,7 +54,7 @@ const PREVIEW_CARDS: { membership: FandomInfo; label: string }[] = [
     }),
   },
   {
-    label: 'Silver — Top 5%',
+    label: 'Silver - Top 5%',
     membership: zaynCard({
       id: 4,
       fanScore: 2400,
@@ -65,7 +65,7 @@ const PREVIEW_CARDS: { membership: FandomInfo; label: string }[] = [
     }),
   },
   {
-    label: 'Bronze — Top 10%',
+    label: 'Bronze - Top 10%',
     membership: zaynCard({
       id: 5,
       fanScore: 1200,
@@ -76,7 +76,7 @@ const PREVIEW_CARDS: { membership: FandomInfo; label: string }[] = [
     }),
   },
   {
-    label: 'Fan — Top 25%',
+    label: 'Fan - Top 25%',
     membership: zaynCard({
       id: 6,
       fanScore: 600,
@@ -87,7 +87,7 @@ const PREVIEW_CARDS: { membership: FandomInfo; label: string }[] = [
     }),
   },
   {
-    label: 'Listener — Top 50%',
+    label: 'Listener - Top 50%',
     membership: zaynCard({
       id: 7,
       fanScore: 200,
@@ -98,7 +98,7 @@ const PREVIEW_CARDS: { membership: FandomInfo; label: string }[] = [
     }),
   },
   {
-    label: 'Newcomer — Bottom 50%',
+    label: 'Newcomer - Bottom 50%',
     membership: zaynCard({
       id: 8,
       fanScore: 30,

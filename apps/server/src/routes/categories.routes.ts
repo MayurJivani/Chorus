@@ -61,10 +61,10 @@ categoriesRouter.get('/', (_req, res) => {
   const queued = getQueueCounts();
 
   res.json({
-    /* Movie collections appear here *and* at /api/movies, on purpose. They are their own mode
+    /* Soundtrack collections appear here *and* at /api/soundtracks, on purpose. They are their own mode
        with its own page, but they are also a perfectly good thing to find while browsing the
        category list, and a player looking for something to play should not have to already
-       know the mode exists. /api/movies stays the richer listing (film counts, score/songs
+       know the mode exists. /api/soundtracks stays the richer listing (film counts, score/songs
        kind); this is the browse entry point.
 
        One consumer deliberately filters them back out: the multiplayer source picker, which
@@ -103,7 +103,7 @@ categoriesRouter.get(
     const source = sourceFor(categoryId);
     const identity = getIdentity(req);
     // Same reason as multiplayer: you cannot search a song index for a film title.
-    const effectiveMode = source.answerIsMovie ? 'choice' : mode;
+    const effectiveMode = source.answerIsTitle ? 'choice' : mode;
 
     let session, challenge, tracks;
     try {
@@ -152,7 +152,7 @@ categoriesRouter.get(
 
     const options =
       effectiveMode === 'choice'
-        ? buildRoundOptions(currentTrack, await source.loadCatalog(), 3, source.answerIsMovie)
+        ? buildRoundOptions(currentTrack, await source.loadCatalog(), 3, source.answerIsTitle)
         : undefined;
 
     res.json({

@@ -106,7 +106,7 @@ export function MultiplayerDemo() {
           >
             {p.name}
           </motion.span>
-          {/* Score bars racing — the whole point of the mode in one gesture */}
+          {/* Score bars racing - the whole point of the mode in one gesture */}
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/5">
             <motion.div
               className={`h-full rounded-full ${p.colour}`}

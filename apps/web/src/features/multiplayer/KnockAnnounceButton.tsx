@@ -60,7 +60,7 @@ export function KnockAnnounceButton({ code }: KnockAnnounceButtonProps) {
         }
       >
         <span aria-hidden="true">{announcing ? '📡' : '🔉'}</span>
-        {announcing ? 'Announcing — phones nearby can join' : 'Announce this room by sound'}
+        {announcing ? 'Announcing - phones nearby can join' : 'Announce this room by sound'}
         <span className="rounded-full border border-chorusify-accent2/40 px-1.5 text-[9px] font-bold uppercase tracking-wider text-chorusify-accent2">
           Beta
         </span>
@@ -68,7 +68,7 @@ export function KnockAnnounceButton({ code }: KnockAnnounceButtonProps) {
       <p className="text-center text-[11px] text-slate-500">
         {failed
           ? 'This device would not play the signal. Share the code instead.'
-          : 'Silent — above hearing. Everyone still needs the join page open.'}
+          : 'Silent - above hearing. Everyone still needs the join page open.'}
       </p>
     </div>
   );

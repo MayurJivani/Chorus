@@ -208,7 +208,7 @@ function artistSourceLite(artistId: number, includeFeatures: boolean): Challenge
     sourceId: String(artistId),
     label: '',
     pictureUrl: null,
-    answerIsMovie: false,
+    answerIsTitle: false,
     includeFeatures,
     loadCatalog: () => getArtistCatalog(artistId, includeFeatures),
   };
@@ -538,7 +538,7 @@ export async function resolvePlayableRoundForSource(
    * reveal has to say which song was playing. The refresh exists to keep real artist names
    * current, which is not what this column means for these sources.
    */
-  const refreshArtist = !source.answerIsMovie;
+  const refreshArtist = !source.answerIsTitle;
 
   const direct = await getFreshPreviewUrl(track.deezerTrackId);
   if (direct) {

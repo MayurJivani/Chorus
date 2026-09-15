@@ -45,7 +45,7 @@ export function DuelsPage() {
   const [board, setBoard] = useState<RatingStanding[]>([]);
   const [source, setSource] = useState<PickedSource | null>(null);
   const [searchParams] = useSearchParams();
-  const preselectMovieId = searchParams.get('movieId') ?? undefined;
+  const preselectSoundtrackId = searchParams.get('soundtrackId') ?? undefined;
   /** Which ladder the board is showing. Ratings are per mode, so it has to say which. */
   const [boardMode, setBoardMode] = useState<DuelMode>('artist');
 
@@ -78,8 +78,12 @@ export function DuelsPage() {
       ? null
       : source.kind === 'artist'
         ? { kind: 'artist', artistId: source.artist.id, label: source.artist.name }
-        : source.kind === 'movie'
-          ? { kind: 'movie', collectionId: source.collection.id, label: source.collection.label }
+        : source.kind === 'soundtrack'
+          ? {
+              kind: 'soundtrack',
+              collectionId: source.collection.id,
+              label: source.collection.label,
+            }
           : { kind: 'category', categoryId: source.category.id, label: source.category.label };
 
   const randomRequest: DuelQueueRequest = { kind: 'random', label: 'Any artist' };
@@ -100,7 +104,7 @@ export function DuelsPage() {
             Beta
           </span>
         </h1>
-        <p className="text-sm text-slate-500">Live 1v1 — same songs, same moment, rated</p>
+        <p className="text-sm text-slate-500">Live 1v1 - same songs, same moment, rated</p>
       </motion.div>
 
       {queue.error && (
@@ -167,7 +171,7 @@ export function DuelsPage() {
             <span>
               <span className="block text-sm font-semibold text-white">Any artist</span>
               <span className="block text-[11px] text-slate-400">
-                Fastest match — the server picks
+                Fastest match - the server picks
               </span>
             </span>
             <WaitingBadge count={countFor(randomRequest)} />
@@ -181,7 +185,7 @@ export function DuelsPage() {
               value={source}
               onChange={setSource}
               compact
-              preselectMovieId={preselectMovieId}
+              preselectSoundtrackId={preselectSoundtrackId}
             />
           </div>
 
@@ -253,7 +257,7 @@ export function DuelsPage() {
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold text-white">
                       {duel.status !== 'complete'
-                        ? '—'
+                        ? '-'
                         : duel.winnerId == null
                           ? 'Draw'
                           : duel.winnerId === user.id
@@ -291,7 +295,7 @@ export function DuelsPage() {
               [
                 ['artist', 'Artist'],
                 ['category', 'Category'],
-                ['movie', 'Movie'],
+                ['soundtrack', 'Movie'],
                 ['random', 'Any'],
               ] as [DuelMode, string][]
             ).map(([value, label]) => (

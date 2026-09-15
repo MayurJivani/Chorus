@@ -111,7 +111,7 @@ export function StatsPage() {
       </motion.div>
 
       {/* Timing. Hidden entirely rather than shown as a row of dashes when no finished puzzle
-          has a recorded time yet — every value here would be empty. */}
+          has a recorded time yet - every value here would be empty. */}
       {timed && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}

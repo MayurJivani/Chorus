@@ -10,14 +10,14 @@
  * because it names the song currently playing. A player who recognises the track by ear would
  * otherwise read the answer straight off the option list instead of knowing the film, which is
  * the entire thing being tested. `buildRoundOptions` is called with `hideArtist` for these
- * sources; see `ChallengeSource.answerIsMovie`.
+ * sources; see `ChallengeSource.answerIsTitle`.
  */
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { artistTrackPools } from '../db/schema';
 import { seedPreviewCacheFromPlaylist, type ArtistTrack } from './deezerService';
 import { isUnwantedVersion, normalizeTitle } from '../utils/trackFilters';
-import type { MovieAlbum, MovieCollectionKind } from './movies';
+import type { SoundtrackTitle, SoundtrackKind } from './soundtracks';
 import { getSettings } from './settingsService';
 import { logger } from '../logger';
 
@@ -69,7 +69,7 @@ function matchesAny(title: string, terms: string[]): boolean {
   return terms.some((term) => new RegExp(`\\b${normalizeTitle(term)}\\b`).test(normalized));
 }
 
-function isNonSong(title: string, kind: MovieCollectionKind = 'songs'): boolean {
+function isNonSong(title: string, kind: SoundtrackKind = 'songs'): boolean {
   return matchesAny(title, kind === 'score' ? NON_SCORE_TERMS : NON_SONG_TERMS);
 }
 
@@ -103,7 +103,7 @@ interface FetchedAlbum {
  * Deezer answers a quota breach with HTTP 200 and an error body rather than a 429, so the only
  * way to tell "this album does not exist" from "you are going too fast" is to retry and see.
  */
-async function fetchAlbumBody(album: MovieAlbum): Promise<DeezerAlbumResponse> {
+async function fetchAlbumBody(album: SoundtrackTitle): Promise<DeezerAlbumResponse> {
   let lastError = '';
   for (let attempt = 0; attempt < 4; attempt++) {
     const res = await fetch(`https://api.deezer.com/album/${album.albumId}`, {
@@ -121,9 +121,9 @@ async function fetchAlbumBody(album: MovieAlbum): Promise<DeezerAlbumResponse> {
   throw new Error(`Deezer album ${album.albumId} (${album.movie}) failed: ${lastError}`);
 }
 
-async function fetchMovieAlbum(
-  album: MovieAlbum,
-  kind: MovieCollectionKind,
+async function fetchSoundtrackTitle(
+  album: SoundtrackTitle,
+  kind: SoundtrackKind,
 ): Promise<FetchedAlbum> {
   const body = await fetchAlbumBody(album);
 
@@ -157,7 +157,7 @@ async function fetchMovieAlbum(
  * Deduped down to one row per song. Keyed on film *and* song title because the pool's `title`
  * is the film — keying on title alone would collapse every album to a single track.
  */
-function buildMoviePool(rows: ArtistTrack[]): ArtistTrack[] {
+function buildSoundtrackPool(rows: ArtistTrack[]): ArtistTrack[] {
   const bestByKey = new Map<string, ArtistTrack>();
   for (const row of rows) {
     const key = `${normalizeTitle(row.title)}|${normalizeTitle(row.artist)}`;
@@ -182,8 +182,8 @@ interface FetchOutcome {
 }
 
 async function fetchAllAlbums(
-  albums: MovieAlbum[],
-  kind: MovieCollectionKind,
+  albums: SoundtrackTitle[],
+  kind: SoundtrackKind,
 ): Promise<FetchOutcome> {
   const tracks: ArtistTrack[] = [];
   const seeds: FetchedAlbum['seeds'] = [];
@@ -191,7 +191,9 @@ async function fetchAllAlbums(
 
   for (let i = 0; i < albums.length; i += ALBUM_FETCH_CONCURRENCY) {
     const batch = albums.slice(i, i + ALBUM_FETCH_CONCURRENCY);
-    const results = await Promise.allSettled(batch.map((album) => fetchMovieAlbum(album, kind)));
+    const results = await Promise.allSettled(
+      batch.map((album) => fetchSoundtrackTitle(album, kind)),
+    );
     for (const [index, result] of results.entries()) {
       if (result.status === 'fulfilled') {
         tracks.push(...result.value.tracks);
@@ -267,8 +269,8 @@ const refreshing = new Set<string>();
 function refreshInBackground(
   collectionId: string,
   label: string,
-  albums: MovieAlbum[],
-  kind: MovieCollectionKind,
+  albums: SoundtrackTitle[],
+  kind: SoundtrackKind,
 ): void {
   if (refreshing.has(collectionId)) return;
   refreshing.add(collectionId);
@@ -280,7 +282,7 @@ function refreshInBackground(
         logger.warn({ collectionId, failed }, 'Movie pool refresh incomplete; keeping stored pool');
         return;
       }
-      const tracks = buildMoviePool(raw);
+      const tracks = buildSoundtrackPool(raw);
       if (tracks.length < MIN_MOVIE_TRACKS) return;
       await writePool(collectionId, label, tracks);
       logger.info({ collectionId, trackCount: tracks.length }, 'Refreshed movie pool');
@@ -294,11 +296,11 @@ function refreshInBackground(
  * the row is keyed by an opaque text id, so a collection slug cannot collide with a numeric
  * Deezer artist id or a category slug.
  */
-export async function getMovieCatalog(
+export async function getSoundtrackCatalog(
   collectionId: string,
   label: string,
-  albums: MovieAlbum[],
-  kind: MovieCollectionKind = 'songs',
+  albums: SoundtrackTitle[],
+  kind: SoundtrackKind = 'songs',
 ): Promise<ArtistTrack[]> {
   let stored;
   try {
@@ -316,7 +318,7 @@ export async function getMovieCatalog(
   }
 
   const { tracks: raw, failed } = await fetchAllAlbums(albums, kind);
-  const tracks = buildMoviePool(raw);
+  const tracks = buildSoundtrackPool(raw);
   if (tracks.length < MIN_MOVIE_TRACKS) {
     throw new Error(`Not enough playable tracks in ${label}`);
   }
@@ -339,4 +341,4 @@ export async function getMovieCatalog(
   return tracks;
 }
 
-export const __testing = { buildMoviePool, isNonSong, isTooIncomplete };
+export const __testing = { buildSoundtrackPool, isNonSong, isTooIncomplete };

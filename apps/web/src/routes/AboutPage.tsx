@@ -6,7 +6,7 @@ const MODES: [string, string][] = [
   ['Artist Mode', 'pick any artist and name ten songs from their discography.'],
   [
     'Multiplayer',
-    'share a room by QR or code and race friends on the same snippet — fastest correct answer scores most. The host picks how many songs, up to 25, and can switch to a different artist or category between games without anyone leaving the room.',
+    'share a room by QR or code and race friends on the same snippet - fastest correct answer scores most. The host picks how many songs, up to 25, and can switch to a different artist or category between games without anyone leaving the room.',
   ],
   ['Categories', 'ten songs from one chart, year or genre, every track by a different artist.'],
   [
@@ -27,7 +27,7 @@ const sections = [
     jsx: (
       <div className="flex flex-col gap-2 leading-relaxed text-slate-400">
         <p>
-          You start with a short snippet of a song. Name it in as few seconds of audio as you can —
+          You start with a short snippet of a song. Name it in as few seconds of audio as you can -
           the earlier you get it, the more the round is worth.
         </p>
         {/*
@@ -36,7 +36,7 @@ const sections = [
           way of giving up and guessed off one second.
         */}
         <p>
-          <span className="font-medium text-slate-200">Hear more</span> stretches the clip — one
+          <span className="font-medium text-slate-200">Hear more</span> stretches the clip - one
           second, then two, four, seven, and so on. In every mode except the daily it is{' '}
           <span className="font-medium text-slate-200">free</span> and costs you no guess, so there
           is never a reason to guess blind. On the Daily Challenge an attempt is what grows the

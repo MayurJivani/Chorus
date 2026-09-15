@@ -170,7 +170,7 @@ export const SETTING_DEFS = {
 
   speedMaxPoints: {
     group: 'multiplayer',
-    label: 'Speed scoring — instant answer',
+    label: 'Speed scoring - instant answer',
     help: 'Points for a correct answer the moment the round starts. Falls away towards the minimum as the round runs on.',
     schema: positiveInt(10, 500),
     default: 100,
@@ -179,7 +179,7 @@ export const SETTING_DEFS = {
 
   speedMinPoints: {
     group: 'multiplayer',
-    label: 'Speed scoring — answer at the buzzer',
+    label: 'Speed scoring - answer at the buzzer',
     help: 'Points for a correct answer as the round expires. Being right is still worth something.',
     schema: positiveInt(0, 200),
     default: 20,
@@ -188,7 +188,7 @@ export const SETTING_DEFS = {
 
   speedPoints: {
     group: 'multiplayer',
-    label: 'Speed scoring — order bonus',
+    label: 'Speed scoring - order bonus',
     help: 'Added on top of the time score for being first, second, third to answer correctly. Everyone past the last entry gets that value.',
     schema: z
       .array(positiveInt(0, 100))
@@ -196,7 +196,7 @@ export const SETTING_DEFS = {
       .max(10)
       .refine(
         (pts) => pts.every((p, i) => i === 0 || p <= pts[i - 1]!),
-        'Points must not increase — earlier is better',
+        'Points must not increase - earlier is better',
       ),
     default: [15, 10, 5],
     control: { kind: 'numberList', minLength: 1, maxLength: 10, min: 0, max: 100, unit: 'pts' },

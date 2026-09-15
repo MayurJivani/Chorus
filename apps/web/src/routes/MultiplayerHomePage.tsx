@@ -27,7 +27,7 @@ export function MultiplayerHomePage() {
 
   const [source, setSource] = useState<PickedSource | null>(null);
   const [searchParams] = useSearchParams();
-  const preselectMovieId = searchParams.get('movieId') ?? undefined;
+  const preselectSoundtrackId = searchParams.get('soundtrackId') ?? undefined;
   const [gameMode, setGameMode] = useState<MultiplayerGameMode>('speed');
   const [guessMode, setGuessMode] = useState<MultiplayerGuessMode>('search');
   const [rounds, setRounds] = useState<number>(10);
@@ -54,7 +54,7 @@ export function MultiplayerHomePage() {
       const payload =
         source.kind === 'artist'
           ? { artistId: source.artist.id }
-          : source.kind === 'movie'
+          : source.kind === 'soundtrack'
             ? { categoryId: source.collection.id }
             : { categoryId: source.category.id };
       const { code } = await createMultiplayerRoom(
@@ -93,10 +93,14 @@ export function MultiplayerHomePage() {
         <p className="text-sm text-slate-500">Race friends in real time on shared snippets</p>
       </motion.div>
 
-      {/* Only before a source is chosen — see ArtistSearchPage for the same reasoning. */}
+      {/* Only before a source is chosen - see ArtistSearchPage for the same reasoning. */}
       {!source && <MultiplayerGuide />}
 
-      <SourcePicker value={source} onChange={setSource} preselectMovieId={preselectMovieId} />
+      <SourcePicker
+        value={source}
+        onChange={setSource}
+        preselectSoundtrackId={preselectSoundtrackId}
+      />
 
       {!source && (
         <motion.div
@@ -132,7 +136,7 @@ export function MultiplayerHomePage() {
             >
               {/*
                 Scan sits in the same row as the code field, because it is the alternative to
-                typing one — as a separate full-width button underneath it read as a third,
+                typing one - as a separate full-width button underneath it read as a third,
                 unrelated action and the typing stayed the obvious path.
 
                 Always rendered, never feature-gated. Hiding it where `BarcodeDetector` is
@@ -214,7 +218,7 @@ export function MultiplayerHomePage() {
               <h2 className="truncate text-lg font-bold text-white">
                 {source.kind === 'artist'
                   ? source.artist.name
-                  : source.kind === 'movie'
+                  : source.kind === 'soundtrack'
                     ? source.collection.label
                     : source.category.label}
               </h2>

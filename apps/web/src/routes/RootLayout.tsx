@@ -286,7 +286,7 @@ export function RootLayout() {
           <span className="text-xs text-slate-500">
             &copy; {new Date().getFullYear()} Chorusify
           </span>
-          {/* Deezer attribution — required by Deezer API brand guidelines */}
+          {/* Deezer attribution - required by Deezer API brand guidelines */}
           <a
             href="https://www.deezer.com"
             target="_blank"

@@ -7,8 +7,8 @@
 import { useEffect, useState } from 'react';
 import { ArtistSearchInput } from '../artist/ArtistSearchInput';
 import { getCategories } from '../../api/categories';
-import { getMovieCollections } from '../../api/movies';
-import type { ArtistSearchResult, Category, MovieCollection } from '../../types/api';
+import { getSoundtrackCollections } from '../../api/soundtracks';
+import type { ArtistSearchResult, Category, SoundtrackCollection } from '../../types/api';
 
 /**
  * What a room races over. The game is identical for all three; only the pool differs.
@@ -17,12 +17,12 @@ import type { ArtistSearchResult, Category, MovieCollection } from '../../types/
  * through the same source, because they are a separate mode to a player — mixing four film
  * collections into a list of seventy-two categories is how they got lost in the first place.
  */
-export type SourceKind = 'artist' | 'category' | 'movie';
+export type SourceKind = 'artist' | 'category' | 'soundtrack';
 
 export type PickedSource =
   | { kind: 'artist'; artist: ArtistSearchResult }
   | { kind: 'category'; category: Category }
-  | { kind: 'movie'; collection: MovieCollection };
+  | { kind: 'soundtrack'; collection: SoundtrackCollection };
 
 interface SourcePickerProps {
   value: PickedSource | null;
@@ -30,24 +30,24 @@ interface SourcePickerProps {
   /** Caps the category grid's height. The results screen has less room than the home page. */
   compact?: boolean;
   /**
-   * Opens on the Movie tab with this collection already chosen. Set from `?movieId=` so the
+   * Opens on the Movie tab with this collection already chosen. Set from `?soundtrackId=` so the
    * "Multiplayer" and "Duel" buttons on the Guess the Movie page land somewhere useful instead
    * of dropping the player on an artist search with their choice forgotten.
    */
-  preselectMovieId?: string;
+  preselectSoundtrackId?: string;
 }
 
 export function SourcePicker({
   value,
   onChange,
   compact = false,
-  preselectMovieId,
+  preselectSoundtrackId,
 }: SourcePickerProps) {
   const [kind, setKind] = useState<SourceKind>(
-    preselectMovieId ? 'movie' : (value?.kind ?? 'artist'),
+    preselectSoundtrackId ? 'soundtrack' : (value?.kind ?? 'artist'),
   );
   const [categories, setCategories] = useState<Category[]>([]);
-  const [movies, setMovies] = useState<MovieCollection[]>([]);
+  const [movies, setMovies] = useState<SoundtrackCollection[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Fetched lazily, per tab: someone racing over an artist never needs either list.
@@ -57,29 +57,29 @@ export function SourcePicker({
       // Movie collections come back from /categories too (they are browsable there), but this
       // picker has its own Movie tab. Choosing one from the Category tab would queue a duel on
       // the category rating ladder instead of the movie one, so they are filtered out here.
-      .then((all) => setCategories(all.filter((c) => c.group !== 'movie')))
+      .then((all) => setCategories(all.filter((c) => c.group !== 'soundtrack')))
       .catch(() => setError('Could not load categories.'));
   }, [kind, categories.length]);
 
   useEffect(() => {
-    if (kind !== 'movie' || movies.length > 0) return;
-    getMovieCollections()
+    if (kind !== 'soundtrack' || movies.length > 0) return;
+    getSoundtrackCollections()
       .then(setMovies)
       .catch(() => setError('Could not load movie collections.'));
   }, [kind, movies.length]);
 
   /* Runs once the list arrives rather than on mount, because the collection object itself is
-     what the caller needs — an id alone cannot fill in the label the confirm button shows. */
+     what the caller needs - an id alone cannot fill in the label the confirm button shows. */
   useEffect(() => {
-    if (!preselectMovieId || value != null) return;
-    const match = movies.find((m) => m.id === preselectMovieId);
-    if (match) onChange({ kind: 'movie', collection: match });
-  }, [preselectMovieId, movies, value, onChange]);
+    if (!preselectSoundtrackId || value != null) return;
+    const match = movies.find((m) => m.id === preselectSoundtrackId);
+    if (match) onChange({ kind: 'soundtrack', collection: match });
+  }, [preselectSoundtrackId, movies, value, onChange]);
 
   const selectedId =
     value?.kind === 'category'
       ? value.category.id
-      : value?.kind === 'movie'
+      : value?.kind === 'soundtrack'
         ? value.collection.id
         : null;
 
@@ -94,7 +94,7 @@ export function SourcePicker({
           [
             ['artist', 'Artist'],
             ['category', 'Category'],
-            ['movie', 'Soundtrack'],
+            ['soundtrack', 'Soundtrack'],
           ] as [SourceKind, string][]
         ).map(([k, label]) => (
           <button
@@ -143,7 +143,7 @@ export function SourcePicker({
                 id: m.id,
                 label: m.label,
                 here: (m.playing ?? 0) + (m.queued ?? 0),
-                pick: () => onChange({ kind: 'movie' as const, collection: m }),
+                pick: () => onChange({ kind: 'soundtrack' as const, collection: m }),
               }))
           ).map((item) => (
             <button
@@ -160,12 +160,12 @@ export function SourcePicker({
             >
               {/*
                 Wraps rather than truncates. A single line at this width cut ten of the
-                seventy-odd names — "Top Worldwide 2025" became "Top Worldwide 20…", losing the
+                seventy-odd names - "Top Worldwide 2025" became "Top Worldwide 20…", losing the
                 year, which is the only thing distinguishing it from "Top Worldwide Now". A name
                 you cannot read is not a choice you can make.
               */}
               <span className="block leading-tight">{item.label}</span>
-              {/* Only shown where somebody actually is — a row of zeroes would just say
+              {/* Only shown where somebody actually is - a row of zeroes would just say
                   "nobody is anywhere", which is worse than saying nothing. */}
               {item.here > 0 && (
                 <span className="mt-0.5 flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
