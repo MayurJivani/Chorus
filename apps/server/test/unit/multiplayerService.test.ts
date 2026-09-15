@@ -928,3 +928,42 @@ describe('rooms over a category', () => {
     expect(snapshot?.label).toBe('Top Hits 2020');
   });
 });
+
+/**
+ * A streamer's room is the case these guard. Rooms live in one process, so anything that scales
+ * worse than linearly with player count is a hard ceiling on how big a room can get.
+ */
+describe('large rooms', () => {
+  it('caps how many scores a broadcast carries', async () => {
+    const { code } = await createRoom(queenSource(), 'choice');
+    const sockets = [];
+    for (let i = 0; i < 60; i++) {
+      sockets.push(register(`p${i}`, `seed${i}`.padEnd(8, 'x')));
+      await join(`p${i}`, code);
+    }
+    handleClientMessage('p0', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    const scores = (lastOf(sockets[0]!, 'scores')?.scores ?? []) as unknown[];
+    // 60 players joined; a broadcast must not carry a row for every one of them.
+    expect(scores.length).toBeGreaterThan(0);
+    expect(scores.length).toBeLessThanOrEqual(10);
+  });
+
+  it('sends one identical frame to every player in a broadcast', async () => {
+    // The frame is shared, so it cannot carry a per-player field. selfId still arrives through
+    // the individually-addressed messages, which is where the client reads it.
+    const { code } = await createRoom(queenSource(), 'choice');
+    const a = register('pa', 'aaaabbbb');
+    const b = register('pb', 'ccccdddd');
+    await join('pa', code);
+    await join('pb', code);
+    handleClientMessage('pa', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    const sa = lastOf(a, 'scores');
+    const sb = lastOf(b, 'scores');
+    expect(sa).toBeTruthy();
+    expect(JSON.stringify(sa)).toEqual(JSON.stringify(sb));
+  });
+});

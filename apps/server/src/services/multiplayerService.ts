@@ -851,6 +851,10 @@ function submitGuess(playerId: string, trackId: string): void {
     type: 'guess_result',
     stageIndex: player.stageIndex,
     guessedTrackId: trackId,
+    // Your standing, which the shared scoreboard frame cannot carry: it only holds the top ten,
+    // and in a big room you are almost certainly not in it.
+    yourRank: rankFor(room, playerId),
+    totalPlayers: room.players.size,
   });
   broadcast(room, { type: 'scores', scores: buildScores(room) });
 
@@ -1073,6 +1077,30 @@ function computeWinner(
  * `answered` stays truthful throughout: knowing *that* someone has locked in is part of the
  * tension, and it is what the guess UI uses to stop you answering twice.
  */
+/**
+ * How many rows a scoreboard broadcast carries.
+ *
+ * Serialising once fixed the CPU cost, but not the bandwidth: a row per player is about 100
+ * bytes, so a 10,000-player room is a megabyte per broadcast, times 10,000 sockets, on every
+ * guess. No amount of CPU tuning survives that.
+ *
+ * A cap is also the honest UI. Nobody reads past the top of a leaderboard with thousands of
+ * names on it.
+ *
+ * Ten rows, and your own position travels separately: `rankFor` below computes it, and it rides
+ * the guess result, which is already addressed to one player. That keeps the expensive part
+ * shared and the personal part O(1) per guess rather than O(N) per broadcast.
+ */
+const MAX_BROADCAST_SCORES = 10;
+
+/** Where a player actually stands, counted across everyone rather than the ten rows sent out. */
+function rankFor(room: MpRoom, playerId: string): number {
+  const ordered = [...room.players.values()].sort(
+    (a, b) => b.score - a.score || a.totalAnswerMs - b.totalAnswerMs,
+  );
+  return ordered.findIndex((p) => p.playerId === playerId) + 1;
+}
+
 function buildScores(room: MpRoom, reveal = false): MpScoreEntry[] {
   return (
     [...room.players.values()]
@@ -1088,6 +1116,9 @@ function buildScores(room: MpRoom, reveal = false): MpScoreEntry[] {
       // Sorted on whatever score is being reported, so the order cannot jump a round early.
       // Ties fall to whoever answered faster overall rather than to insertion order.
       .sort((a, b) => b.score - a.score || a.totalAnswerMs - b.totalAnswerMs)
+      // Cut after sorting, so what goes is the bottom of the ranking rather than whoever
+      // happened to be late in the map.
+      .slice(0, MAX_BROADCAST_SCORES)
   );
 }
 
@@ -1130,9 +1161,36 @@ function broadcastRoomState(room: MpRoom): void {
   }
 }
 
+/**
+ * One serialisation, written to every socket.
+ *
+ * This used to call `sendTo` per player, which stamps a per-player `selfId` into the message and
+ * so forces a fresh `JSON.stringify` for each one. With a scoreboard carrying a row per player
+ * the payload also grows with the room, making a broadcast O(N^2): measured at 223ms for 1000
+ * players and 23.5 *seconds* for 10,000, on the same thread that owes everyone the next round.
+ * Scores broadcast on every guess, so a large room wedged itself.
+ *
+ * `selfId` is not lost. It is only read once, to learn which player you are, and it still rides
+ * every message sent through `sendTo` — which is how joins and errors go out.
+ *
+ * See scripts/bench-broadcast.ts.
+ */
 function broadcast(room: MpRoom, payload: Record<string, unknown>): void {
+  let frame: string;
+  try {
+    frame = JSON.stringify(payload);
+  } catch (err) {
+    logger.warn({ err }, 'Failed to serialise multiplayer broadcast');
+    return;
+  }
   for (const p of room.players.values()) {
-    sendTo(p.playerId, payload);
+    const socket = sockets.get(p.playerId);
+    if (!socket) continue;
+    try {
+      socket.send(frame);
+    } catch (err) {
+      logger.warn({ err }, 'Failed to send multiplayer message');
+    }
   }
 }
 

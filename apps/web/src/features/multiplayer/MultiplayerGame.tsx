@@ -205,7 +205,11 @@ export function MultiplayerGame({
                     className="flex items-center justify-center gap-2 rounded-xl border border-chorusify-accent2/25 bg-chorusify-accent2/5 px-3 py-2 text-center"
                   >
                     <p className="text-sm font-semibold text-chorusify-accent2">
-                      Locked in
+                      {/* In a big room the scoreboard shows the top ten and you are not on it,
+                          so your own standing comes back with your guess instead. */}
+                      {lastGuess?.yourRank && lastGuess.totalPlayers
+                        ? `#${lastGuess.yourRank} of ${lastGuess.totalPlayers}`
+                        : 'Locked in'}
                       <span className="ml-2 font-normal text-slate-400">
                         {waitingOn > 0 ? `waiting on ${waitingOn} more` : 'waiting for the reveal…'}
                       </span>

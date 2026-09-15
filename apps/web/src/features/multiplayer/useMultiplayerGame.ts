@@ -34,6 +34,9 @@ export interface MultiplayerRound {
  * came back before was `correct` and `points`, which is why the round used to announce itself.
  */
 export interface MultiplayerGuessResult {
+  /** Your standing across the whole room. The scoreboard only carries the top ten. */
+  yourRank?: number;
+  totalPlayers?: number;
   stageIndex: number;
   /** The track this player committed to. Absent on a skip. */
   guessedTrackId?: string;
@@ -190,6 +193,8 @@ export function useMultiplayerGame(
         setLastGuess({
           stageIndex: raw.stageIndex as number,
           guessedTrackId: raw.guessedTrackId as string | undefined,
+          yourRank: raw.yourRank as number | undefined,
+          totalPlayers: raw.totalPlayers as number | undefined,
         });
         break;
       case 'scores':
