@@ -10,8 +10,8 @@ const MODES: [string, string][] = [
   ],
   ['Categories', 'ten songs from one chart, year or genre, every track by a different artist.'],
   [
-    'Guess the Movie',
-    'the answer is the film, not the song. Bollywood and Hollywood soundtracks, plus a scores collection where the music is orchestral rather than sung — Interstellar, Jurassic Park, the Ghibli films. Playable solo, in a room, or as a rated duel on its own ladder.',
+    'Soundtracks',
+    'the answer is what the music is from, not the song. Hollywood and Bollywood films, video games, anime, and film scores where the music is orchestral rather than sung. Playable solo, in a room, or as a rated duel on its own ladder.',
   ],
   ['Survival', 'endless songs, one wrong answer ends the run. How far can you get?'],
   ['Guess the Year', 'hear a song and place it in time. Harder than it sounds.'],

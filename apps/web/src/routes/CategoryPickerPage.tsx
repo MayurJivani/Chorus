@@ -18,8 +18,8 @@ const GROUP_LABELS: Partial<Record<CategoryGroup, { title: string; subtitle: str
     subtitle: 'K-pop, Latin, Afrobeats, Indian indie and more',
   },
   movie: {
-    title: 'Guess the Movie or Game',
-    subtitle: 'Name the film or game from its soundtrack or score',
+    title: 'Soundtracks',
+    subtitle: 'Name the film, game or anime from its music',
   },
 };
 
@@ -32,7 +32,7 @@ const FILTERS: [CategoryGroup | 'all', string][] = [
   ['now', 'Charts'],
   ['year', 'Years'],
   ['world', 'Around the World'],
-  ['movie', 'Movies'],
+  ['movie', 'Soundtracks'],
   ['bollywood', 'Bollywood'],
   ['genre', 'Genres'],
 ];
@@ -82,7 +82,7 @@ export function CategoryPickerPage() {
       >
         <h1 className="text-3xl font-extrabold text-white tracking-tight">Categories</h1>
         <p className="text-sm text-slate-500">
-          Ten songs from one era, chart, genre — or name the film they came from
+          Ten songs from one era, chart or genre — or name what a soundtrack is from
         </p>
       </motion.div>
 
@@ -176,10 +176,10 @@ export function CategoryPickerPage() {
         >
           <p className="text-base font-bold text-white">{selected.label}</p>
           {/*
-            Guess the Movie has no search mode. The answer is a film, and the search box looks
-            up songs — you cannot find "Jab We Met" in a track index. The server already forces
-            these to multiple choice, so offering the button would not break anything; it would
-            just promise a way to play that does not exist.
+            Soundtrack collections have no search mode. The answer is a film, game or anime and
+            the search box looks up songs — you cannot find "Jab We Met" in a track index. The
+            server already forces these to multiple choice, so offering the button would not
+            break anything; it would just promise a way to play that does not exist.
           */}
           <div className={selected.group === 'movie' ? 'grid gap-2' : 'grid grid-cols-2 gap-2'}>
             {selected.group !== 'movie' && (

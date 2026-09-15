@@ -1970,14 +1970,14 @@ export interface MovieCollection {
 export const MOVIE_COLLECTIONS: MovieCollection[] = [
   {
     id: 'movies-bollywood',
-    label: 'Guess the Movie: Bollywood',
+    label: 'Bollywood Films',
     blurb: 'Name the Hindi film from its song',
     kind: 'songs',
     movies: BOLLYWOOD_MOVIES,
   },
   {
     id: 'movies-hollywood',
-    label: 'Guess the Movie: Hollywood',
+    label: 'Hollywood Films',
     blurb: 'Name the film from its soundtrack',
     kind: 'songs',
     movies: HOLLYWOOD_MOVIES,
@@ -1989,21 +1989,21 @@ export const MOVIE_COLLECTIONS: MovieCollection[] = [
    */
   {
     id: 'movies-anime',
-    label: 'Guess the Anime',
+    label: 'Anime',
     blurb: 'Ghibli, Attack on Titan, Chainsaw Man — name the anime from its score',
     kind: 'score',
     movies: ANIME_TITLES,
   },
   {
     id: 'movies-games',
-    label: 'Guess the Game: Video Games',
+    label: 'Video Games',
     blurb: 'Elden Ring, Minecraft, Undertale — name the game from its soundtrack',
     kind: 'score',
     movies: GAME_SOUNDTRACKS,
   },
   {
     id: 'movies-scores',
-    label: 'Guess the Movie: Film Scores',
+    label: 'Film Scores',
     blurb: 'Interstellar, Jurassic Park, Ghibli — name the film from its score',
     kind: 'score',
     movies: SCORE_MOVIES,

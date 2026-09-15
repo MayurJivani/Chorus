@@ -1,5 +1,5 @@
 /**
- * Guess the Movie's landing page — the mode's front door, not a slice of the category list.
+ * Soundtracks' landing page — the mode's front door, not a slice of the category list.
  *
  * Each collection offers all three ways to play it up front. Burying multiplayer behind a
  * separate page meant the only obvious thing to do with a collection was play it alone, which
@@ -13,7 +13,7 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import type { MovieCollection } from '../types/api';
 
 export function MoviePickerPage() {
-  usePageTitle('Guess the Movie');
+  usePageTitle('Soundtracks');
   const navigate = useNavigate();
   const [collections, setCollections] = useState<MovieCollection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,9 +29,9 @@ export function MoviePickerPage() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-4 sm:pt-6">
       <header className="mb-6 text-center">
-        <h1 className="text-3xl font-extrabold text-white sm:text-4xl">Guess the Movie</h1>
+        <h1 className="text-3xl font-extrabold text-white sm:text-4xl">Soundtracks</h1>
         <p className="mt-1 text-sm text-slate-400">
-          A few seconds of a soundtrack. Name what it came from.
+          A few seconds of music. Name the film, game or anime it came from.
         </p>
       </header>
 
@@ -58,9 +58,7 @@ export function MoviePickerPage() {
                   blurb happened to be long. */}
               <div className="flex items-center justify-between gap-2">
                 <h2 className="min-w-0 text-lg font-bold leading-tight text-white">
-                  {/* The mode's name is already the page title; repeating it on every card
-                      just pushed the part that distinguishes them off small screens. */}
-                  {collection.label.replace(/^Guess the (?:Movie|Game):\s*/, '')}
+                  {collection.label}
                 </h2>
                 <div className="flex shrink-0 items-center gap-1.5">
                   {collection.kind === 'score' && (

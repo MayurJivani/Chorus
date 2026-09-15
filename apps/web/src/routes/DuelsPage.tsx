@@ -92,7 +92,14 @@ export function DuelsPage() {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col items-center gap-1 text-center"
       >
-        <h1 className="text-3xl font-extrabold tracking-tight text-white">Duels</h1>
+        <h1 className="flex items-center justify-center gap-2 text-3xl font-extrabold tracking-tight text-white">
+          Duels
+          {/* Beta because the ratings are real but young: the ladders were reset recently and a
+              rating only means something once enough duels have settled on it. */}
+          <span className="rounded-full border border-chorusify-accent2/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-chorusify-accent2">
+            Beta
+          </span>
+        </h1>
         <p className="text-sm text-slate-500">Live 1v1 — same songs, same moment, rated</p>
       </motion.div>
 

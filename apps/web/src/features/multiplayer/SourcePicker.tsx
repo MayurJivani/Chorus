@@ -94,7 +94,7 @@ export function SourcePicker({
           [
             ['artist', 'Artist'],
             ['category', 'Category'],
-            ['movie', 'Movie'],
+            ['movie', 'Soundtrack'],
           ] as [SourceKind, string][]
         ).map(([k, label]) => (
           <button
@@ -135,15 +135,13 @@ export function SourcePicker({
           {(kind === 'category'
             ? categories.map((c) => ({
                 id: c.id,
-                // Every movie collection is prefixed "Guess the Movie:", which in a two-column
-                // grid pushes the only distinguishing word out of view.
                 label: c.label,
                 here: (c.playing ?? 0) + (c.queued ?? 0),
                 pick: () => onChange({ kind: 'category' as const, category: c }),
               }))
             : movies.map((m) => ({
                 id: m.id,
-                label: m.label.replace(/^Guess the (?:Movie|Game):\s*/, ''),
+                label: m.label,
                 here: (m.playing ?? 0) + (m.queued ?? 0),
                 pick: () => onChange({ kind: 'movie' as const, collection: m }),
               }))
