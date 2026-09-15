@@ -57,7 +57,7 @@ export function MoviePickerPage() {
                   blurb, which dropped them onto their own line only for the collections whose
                   blurb happened to be long. */}
               <div className="flex items-center justify-between gap-2">
-                <h2 className="min-w-0 truncate text-lg font-bold text-white">
+                <h2 className="min-w-0 text-lg font-bold leading-tight text-white">
                   {/* The mode's name is already the page title; repeating it on every card
                       just pushed the part that distinguishes them off small screens. */}
                   {collection.label.replace(/^Guess the (?:Movie|Game):\s*/, '')}

@@ -122,7 +122,7 @@ export function SourcePicker({
         <ArtistSearchInput onSelect={(artist) => onChange({ kind: 'artist', artist })} />
       ) : (
         <div
-          className={`glass grid w-full grid-cols-2 gap-2 overflow-y-auto rounded-2xl p-3 sm:grid-cols-3 ${
+          className={`glass grid w-full auto-rows-min grid-cols-2 items-stretch gap-2 overflow-y-auto rounded-2xl p-3 sm:grid-cols-3 ${
             compact ? 'max-h-44' : 'max-h-64'
           }`}
         >
@@ -160,7 +160,13 @@ export function SourcePicker({
                   : 'border-white/5 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]')
               }
             >
-              <span className="block truncate">{item.label}</span>
+              {/*
+                Wraps rather than truncates. A single line at this width cut ten of the
+                seventy-odd names — "Top Worldwide 2025" became "Top Worldwide 20…", losing the
+                year, which is the only thing distinguishing it from "Top Worldwide Now". A name
+                you cannot read is not a choice you can make.
+              */}
+              <span className="block leading-tight">{item.label}</span>
               {/* Only shown where somebody actually is — a row of zeroes would just say
                   "nobody is anywhere", which is worse than saying nothing. */}
               {item.here > 0 && (
