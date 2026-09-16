@@ -169,3 +169,42 @@ describe('isTooIncomplete', () => {
     expect(isTooIncomplete(2, 4)).toBe(true);
   });
 });
+
+/**
+ * A soundtrack album is mostly filler: of forty cues perhaps six are ones anyone could name.
+ * Rounds drawn from the rest are unanswerable rather than hard, which is what this trims.
+ */
+describe('keepPopular', () => {
+  const { keepPopular } = __testing;
+  const track = (id: string) => ({
+    deezerTrackId: id,
+    title: 'Some Film',
+    artist: `Song ${id}`,
+    albumArtUrl: null,
+    durationSeconds: 200,
+  });
+
+  it('keeps the better-known half of an album', () => {
+    const tracks = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].map(track);
+    const ranks = new Map(tracks.map((t, i) => [t.deezerTrackId, i * 100]));
+    const kept = keepPopular(tracks, ranks);
+
+    expect(kept).toHaveLength(5);
+    // The highest ranked survive; the quiet end of the album goes.
+    expect(kept.map((t) => t.deezerTrackId)).toEqual(['j', 'i', 'h', 'g', 'f']);
+  });
+
+  it('never empties a short album', () => {
+    // A film with nothing left is worse than one with a couple of quiet songs in it.
+    const tracks = ['a', 'b', 'c'].map(track);
+    expect(keepPopular(tracks, new Map())).toHaveLength(3);
+  });
+
+  it('judges each album against itself rather than a fixed cutoff', () => {
+    // A Bollywood hit and an obscure score sit in completely different rank ranges, so any
+    // absolute threshold would empty one and pass the whole of the other.
+    const obscure = ['a', 'b', 'c', 'd', 'e', 'f'].map(track);
+    const lowRanks = new Map(obscure.map((t, i) => [t.deezerTrackId, i]));
+    expect(keepPopular(obscure, lowRanks)).toHaveLength(4);
+  });
+});

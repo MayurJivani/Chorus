@@ -16,6 +16,8 @@ export interface GameConfig {
   challengeRounds: number;
   /** Join-by-sound (Beta). */
   knockJoinEnabled: boolean;
+  /** Soundtrack pools keep only the better-known half of each album. */
+  soundtrackPopularOnly: boolean;
 }
 
 const FALLBACK: GameConfig = {
@@ -25,6 +27,7 @@ const FALLBACK: GameConfig = {
   // Beta and off unless an admin turns it on, so a failed config fetch never starts listening
   // on a microphone the player did not agree to.
   knockJoinEnabled: false,
+  soundtrackPopularOnly: false,
 };
 
 const GameConfigContext = createContext<GameConfig>(FALLBACK);

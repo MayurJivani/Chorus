@@ -120,6 +120,15 @@ export const SETTING_DEFS = {
    * and does not work at all on some browsers, so it has to be opted into rather than
    * appearing unannounced in a room full of people.
    */
+  soundtrackPopularOnly: {
+    group: 'multiplayer',
+    label: 'Soundtracks: well-known tracks only',
+    help: 'Drop the obscure half of each soundtrack album. A film album is mostly cues and filler nobody has heard, and a round drawn from those is unanswerable rather than hard. Uses Deezer play rank, so it adapts per album instead of a fixed cutoff. Rebuild happens on the next pool refresh.',
+    schema: z.boolean(),
+    default: false,
+    control: { kind: 'boolean' },
+  } satisfies SettingDef<boolean>,
+
   knockJoinEnabled: {
     group: 'multiplayer',
     label: 'Join by sound (Beta)',
@@ -386,6 +395,7 @@ export interface PublicGameConfig {
   challengeRounds: number;
   /** Join-by-sound, Beta. Both the broadcasting host and the listening phone read this. */
   knockJoinEnabled: boolean;
+  soundtrackPopularOnly: boolean;
 }
 
 export async function getPublicGameConfig(): Promise<PublicGameConfig> {
@@ -395,5 +405,6 @@ export async function getPublicGameConfig(): Promise<PublicGameConfig> {
     maxGuesses: settings.snippetScheduleSeconds.length,
     challengeRounds: settings.challengeRounds,
     knockJoinEnabled: settings.knockJoinEnabled,
+    soundtrackPopularOnly: settings.soundtrackPopularOnly,
   };
 }

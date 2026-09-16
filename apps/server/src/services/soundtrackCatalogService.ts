@@ -79,6 +79,33 @@ interface DeezerAlbumTrack {
   preview?: string | null;
   duration?: number;
   artist?: { name?: string };
+  /** Deezer's play-count rank. Only meaningful relative to its own album. */
+  rank?: number;
+}
+
+/**
+ * Keeps the better-known half of an album when the admin has asked for it.
+ *
+ * A soundtrack is mostly filler. Of forty cues on a score album perhaps six are ones anyone
+ * could name, and a round drawn from the other thirty-four is unanswerable rather than hard.
+ * Rank is a play count, so it says exactly which those are.
+ *
+ * Relative rather than a fixed cutoff: a Bollywood hit and an obscure indie score sit in
+ * completely different rank ranges, and any absolute threshold would empty one and pass the
+ * whole of the other. The top half of each album applies the same judgement evenly.
+ *
+ * Never cuts below four, because a film with nothing left is worse than one with a couple of
+ * quiet songs in it.
+ */
+const POPULAR_FRACTION = 0.5;
+const MIN_KEPT_PER_ALBUM = 4;
+
+function keepPopular(tracks: ArtistTrack[], ranks: Map<string, number>): ArtistTrack[] {
+  if (tracks.length <= MIN_KEPT_PER_ALBUM) return tracks;
+  const keep = Math.max(MIN_KEPT_PER_ALBUM, Math.ceil(tracks.length * POPULAR_FRACTION));
+  return [...tracks]
+    .sort((a, b) => (ranks.get(b.deezerTrackId) ?? 0) - (ranks.get(a.deezerTrackId) ?? 0))
+    .slice(0, keep);
 }
 
 interface DeezerAlbumResponse {
@@ -124,17 +151,20 @@ async function fetchAlbumBody(album: SoundtrackTitle): Promise<DeezerAlbumRespon
 async function fetchSoundtrackTitle(
   album: SoundtrackTitle,
   kind: SoundtrackKind,
+  popularOnly: boolean,
 ): Promise<FetchedAlbum> {
   const body = await fetchAlbumBody(album);
 
   const cover = body.cover_medium ?? null;
   const out: FetchedAlbum = { tracks: [], seeds: [] };
+  const ranks = new Map<string, number>();
   for (const track of body.tracks?.data ?? []) {
     if (!track.id || !track.title || !track.preview) continue;
     if (isUnwantedVersion(track.title) || isNonSong(track.title, kind)) continue;
     const deezerTrackId = String(track.id);
     const songLabel = track.artist?.name ? `${track.title} · ${track.artist.name}` : track.title;
     const durationSeconds = track.duration ?? 0;
+    ranks.set(deezerTrackId, track.rank ?? 0);
     out.tracks.push({
       deezerTrackId,
       // The film is the answer, so it goes in the field every existing round path treats as one.
@@ -150,6 +180,7 @@ async function fetchSoundtrackTitle(
       artist: songLabel,
     });
   }
+  if (popularOnly) out.tracks = keepPopular(out.tracks, ranks);
   return out;
 }
 
@@ -184,6 +215,7 @@ interface FetchOutcome {
 async function fetchAllAlbums(
   albums: SoundtrackTitle[],
   kind: SoundtrackKind,
+  popularOnly: boolean,
 ): Promise<FetchOutcome> {
   const tracks: ArtistTrack[] = [];
   const seeds: FetchedAlbum['seeds'] = [];
@@ -192,7 +224,7 @@ async function fetchAllAlbums(
   for (let i = 0; i < albums.length; i += ALBUM_FETCH_CONCURRENCY) {
     const batch = albums.slice(i, i + ALBUM_FETCH_CONCURRENCY);
     const results = await Promise.allSettled(
-      batch.map((album) => fetchSoundtrackTitle(album, kind)),
+      batch.map((album) => fetchSoundtrackTitle(album, kind, popularOnly)),
     );
     for (const [index, result] of results.entries()) {
       if (result.status === 'fulfilled') {
@@ -271,11 +303,12 @@ function refreshInBackground(
   label: string,
   albums: SoundtrackTitle[],
   kind: SoundtrackKind,
+  popularOnly: boolean,
 ): void {
   if (refreshing.has(collectionId)) return;
   refreshing.add(collectionId);
 
-  void fetchAllAlbums(albums, kind)
+  void fetchAllAlbums(albums, kind, popularOnly)
     .then(async ({ tracks: raw, failed }) => {
       // Never overwrite a good stored pool with a throttled one.
       if (isTooIncomplete(failed.length, albums.length)) {
@@ -302,6 +335,9 @@ export async function getSoundtrackCatalog(
   albums: SoundtrackTitle[],
   kind: SoundtrackKind = 'songs',
 ): Promise<ArtistTrack[]> {
+  // Read once per build rather than per album, so a mid-fetch admin change cannot produce a
+  // pool that is half filtered and half not.
+  const popularOnly = (await getSettings()).soundtrackPopularOnly;
   let stored;
   try {
     stored = await readPool(collectionId);
@@ -312,12 +348,12 @@ export async function getSoundtrackCatalog(
   if (stored && stored.trackCount >= MIN_MOVIE_TRACKS) {
     const refreshAfterMs = (await getSettings()).categoryPoolRefreshHours * 60 * 60 * 1000;
     if (Date.now() - stored.fetchedAt.getTime() > refreshAfterMs) {
-      void refreshInBackground(collectionId, label, albums, kind);
+      void refreshInBackground(collectionId, label, albums, kind, popularOnly);
     }
     return stored.tracks;
   }
 
-  const { tracks: raw, failed } = await fetchAllAlbums(albums, kind);
+  const { tracks: raw, failed } = await fetchAllAlbums(albums, kind, popularOnly);
   const tracks = buildSoundtrackPool(raw);
   if (tracks.length < MIN_MOVIE_TRACKS) {
     throw new Error(`Not enough playable tracks in ${label}`);
@@ -341,4 +377,4 @@ export async function getSoundtrackCatalog(
   return tracks;
 }
 
-export const __testing = { buildSoundtrackPool, isNonSong, isTooIncomplete };
+export const __testing = { buildSoundtrackPool, isNonSong, isTooIncomplete, keepPopular };
