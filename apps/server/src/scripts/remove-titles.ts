@@ -22,6 +22,10 @@ const SOUNDTRACKS_TS = path.join(process.cwd(), 'apps/server/src/services/soundt
 
 const norm = (s: string) =>
   s
+    // Folded, not stripped: otherwise "Pokemon" typed on a plain keyboard never matches the
+    // "Pokémon" in the file, because the accent would become a word break.
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
