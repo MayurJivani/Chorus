@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { VinylSpinner } from '../features/easter-eggs/VinylSpinner';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSession } from '../hooks/useSession';
@@ -27,7 +28,7 @@ export function ProfilePage() {
   if (loading || !user || !profile) {
     return (
       <div className="flex min-h-full items-center justify-center">
-        <p className="text-slate-400">Loading...</p>
+        <VinylSpinner text="Loading profile…" />
       </div>
     );
   }

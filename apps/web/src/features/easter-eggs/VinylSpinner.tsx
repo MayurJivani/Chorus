@@ -1,14 +1,18 @@
-import { motion } from 'framer-motion';
-
 export function VinylSpinner({ size = 40, text = 'Loading...' }: { size?: number; text?: string }) {
   return (
     <div className="flex flex-col items-center gap-3 cursor-vinyl">
-      <motion.svg
+      {/*
+       * Spun by CSS rather than framer-motion: a constant rotation is exactly what `animate-spin`
+       * is for, so the library bought nothing here and a major bump can no longer change how the
+       * loader behaves. Duration is overridden because Tailwind's default 1s reads as a spinner
+       * rather than a turntable.
+       */}
+      <svg
+        className="animate-spin motion-reduce:animate-none"
+        style={{ animationDuration: '1.5s' }}
         width={size}
         height={size}
         viewBox="0 0 40 40"
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
       >
         {/* Outer disc */}
         <circle cx="20" cy="20" r="19" fill="#1a1a1a" stroke="#333" strokeWidth="0.5" />
@@ -34,7 +38,7 @@ export function VinylSpinner({ size = 40, text = 'Loading...' }: { size?: number
             <stop offset="100%" stopColor="transparent" />
           </radialGradient>
         </defs>
-      </motion.svg>
+      </svg>
       {text && <span className="text-sm text-slate-400 animate-pulse">{text}</span>}
     </div>
   );

@@ -6,6 +6,7 @@
  * is the least interesting of the three for a mode that is mostly fun to argue about.
  */
 import { useEffect, useState } from 'react';
+import { VinylSpinner } from '../features/easter-eggs/VinylSpinner';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getSoundtrackCollections } from '../api/soundtracks';
@@ -35,7 +36,11 @@ export function SoundtrackPickerPage() {
         </p>
       </header>
 
-      {loading && <p className="py-10 text-center text-sm text-slate-400">Loading collections…</p>}
+      {loading && (
+        <div className="py-10">
+          <VinylSpinner text="Loading collections…" />
+        </div>
+      )}
       {failed && (
         <p className="py-10 text-center text-sm text-slate-400">
           Could not load the collections. Please try again.

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { VinylSpinner } from '../easter-eggs/VinylSpinner';
 import { getSurvivalLeaderboard } from '../../api/survival';
 import type { SurvivalLeaderboard } from '../../types/api';
 
@@ -50,7 +51,9 @@ export function SurvivalLeaderboardPanel({ mode }: { mode: 'search' | 'choice' }
       </div>
 
       {loading ? (
-        <p className="py-2 text-sm text-slate-400">Loading streaks…</p>
+        <div className="py-2">
+          <VinylSpinner size={28} text="Loading streaks…" />
+        </div>
       ) : !data || data.entries.length === 0 ? (
         <p className="py-4 text-center text-sm text-slate-400">
           No ranked streaks yet. Be the first!

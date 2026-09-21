@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { VinylSpinner } from '../easter-eggs/VinylSpinner';
 import type { ArtistLeaderboardEntry, SourceStanding } from '../../types/api';
 
 /**
@@ -35,7 +36,11 @@ function Board({
   footer?: ReactNode;
 }) {
   if (loading) {
-    return <p className="text-sm text-slate-400 text-center py-2">Loading leaderboard...</p>;
+    return (
+      <div className="py-2">
+        <VinylSpinner size={28} text="Loading leaderboard…" />
+      </div>
+    );
   }
 
   return (

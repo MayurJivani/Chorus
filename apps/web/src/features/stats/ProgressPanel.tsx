@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { VinylSpinner } from '../easter-eggs/VinylSpinner';
 import { motion } from 'framer-motion';
 import { getMyProgress } from '../../api/stats';
 import type { AchievementView, MasteryEntry, ProgressSummary } from '../../types/api';
@@ -40,7 +41,12 @@ export function ProgressPanel() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p className="text-sm text-slate-400">Loading progress…</p>;
+  if (loading)
+    return (
+      <div className="py-2">
+        <VinylSpinner size={28} text="Loading progress…" />
+      </div>
+    );
   if (!progress) return null;
 
   const { level, sources, byMode, byCategoryGroup, survival, daily, duels, mastery } = progress;

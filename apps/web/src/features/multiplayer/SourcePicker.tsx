@@ -5,6 +5,7 @@
  * which categories exist.
  */
 import { useEffect, useState } from 'react';
+import { VinylSpinner } from '../easter-eggs/VinylSpinner';
 import { ArtistSearchInput } from '../artist/ArtistSearchInput';
 import { getCategories } from '../../api/categories';
 import { getSoundtrackCollections } from '../../api/soundtracks';
@@ -130,7 +131,9 @@ export function SourcePicker({
             <p className="col-span-full py-4 text-center text-sm text-slate-400">{error}</p>
           )}
           {!error && (kind === 'category' ? categories : movies).length === 0 && (
-            <p className="col-span-full py-4 text-center text-sm text-slate-400">Loading…</p>
+            <div className="col-span-full py-4">
+              <VinylSpinner size={28} text="Loading…" />
+            </div>
           )}
           {(kind === 'category'
             ? categories.map((c) => ({

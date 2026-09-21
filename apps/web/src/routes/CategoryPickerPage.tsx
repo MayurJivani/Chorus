@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getCategories } from '../api/categories';
+import { VinylSpinner } from '../features/easter-eggs/VinylSpinner';
 import { usePageTitle } from '../hooks/usePageTitle';
 import type { Category, CategoryGroup } from '../types/api';
 
@@ -86,7 +87,11 @@ export function CategoryPickerPage() {
         </p>
       </motion.div>
 
-      {loading && <p className="text-sm text-slate-400">Loading categories…</p>}
+      {loading && (
+        <div className="py-10">
+          <VinylSpinner text="Loading categories…" />
+        </div>
+      )}
 
       {failed && (
         <p className="text-sm text-chorusify-danger">

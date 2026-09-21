@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { SnippetPlayer } from '../game/SnippetPlayer';
+import { VinylSpinner } from '../easter-eggs/VinylSpinner';
 import { SongPreviewButton } from '../game/SongPreviewButton';
 import { SnippetProgressBar } from '../game/SnippetProgressBar';
 import { AttemptPips } from '../game/AttemptPips';
@@ -314,7 +315,9 @@ function ChallengeLoading({ slowHint }: { slowHint: string }) {
           ))}
         </div>
 
-        <div className="h-28 w-28 rounded-2xl bg-white/10 animate-pulse" />
+        {/* Sits where the album art lands, so the wait spins a record in the slot the game
+            is about to fill rather than pulsing an empty box. */}
+        <VinylSpinner size={112} text="" />
 
         <div className="w-full space-y-2">
           <div className="h-11 w-full rounded-xl bg-white/[0.07] animate-pulse" />

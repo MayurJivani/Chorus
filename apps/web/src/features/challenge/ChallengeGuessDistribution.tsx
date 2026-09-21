@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { VinylSpinner } from '../easter-eggs/VinylSpinner';
 import { motion } from 'framer-motion';
 import type { GuessDistributionBucket } from '../../types/api';
 
@@ -30,7 +31,11 @@ export function ChallengeGuessDistribution({ load }: ChallengeGuessDistributionP
   }, [load]);
 
   if (loading) {
-    return <p className="text-sm text-slate-400 text-center py-2">Loading stats...</p>;
+    return (
+      <div className="py-2">
+        <VinylSpinner size={28} text="Loading stats…" />
+      </div>
+    );
   }
 
   const totalAll = buckets.reduce((sum, b) => sum + b.allPlayers, 0);
