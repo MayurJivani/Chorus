@@ -44,4 +44,7 @@ coverage/
 apps/server/check-tmp.ts
 apps/server/match-tmp.ts
 apps/server/pool.json
-.claude/launch.json
+
+# Claude Code and local tooling
+.claude/
+.codegraph/
