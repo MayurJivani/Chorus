@@ -5,7 +5,7 @@ alongside). Ultrasonic room joining: the host screen plays a frame carrying the
 room code, phones in earshot decode it and join.
 
 The commit is the useful half of that line. A version alone does not move
-between releases, so it cannot tell you the copy has fallen behind — which it
+between releases, so it cannot tell you the copy has fallen behind, which it
 had, by two upstream changes, before this one.
 
 `relay.js` is deliberately not copied: a store-and-forward relay trades away the
@@ -13,7 +13,7 @@ proximity claim, and Chorusify has no use for the trade. `index.js` and
 `index.d.ts` are the upstream ones with the `Relayer` exports removed.
 
 **Vendored rather than depended on.** The package is not published to npm, and a
-`file:../Knock` dependency cannot resolve inside the container — the Docker build
+`file:../Knock` dependency cannot resolve inside the container, because the Docker build
 context is the Chorus directory alone, so the sibling checkout does not exist at
 build time. It is ~460 lines of dependency-free ES modules with no build step, so
 copying is cheaper than the alternatives.
