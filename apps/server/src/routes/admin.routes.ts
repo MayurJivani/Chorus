@@ -14,7 +14,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { and, asc, desc, eq, gte, ilike, inArray, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { dailyPuzzles, gameResults, songs, users } from '../db/schema';
+import { artistTrackPools, dailyPuzzles, gameResults, songs, users } from '../db/schema';
+import { CATEGORIES, findCategory, isSoundtrackCategory } from '../services/categories';
 import { getUtcDateString, previewUpcomingPuzzles } from '../services/puzzleService';
 import {
   describeSettings,
@@ -529,5 +530,79 @@ adminRouter.delete(
     const closed = forceCloseRoom(code);
     if (!closed) throw new HttpError(404, 'No such room');
     res.json({ ok: true });
+  }),
+);
+
+// --- Category and collection pools -------------------------------------------------------
+//
+// Reads the *stored* pool rather than building one. Listing what a category actually contains
+// is a read, and it should stay a read: building Hollywood Films means refetching 902 albums
+// from Deezer behind one admin click, on the same rate limit that has already produced a
+// silently-truncated pool once. A category nobody has played yet reports itself as not built,
+// which is the true answer, and playing it once fills this in.
+
+adminRouter.get(
+  '/pools',
+  asyncHandler(async (_req, res) => {
+    const stored = await db
+      .select({
+        id: artistTrackPools.deezerArtistId,
+        trackCount: artistTrackPools.trackCount,
+        fetchedAt: artistTrackPools.fetchedAt,
+      })
+      .from(artistTrackPools)
+      .where(eq(artistTrackPools.includeFeatures, false));
+
+    const byId = new Map(stored.map((row) => [row.id, row]));
+
+    res.json({
+      pools: CATEGORIES.map((category) => {
+        const row = byId.get(category.id);
+        return {
+          id: category.id,
+          label: category.label,
+          group: category.group,
+          // The curated title count, which is what the catalogue promises, against the track
+          // count actually cached — the gap is how many albums Deezer really gave us.
+          titleCount: category.titles?.length ?? null,
+          trackCount: row?.trackCount ?? null,
+          fetchedAt: row?.fetchedAt ?? null,
+        };
+      }),
+    });
+  }),
+);
+
+adminRouter.get(
+  '/pools/:id',
+  validate(z.object({ id: z.string().min(1) }), 'params'),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params as { id: string };
+    const category = findCategory(id);
+    if (!category) throw new HttpError(404, 'No such category');
+
+    const rows = await db
+      .select({ tracks: artistTrackPools.tracks, fetchedAt: artistTrackPools.fetchedAt })
+      .from(artistTrackPools)
+      .where(
+        and(eq(artistTrackPools.deezerArtistId, id), eq(artistTrackPools.includeFeatures, false)),
+      )
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) throw new HttpError(404, 'That pool has not been built yet; play it once first');
+
+    res.json({
+      label: category.label,
+      // Soundtrack pools put the film in `title` and "song · performer" in `artist`, so the
+      // client is told which shape it is rather than having to guess from the text.
+      answerIsTitle: isSoundtrackCategory(category),
+      fetchedAt: row.fetchedAt,
+      tracks: row.tracks.map((t) => ({
+        deezerTrackId: t.deezerTrackId,
+        title: t.title,
+        artist: t.artist,
+      })),
+    });
   }),
 );

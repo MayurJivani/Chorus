@@ -671,3 +671,22 @@ export interface AdminRoom {
     joinedAt: number;
   }[];
 }
+
+export interface AdminPool {
+  id: string;
+  label: string;
+  group: string;
+  /** Curated titles for a soundtrack collection; null for a playlist-backed category. */
+  titleCount: number | null;
+  /** Null when the pool has never been built, which is not the same as an empty pool. */
+  trackCount: number | null;
+  fetchedAt: string | null;
+}
+
+export interface AdminPoolTracks {
+  label: string;
+  /** Soundtrack pools carry the film in `title` and "song · performer" in `artist`. */
+  answerIsTitle: boolean;
+  fetchedAt: string;
+  tracks: { deezerTrackId: string; title: string; artist: string }[];
+}

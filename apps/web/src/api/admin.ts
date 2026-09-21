@@ -2,6 +2,8 @@ import { apiRequest } from './client';
 import type {
   AdminDailyPuzzleList,
   AdminDashboard,
+  AdminPool,
+  AdminPoolTracks,
   AdminRoom,
   AdminSong,
   AdminUser,
@@ -103,4 +105,14 @@ export async function getAdminRooms(): Promise<{ rooms: AdminRoom[] }> {
 
 export async function closeAdminRoom(code: string): Promise<{ ok: true }> {
   return apiRequest(`/admin/rooms/${code}`, { method: 'DELETE' });
+}
+
+// --- Category and collection pools -------------------------------------------------------
+
+export async function getAdminPools(): Promise<{ pools: AdminPool[] }> {
+  return apiRequest('/admin/pools');
+}
+
+export async function getAdminPoolTracks(id: string): Promise<AdminPoolTracks> {
+  return apiRequest(`/admin/pools/${encodeURIComponent(id)}`);
 }
