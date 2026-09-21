@@ -105,14 +105,16 @@ export const SETTING_DEFS = {
     label: 'Players per room',
     help: 'Upper limit on a room. Eight suits a group of friends; raise it for an audience, where one host plays to a crowd. Rooms already over a lowered limit are not kicked.',
     /*
-     * The old ceiling was 16, which made a streamer's room impossible regardless of how fast
-     * the server was — the first load test filled at eight and the other 142 clients were told
-     * the room was full. Broadcasts are one serialisation and the scoreboard is capped, so the
-     * cost per extra player is now a socket write rather than a share of O(N^2) work.
+     * 16 was too low to host an audience at all: the first load test filled at eight and the
+     * other 142 clients were told the room was full. It briefly went to 20000, which the
+     * broadcast work made survivable — one serialisation per frame, scoreboard capped at ten —
+     * but survivable is not the same as playable. A room of thousands is a scoreboard nobody
+     * can place themselves on, and everything below still runs in one process on one core.
+     * 100 is the size the game was actually tested at end to end.
      */
-    schema: positiveInt(2, 20000),
+    schema: positiveInt(2, 100),
     default: 8,
-    control: { kind: 'number', min: 2, max: 20000, unit: 'players' },
+    control: { kind: 'number', min: 2, max: 100, unit: 'players' },
   } satisfies SettingDef<number>,
 
   /*

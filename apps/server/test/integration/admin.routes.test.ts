@@ -323,8 +323,8 @@ describe('admin settings', () => {
     const res = await agent
       .patch('/api/admin/settings')
       .set('X-CSRF-Token', csrf)
-      // Above the 20000 ceiling. This used to be 999, which stopped being out of range when the
-      // cap was raised for streamer-sized rooms.
+      // Comfortably above the 100 ceiling. Deliberately not just over it, so it stays invalid
+      // if the cap moves again — this test broke once already when 999 stopped being too big.
       .send({ updates: [{ key: 'multiplayerMaxPlayers', value: 99999 }] });
 
     expect(res.status).toBe(400);

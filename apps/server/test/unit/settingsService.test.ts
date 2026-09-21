@@ -65,8 +65,8 @@ describe('updateSettings', () => {
       updateSettings(
         [
           { key: 'challengeRounds', value: 15 },
-          // Above the 20000 ceiling. This used to be 500, which stopped being invalid when the
-          // cap was raised for streamer-sized rooms.
+          // Comfortably above the 100 ceiling. Deliberately not just over it, so it stays
+          // invalid if the cap moves again — 500 stopped being invalid exactly that way.
           { key: 'multiplayerMaxPlayers', value: 99999 },
         ],
         null,
