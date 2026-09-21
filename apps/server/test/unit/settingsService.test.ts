@@ -65,7 +65,9 @@ describe('updateSettings', () => {
       updateSettings(
         [
           { key: 'challengeRounds', value: 15 },
-          { key: 'multiplayerMaxPlayers', value: 500 },
+          // Above the 20000 ceiling. This used to be 500, which stopped being invalid when the
+          // cap was raised for streamer-sized rooms.
+          { key: 'multiplayerMaxPlayers', value: 99999 },
         ],
         null,
       ),
