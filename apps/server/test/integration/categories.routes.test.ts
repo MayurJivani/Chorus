@@ -179,7 +179,8 @@ describe('category and artist boards stay separate', () => {
     const csrf = await getCsrfToken(agent);
     await agent.post('/api/auth/register').set('X-CSRF-Token', csrf).send({
       email: 'cat@example.test',
-      password: 'password123',
+      // Must clear `passwordProblems`, which rejects the common ones.
+      password: 'trombone-marmalade-77',
       displayName: 'Cat Player',
     });
 

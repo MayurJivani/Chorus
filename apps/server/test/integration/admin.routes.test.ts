@@ -21,6 +21,10 @@ import { getSettings, invalidateSettingsCache } from '../../src/services/setting
 
 const app = createApp();
 
+/** Has to clear `passwordProblems`: not a common password, no run of sequential characters, and
+ *  nothing derived from the account's own email or display name. */
+const TEST_PASSWORD = 'trombone-marmalade-77';
+
 function dateOffsetDays(days: number): string {
   return getUtcDateString(new Date(Date.now() + days * 24 * 60 * 60 * 1000));
 }
@@ -51,7 +55,7 @@ async function signIn(email: string, admin: boolean) {
   const res = await agent
     .post('/api/auth/register')
     .set('X-CSRF-Token', csrf)
-    .send({ email, password: 'password123', displayName: email.split('@')[0] });
+    .send({ email, password: TEST_PASSWORD, displayName: email.split('@')[0] });
 
   if (admin) {
     await db.update(users).set({ isAdmin: true }).where(eq(users.email, email));
@@ -319,7 +323,9 @@ describe('admin settings', () => {
     const res = await agent
       .patch('/api/admin/settings')
       .set('X-CSRF-Token', csrf)
-      .send({ updates: [{ key: 'multiplayerMaxPlayers', value: 999 }] });
+      // Above the 20000 ceiling. This used to be 999, which stopped being out of range when the
+      // cap was raised for streamer-sized rooms.
+      .send({ updates: [{ key: 'multiplayerMaxPlayers', value: 99999 }] });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toContain('Players per room');
