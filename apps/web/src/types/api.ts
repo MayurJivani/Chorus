@@ -690,3 +690,33 @@ export interface AdminPoolTracks {
   fetchedAt: string;
   tracks: { deezerTrackId: string; title: string; artist: string }[];
 }
+
+export interface AdminActivity {
+  /** Counted from sessions, so guests are included - most players never register. */
+  visitors: {
+    sessionsTotal?: number;
+    visitors24h?: number;
+    visitors7d?: number;
+    visitors30d?: number;
+    signedIn7d?: number;
+  };
+  recent: {
+    id: number;
+    player: string;
+    isUser: boolean;
+    source: string;
+    sourceType: string;
+    correct: number;
+    rounds: number;
+    completed: boolean;
+    seconds: number | null;
+    at: string;
+  }[];
+  byCategory: {
+    source: string;
+    sourceType: string;
+    runs: number;
+    completed: number;
+    avgCorrect: number;
+  }[];
+}

@@ -533,6 +533,92 @@ adminRouter.delete(
   }),
 );
 
+// --- Activity ----------------------------------------------------------------------------
+
+/**
+ * Who played what, and how many people showed up.
+ *
+ * The dashboard answers "how much is happening" with counters. This answers "what actually
+ * happened", which is a different question: a run of completions against one category tells you
+ * the category landed, and a stream of abandoned runs against another tells you it did not.
+ *
+ * Visitors are counted from `sessions`, which is every browser that has been issued a cookie,
+ * signed in or not. That is the honest denominator for a game most people try without
+ * registering — counting `users` would miss almost everyone.
+ */
+adminRouter.get(
+  '/activity',
+  validate(z.object({ limit: z.coerce.number().int().min(1).max(100).optional() }), 'query'),
+  asyncHandler(async (req, res) => {
+    const { limit = 40 } = req.query as unknown as { limit?: number };
+
+    const [visitors, recent, byCategory] = await Promise.all([
+      db.execute(sql`
+        SELECT
+          (SELECT COUNT(*) FROM sessions)::int AS "sessionsTotal",
+          (SELECT COUNT(*) FROM sessions WHERE created_at > now() - interval '1 day')::int
+            AS "visitors24h",
+          (SELECT COUNT(*) FROM sessions WHERE created_at > now() - interval '7 days')::int
+            AS "visitors7d",
+          (SELECT COUNT(*) FROM sessions WHERE created_at > now() - interval '30 days')::int
+            AS "visitors30d",
+          -- Signed-in share of the same window, which is the number that says whether the
+          -- account flow is worth anything.
+          (SELECT COUNT(*) FROM sessions
+             WHERE user_id IS NOT NULL AND created_at > now() - interval '7 days')::int
+            AS "signedIn7d"
+      `),
+
+      // One row per run, newest first. Guests are reported as guests rather than as a raw id:
+      // the id is not useful to a human and is more identifying than the answer needs to be.
+      db.execute(sql`
+        SELECT
+          r.id,
+          COALESCE(u.display_name, 'Guest')              AS "player",
+          (r.user_id IS NOT NULL)                        AS "isUser",
+          c.artist_name                                  AS "source",
+          c.source_type                                  AS "sourceType",
+          r.songs_correct                                AS "correct",
+          c.rounds                                       AS "rounds",
+          r.completed                                    AS "completed",
+          r.time_taken_seconds                           AS "seconds",
+          r.updated_at                                   AS "at"
+        FROM artist_session_results r
+        JOIN artist_challenges c ON c.id = r.challenge_id
+        LEFT JOIN users u ON u.id = r.user_id
+        ORDER BY r.updated_at DESC
+        LIMIT ${limit}
+      `),
+
+      // Completion rate per source over the last week. An abandoned run is the strongest
+      // signal a category is too hard, too obscure, or broken.
+      db.execute(sql`
+        SELECT
+          c.artist_name                                            AS "source",
+          c.source_type                                            AS "sourceType",
+          COUNT(*)::int                                            AS "runs",
+          COUNT(*) FILTER (WHERE r.completed)::int                 AS "completed",
+          ROUND(AVG(r.songs_correct)::numeric, 1)::float8          AS "avgCorrect"
+        FROM artist_session_results r
+        JOIN artist_challenges c ON c.id = r.challenge_id
+        WHERE r.updated_at > now() - interval '7 days'
+        GROUP BY c.artist_name, c.source_type
+        ORDER BY COUNT(*) DESC
+        LIMIT 20
+      `),
+    ]);
+
+    // `db.execute` hands back the rows directly here, same as the dashboard above.
+    const rows = <T>(result: unknown) => result as T[];
+
+    res.json({
+      visitors: rows<Record<string, number>>(visitors)[0] ?? {},
+      recent: rows<Record<string, unknown>>(recent),
+      byCategory: rows<Record<string, unknown>>(byCategory),
+    });
+  }),
+);
+
 // --- Category and collection pools -------------------------------------------------------
 //
 // Reads the *stored* pool rather than building one. Listing what a category actually contains

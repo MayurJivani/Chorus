@@ -1,6 +1,7 @@
 import { apiRequest } from './client';
 import type {
   AdminDailyPuzzleList,
+  AdminActivity,
   AdminDashboard,
   AdminPool,
   AdminPoolTracks,
@@ -115,4 +116,10 @@ export async function getAdminPools(): Promise<{ pools: AdminPool[] }> {
 
 export async function getAdminPoolTracks(id: string): Promise<AdminPoolTracks> {
   return apiRequest(`/admin/pools/${encodeURIComponent(id)}`);
+}
+
+// --- Activity ----------------------------------------------------------------------------
+
+export async function getAdminActivity(limit = 40): Promise<AdminActivity> {
+  return apiRequest(`/admin/activity?limit=${limit}`);
 }

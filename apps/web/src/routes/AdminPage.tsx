@@ -9,14 +9,24 @@ import { MultiplayerPanel } from '../features/admin/MultiplayerPanel';
 import { SongsPanel } from '../features/admin/SongsPanel';
 import { CardsPanel } from '../features/admin/CardsPanel';
 import { PoolsPanel } from '../features/admin/PoolsPanel';
+import { ActivityPanel } from '../features/admin/ActivityPanel';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { VinylSpinner } from '../features/easter-eggs/VinylSpinner';
 
 type Tab =
-  'overview' | 'settings' | 'schedule' | 'users' | 'multiplayer' | 'songs' | 'pools' | 'cards';
+  | 'overview'
+  | 'activity'
+  | 'settings'
+  | 'schedule'
+  | 'users'
+  | 'multiplayer'
+  | 'songs'
+  | 'pools'
+  | 'cards';
 
 const TABS: [Tab, string][] = [
   ['overview', 'Overview'],
+  ['activity', 'Activity'],
   ['settings', 'Game settings'],
   ['schedule', 'Daily schedule'],
   ['users', 'Users'],
@@ -99,6 +109,7 @@ export function AdminPage() {
       {tab === 'users' && <UsersPanel />}
       {tab === 'multiplayer' && <MultiplayerPanel />}
       {tab === 'songs' && <SongsPanel />}
+      {tab === 'activity' && <ActivityPanel />}
       {tab === 'pools' && <PoolsPanel />}
       {tab === 'cards' && <CardsPanel />}
     </div>
