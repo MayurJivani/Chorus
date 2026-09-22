@@ -112,6 +112,6 @@ Argon2id · opaque server-side sessions · double-submit CSRF · rate limiting �
 
 <div align="center">
 
-**Built for people who guess the song from the first half-second.**
+**Built with ❤️ and 🎵**
 
 </div>
