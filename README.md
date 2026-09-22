@@ -18,9 +18,6 @@
 [![Stars](https://img.shields.io/github/stars/MayurJivani/Chorus?style=flat-square)](https://github.com/MayurJivani/Chorus/stargazers)
 [![Issues](https://img.shields.io/github/issues/MayurJivani/Chorus?style=flat-square)](https://github.com/MayurJivani/Chorus/issues)
 ![Code size](https://img.shields.io/github/languages/code-size/MayurJivani/Chorus?style=flat-square)
-![snippet](https://img.shields.io/badge/snippet-1s%20to%2016s-ff1493?style=flat-square)
-![karaoke covers](https://img.shields.io/badge/karaoke%20covers-not%20accepted-critical?style=flat-square)
-![built for](https://img.shields.io/badge/built%20for-people%20who%20know%20the%20deep%20cuts-9b59b6?style=flat-square)
 
 </div>
 
