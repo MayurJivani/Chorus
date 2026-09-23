@@ -75,7 +75,13 @@ export interface MpSocket {
   close(code?: number, reason?: string): void;
 }
 
-export type MpRoomPhase = 'lobby' | 'playing' | 'round-reveal' | 'finished';
+/**
+ * `starting` covers the gap between the host pressing the button and the first round being
+ * ready. That gap is not small: a category nobody has played yet builds its pool from Deezer,
+ * and every candidate track then needs a fresh preview url. Without a phase for it the lobby
+ * looked untouched, so the host pressed start again and paid for the whole build twice.
+ */
+export type MpRoomPhase = 'lobby' | 'starting' | 'playing' | 'round-reveal' | 'finished';
 
 export interface MpPlayerState {
   playerId: string;
@@ -519,7 +525,15 @@ export function leaveRoom(playerId: string): void {
    * chose to let finish. Settled before the empty-room check below, because the leaver is
    * frequently the second-to-last socket and the room is about to be destroyed.
    */
-  if (room.duel && !room.duel.settled && room.phase !== 'lobby' && room.phase !== 'finished') {
+  // `starting` is excluded deliberately: the pool is still being built and nobody has heard a
+  // note, so leaving there is abandoning a lobby rather than fleeing a duel that is under way.
+  if (
+    room.duel &&
+    !room.duel.settled &&
+    room.phase !== 'lobby' &&
+    room.phase !== 'starting' &&
+    room.phase !== 'finished'
+  ) {
     const survivor = [...room.players.values()][0];
     if (leaver?.identity.userId && survivor?.identity.userId) {
       void settleDuelRoom(room, {
@@ -628,11 +642,23 @@ export async function startGame(playerId: string): Promise<void> {
     return sendError(playerId, 'Game already in progress.');
   }
 
+  // Claimed synchronously, before the first await. Everything below can take tens of seconds on
+  // a cold pool, and until this is set a second `start_game` would pass the phase check above
+  // and run the whole build again in parallel.
+  room.phase = 'starting';
+  broadcastRoomState(room);
+
+  /** Puts the room back in the lobby so the host can try again after anything that failed. */
+  const abort = (message: string) => {
+    room.phase = 'lobby';
+    broadcastRoomState(room);
+    sendError(playerId, message);
+  };
+
   try {
     const pool = await room.source.loadCatalog();
     if (pool.length < MP_MIN_ROUNDS) {
-      return sendError(
-        playerId,
+      return abort(
         `${room.source.label} only has ${pool.length} playable ${
           pool.length === 1 ? 'song' : 'songs'
         } — not enough for a game.`,
@@ -679,10 +705,7 @@ export async function startGame(playerId: string): Promise<void> {
     }
 
     if (chosen.length < room.rounds) {
-      return sendError(
-        playerId,
-        `Not enough tracks with playable audio available for ${room.source.label}.`,
-      );
+      return abort(`Not enough tracks with playable audio available for ${room.source.label}.`);
     }
 
     room.tracks = chosen;
@@ -710,7 +733,9 @@ export async function startGame(playerId: string): Promise<void> {
     startRound(room, 0);
   } catch (err) {
     logger.error({ err }, 'Failed to start multiplayer game');
-    sendError(playerId, 'Could not start the game, please try again.');
+    // Without this the room would be stuck in `starting` forever, with a spinner and no way
+    // back: the phase check at the top would reject every retry.
+    abort('Could not start the game, please try again.');
   }
 }
 

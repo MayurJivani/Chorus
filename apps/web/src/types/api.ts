@@ -185,7 +185,13 @@ export type GuessDistributionResponse = GuessDistributionBucket[];
 
 // --- Multiplayer Mode ----------------------------------------------------------------------
 
-export type MultiplayerPhase = 'lobby' | 'playing' | 'round-reveal' | 'finished';
+export type MultiplayerPhase =
+  | 'lobby'
+  /** Host pressed start; the pool is still being built. See MpRoomPhase on the server. */
+  | 'starting'
+  | 'playing'
+  | 'round-reveal'
+  | 'finished';
 
 export interface MultiplayerPlayer {
   playerId: string;

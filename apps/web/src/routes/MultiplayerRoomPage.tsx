@@ -9,6 +9,7 @@ import { MultiplayerResults } from '../features/multiplayer/MultiplayerResults';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useSession } from '../hooks/useSession';
 import { ensureMediaUnlocked } from '../features/game/SnippetPlayer';
+import { VinylSpinner } from '../features/easter-eggs/VinylSpinner';
 
 export function MultiplayerRoomPage() {
   usePageTitle('Game Room');
@@ -166,6 +167,25 @@ export function MultiplayerRoomPage() {
         onNextRound={nextRound}
         onLeave={handleLeave}
       />
+    );
+  }
+
+  // Shown to everyone, not just the host: the wait belongs to the room, and a lobby that looks
+  // untouched after the host presses start reads as a dead button. That is what made hosts press
+  // it twice and pay for the catalogue build twice.
+  if (room && room.phase === 'starting' && connectionStatus !== 'closed') {
+    return (
+      <Centered>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <VinylSpinner size={72} text="" />
+          <div>
+            <p className="font-bold text-white">Starting {room.label}…</p>
+            <p className="mt-1 text-sm text-slate-400">
+              Lining up the songs. The first game on a new category takes longer.
+            </p>
+          </div>
+        </div>
+      </Centered>
     );
   }
 

@@ -346,6 +346,40 @@ describe('multiplayerService round flow', () => {
     expect(lastOf(host, 'round_start')?.roundIndex).toBe(1);
   });
 
+  it('builds the catalogue once when the host presses start twice', async () => {
+    // A cold category can take tens of seconds to build, during which the lobby used to look
+    // untouched — so hosts pressed start again and the whole build ran a second time.
+    let loads = 0;
+    let release!: (tracks: ReturnType<typeof mockTracks>) => void;
+    const pending = new Promise<ReturnType<typeof mockTracks>>((resolve) => {
+      release = resolve;
+    });
+
+    const { code } = await createRoom({
+      ...categorySource(),
+      loadCatalog: () => {
+        loads += 1;
+        return pending;
+      },
+    });
+    const host = register('host', 'hostaaaa');
+    await join('host', code);
+
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(__getRoomPhase(code)).toBe('starting');
+
+    // The impatient second press, while the first build is still in flight.
+    handleClientMessage('host', { type: 'start_game' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(loads).toBe(1);
+    expect(lastOf(host, 'error')?.message).toContain('already in progress');
+
+    release(mockTracks(MP_ROUNDS * 2));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(__getRoomPhase(code)).toBe('playing');
+  });
+
   it('caps reveals at the end of the snippet schedule', async () => {
     const { code } = await createRoom(queenSource());
     const host = register('host', 'hostaaaa');
